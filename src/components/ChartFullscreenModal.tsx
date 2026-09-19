@@ -34,7 +34,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight
 } from 'lucide-react';
-import { MetricSnapshot, AlertThresholds } from '../types';
+import { MetricSnapshot, AlertThresholds, ChartTimeframe } from '../types';
 
 export type ChartType = 'cpu' | 'ram' | 'network' | 'disk' | 'cores' | 'latency';
 
@@ -45,8 +45,8 @@ interface ChartFullscreenModalProps {
   thresholds: AlertThresholds;
   isStreaming: boolean;
   onToggleStreaming: () => void;
-  timeframe: '5m' | '1h' | '24h' | '7d';
-  setTimeframe: (tf: '5m' | '1h' | '24h' | '7d') => void;
+  timeframe: ChartTimeframe;
+  setTimeframe: (tf: ChartTimeframe) => void;
 }
 
 export const ChartFullscreenModal: React.FC<ChartFullscreenModalProps> = ({
@@ -284,18 +284,24 @@ export const ChartFullscreenModal: React.FC<ChartFullscreenModalProps> = ({
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Timeframe pill selector */}
             <div className="flex items-center p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono">
-              {(['5m', '1h', '24h', '7d'] as const).map((tf) => (
+              {([
+                { id: 'live', label: 'Live' },
+                { id: '1h', label: '1 Giờ' },
+                { id: '6h', label: '6 Giờ' },
+                { id: '12h', label: '12 Giờ' },
+                { id: '24h', label: '24 Giờ' },
+              ] as const).map((tf) => (
                 <button
-                  key={tf}
-                  id={`fullscreen-timeframe-${tf}`}
-                  onClick={() => setTimeframe(tf)}
-                  className={`px-3 py-1 rounded-lg transition-all ${
-                    timeframe === tf
+                  key={tf.id}
+                  id={`fullscreen-timeframe-${tf.id}`}
+                  onClick={() => setTimeframe(tf.id)}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    timeframe === tf.id
                       ? 'bg-cyan-600 text-white font-bold shadow-sm'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  {tf === '5m' ? '5P (Live)' : tf === '1h' ? '1 Giờ' : tf === '24h' ? '24 Giờ' : '7 Ngày'}
+                  {tf.label}
                 </button>
               ))}
             </div>

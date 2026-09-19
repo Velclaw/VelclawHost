@@ -14,9 +14,17 @@ import {
   ToggleLeft,
   ToggleRight,
   ExternalLink,
-  Info
+  Info,
+  Layers,
+  Server,
+  Sparkles,
+  Bot,
+  Terminal,
+  Copy,
+  CheckCheck
 } from 'lucide-react';
-import { DnsRecord, SslInfo, HostNode } from '../types';
+import { DnsRecord, SslInfo, HostNode, VelclawTld, VelclawDomainConfig } from '../types';
+import { VELCLAW_DOMAINS } from '../mockData';
 
 interface DnsSslTabProps {
   dnsRecords: DnsRecord[];
@@ -37,6 +45,8 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
   onToggleProxy,
   onDeleteDnsRecord,
 }) => {
+  const [selectedTld, setSelectedTld] = useState<VelclawTld>('com');
+  const [domainList, setDomainList] = useState<VelclawDomainConfig[]>(VELCLAW_DOMAINS);
   const [isAddingRecord, setIsAddingRecord] = useState(false);
   const [recordType, setRecordType] = useState<DnsRecord['type']>('A');
   const [recordName, setRecordName] = useState('');
@@ -45,6 +55,9 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
   const [recordProxied, setRecordProxied] = useState(true);
   const [isVerifyingPropagation, setIsVerifyingPropagation] = useState(false);
   const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
+  const [copiedDomain, setCopiedDomain] = useState<string | null>(null);
+
+  const activeDomainConfig = domainList.find((d) => d.tld === selectedTld) || domainList[0];
 
   const worldwideLocations = [
     { city: 'Tokyo, JP', code: 'NRT', status: 'OK', latency: '6ms', ip: '104.21.78.142' },
@@ -55,19 +68,81 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
     { city: 'Sydney, AU', code: 'SYD', status: 'OK', latency: '52ms', ip: '104.21.78.142' },
   ];
 
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedDomain(text);
+    setTimeout(() => setCopiedDomain(null), 2500);
+  };
+
   const handleCreateRecord = (e: React.FormEvent) => {
     e.preventDefault();
     if (!recordName || !recordContent) return;
-    onAddDnsRecord({
+
+    const newRecord: DnsRecord = {
+      id: `${selectedTld}-${Date.now()}`,
       type: recordType,
       name: recordName,
       content: recordContent,
       ttl: recordTtl,
       proxied: recordProxied,
-    });
+      status: 'active',
+    };
+
+    setDomainList((prev) =>
+      prev.map((d) =>
+        d.tld === selectedTld
+          ? { ...d, dnsRecords: [newRecord, ...d.dnsRecords] }
+          : d
+      )
+    );
+
+    if (selectedTld === 'com') {
+      onAddDnsRecord({
+        type: recordType,
+        name: recordName,
+        content: recordContent,
+        ttl: recordTtl,
+        proxied: recordProxied,
+      });
+    }
+
     setRecordName('');
     setRecordContent('');
     setIsAddingRecord(false);
+  };
+
+  const handleToggleDomainProxy = (recordId: string) => {
+    setDomainList((prev) =>
+      prev.map((d) =>
+        d.tld === selectedTld
+          ? {
+              ...d,
+              dnsRecords: d.dnsRecords.map((r) =>
+                r.id === recordId ? { ...r, proxied: !r.proxied } : r
+              ),
+            }
+          : d
+      )
+    );
+    if (selectedTld === 'com') {
+      onToggleProxy(recordId);
+    }
+  };
+
+  const handleDeleteDomainRecord = (recordId: string) => {
+    setDomainList((prev) =>
+      prev.map((d) =>
+        d.tld === selectedTld
+          ? {
+              ...d,
+              dnsRecords: d.dnsRecords.filter((r) => r.id !== recordId),
+            }
+          : d
+      )
+    );
+    if (selectedTld === 'com') {
+      onDeleteDnsRecord(recordId);
+    }
   };
 
   const handleRunPropagationCheck = () => {
@@ -75,25 +150,43 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
     setVerifyMessage(null);
     setTimeout(() => {
       setIsVerifyingPropagation(false);
-      setVerifyMessage('Tất cả 6/6 trạm Anycast toàn cầu đã xác nhận phân giải DNS chuẩn xác (100% Propagation)!');
+      setVerifyMessage(`Tất cả 6/6 trạm Anycast toàn cầu đã xác nhận phân giải DNS chuẩn xác cho ${activeDomainConfig.domain} (100% Propagation)!`);
       setTimeout(() => setVerifyMessage(null), 5000);
-    }, 1200);
+    }, 1100);
+  };
+
+  const getTldIcon = (tld: VelclawTld) => {
+    switch (tld) {
+      case 'com':
+        return <Globe className="w-4 h-4 text-emerald-400" />;
+      case 'dev':
+        return <Terminal className="w-4 h-4 text-indigo-400" />;
+      case 'ai':
+        return <Bot className="w-4 h-4 text-purple-400" />;
+      case 'io':
+        return <Zap className="w-4 h-4 text-cyan-400" />;
+      case 'app':
+        return <Layers className="w-4 h-4 text-rose-400" />;
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-cyan-950/40 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Top Banner: Domain Strategy & Anti-CFD Notice */}
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-cyan-950/40 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold uppercase tracking-wider mb-1">
             <Globe className="w-4 h-4" />
-            <span>Cấu Hình DNS + HTTPS + HTTP</span>
+            <span>Hệ Thống Tên Miền Chính Thức Velclaw</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              5 Top-Level Domains (.com / .dev / .ai / .io / .app)
+            </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white font-mono">
-            Kết Nối Bảo Mật &amp; Ổn Định Tuyệt Đối
+            Quản Lý Cụm Tên Miền &amp; Ingress Routing
           </h2>
-          <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-            Hệ thống đã cấu hình sẵn chứng chỉ Let&apos;s Encrypt TLS 1.3, tự động chuyển hướng HTTP Port 80 sang HTTPS Port 443 bằng mã 301 Permanent Redirect, và đồng bộ Anycast DNSSEC.
+          <p className="text-xs text-slate-300 mt-1 max-w-2xl">
+            Đã loại bỏ hoàn toàn tên miền <span className="line-through text-rose-400 font-mono">velclaw.cfd</span>. Nền tảng Velclaw hiện quy chuẩn hoạt động trên 5 TLD cao cấp phân cấp theo từng mục tiêu hạ tầng: Thương mại, Lập trình, Trí tuệ nhân tạo, Gateway Ingress và SaaS Console.
           </p>
         </div>
 
@@ -101,11 +194,67 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
           id="check-propagation-btn"
           onClick={handleRunPropagationCheck}
           disabled={isVerifyingPropagation}
-          className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center gap-2 transition-all shadow-md shadow-cyan-950/50 disabled:opacity-50"
+          className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center gap-2 transition-all shadow-md shadow-cyan-950/50 disabled:opacity-50 whitespace-nowrap"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isVerifyingPropagation ? 'animate-spin' : ''}`} />
-          <span>{isVerifyingPropagation ? 'Đang kiểm tra Anycast...' : 'Kiểm Tra Phân Giải Toàn Cầu'}</span>
+          <span>{isVerifyingPropagation ? 'Đang kiểm tra Anycast...' : `Kiểm Tra ${activeDomainConfig.domain}`}</span>
         </button>
+      </div>
+
+      {/* 5-TLD Ecosystem Selector Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        {domainList.map((item) => {
+          const isSelected = item.tld === selectedTld;
+          return (
+            <button
+              key={item.tld}
+              id={`select-domain-tld-${item.tld}`}
+              onClick={() => setSelectedTld(item.tld)}
+              className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+                isSelected
+                  ? 'bg-slate-800/90 border-cyan-500/80 shadow-lg shadow-cyan-950/30 ring-1 ring-cyan-500/40'
+                  : 'bg-slate-900/60 border-slate-800/80 hover:bg-slate-800/50 hover:border-slate-700'
+              }`}
+            >
+              <div className="flex items-center justify-between w-full mb-2">
+                <div className="flex items-center gap-2">
+                  {getTldIcon(item.tld)}
+                  <span className="font-mono font-bold text-sm text-white">
+                    .{item.tld}
+                  </span>
+                </div>
+                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
+                  item.tld === 'com' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                  item.tld === 'dev' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' :
+                  item.tld === 'ai' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
+                  item.tld === 'io' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' :
+                  'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                }`}>
+                  {item.badge}
+                </span>
+              </div>
+
+              <div>
+                <div className="text-xs font-mono font-bold text-slate-200 truncate">
+                  {item.domain}
+                </div>
+                <div className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
+                  {item.role}
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono">
+                <span className="text-emerald-400 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  SSL Active
+                </span>
+                <span className="text-slate-500">
+                  {item.dnsRecords.length} records
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {verifyMessage && (
@@ -115,7 +264,54 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
         </div>
       )}
 
-      {/* SSL / HTTPS & HTTP Redirect Control Panel */}
+      {/* Active Domain Overview Banner */}
+      <div className="p-4 rounded-xl bg-slate-900 border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-cyan-400">
+            {getTldIcon(activeDomainConfig.tld)}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-base font-bold text-white tracking-wide">{activeDomainConfig.domain}</span>
+              <span className="text-xs text-slate-400">({activeDomainConfig.role})</span>
+            </div>
+            <p className="text-xs text-slate-400 font-sans mt-0.5">
+              {activeDomainConfig.description}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleCopy(activeDomainConfig.domain)}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs flex items-center gap-1.5 border border-slate-700 transition-colors"
+            title="Sao chép tên miền"
+          >
+            {copiedDomain === activeDomainConfig.domain ? (
+              <>
+                <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-400">Đã sao chép</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5 text-slate-400" />
+                <span>Copy Domain</span>
+              </>
+            )}
+          </button>
+          <a
+            href={`https://${activeDomainConfig.domain}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/30 text-xs flex items-center gap-1.5 transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            <span>Mở HTTPS</span>
+          </a>
+        </div>
+      </div>
+
+      {/* SSL / HTTPS & HTTP Redirect Control Panel for Current Domain */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* SSL Certificate Details */}
         <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-4">
@@ -125,8 +321,8 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
                 <Lock className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Chứng Chỉ SSL / TLS Certificate</h3>
-                <p className="text-xs text-slate-400">Giao thức mã hóa đầu-cuối end-to-end</p>
+                <h3 className="text-sm font-bold text-white">Chứng Chỉ SSL / TLS 1.3 ({activeDomainConfig.domain})</h3>
+                <p className="text-xs text-slate-400">Let&apos;s Encrypt Wildcard (*.{activeDomainConfig.domain})</p>
               </div>
             </div>
             <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -145,7 +341,7 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
             </div>
             <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
               <span className="text-slate-400 text-[10px] block">Phiên Bản TLS:</span>
-              <span className="text-emerald-400 font-semibold">{ssl.tlsVersion}</span>
+              <span className="text-emerald-400 font-semibold">{activeDomainConfig.tlsVersion}</span>
             </div>
             <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
               <span className="text-slate-400 text-[10px] block">Thời Hạn Còn Lại:</span>
@@ -155,6 +351,10 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
 
           <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] font-mono space-y-1.5">
             <div className="flex justify-between">
+              <span className="text-slate-400">Subject Alternative Names (SAN):</span>
+              <span className="text-slate-300">{activeDomainConfig.domain}, *.{activeDomainConfig.domain}</span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-slate-400">Cipher Suite:</span>
               <span className="text-slate-300 truncate max-w-[240px]">{ssl.cipherSuite}</span>
             </div>
@@ -162,16 +362,12 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
               <span className="text-slate-400">SHA-256 Fingerprint:</span>
               <span className="text-slate-400 text-[10px] truncate max-w-[220px]">{ssl.fingerprint}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">OCSP Stapling:</span>
-              <span className="text-emerald-400">Verified by Let&apos;s Encrypt</span>
-            </div>
           </div>
 
           <div className="flex items-center justify-between pt-2">
             <div className="text-xs text-slate-300 flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Tự động gia hạn qua ACME Protocol (Certbot)</span>
+              <span>Tự động gia hạn qua ACME Protocol (Certbot / Caddy)</span>
             </div>
             <button 
               onClick={() => onUpdateSsl({ autoRenew: !ssl.autoRenew })}
@@ -240,10 +436,10 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
 
             {/* Nginx Ingress Preview */}
             <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/90 font-mono text-[11px] text-slate-300 space-y-1">
-              <div className="text-slate-500 text-[10px] uppercase font-bold">// Nginx Ingress Rule (Active)</div>
+              <div className="text-slate-500 text-[10px] uppercase font-bold">// Nginx Ingress Rule (Active for {activeDomainConfig.domain})</div>
               <div className="text-cyan-300">server &#123;</div>
               <div className="pl-4 text-slate-400">listen 80; listen [::]:80;</div>
-              <div className="pl-4 text-slate-400">server_name {node.hostname};</div>
+              <div className="pl-4 text-slate-400">server_name {activeDomainConfig.domain} *.{activeDomainConfig.domain};</div>
               <div className="pl-4 text-emerald-400">return 301 https://$host$request_uri;</div>
               <div className="text-cyan-300">&#125;</div>
             </div>
@@ -251,15 +447,15 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
         </div>
       </div>
 
-      {/* DNS Records Management Table */}
+      {/* DNS Records Management Table for Current Domain */}
       <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Globe className="w-4 h-4 text-cyan-400" />
-              <span>Bảng Bản Ghi DNS (Authoritative Records)</span>
+              <span>Bảng Bản Ghi DNS Của {activeDomainConfig.domain}</span>
             </h3>
-            <p className="text-xs text-slate-400">Quản lý các bản ghi trỏ tên miền về máy chủ Velclaw</p>
+            <p className="text-xs text-slate-400">Authoritative Cloudflare DNS Records cho {activeDomainConfig.domain}</p>
           </div>
 
           <button
@@ -268,14 +464,16 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
             className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white flex items-center gap-1.5 transition-colors self-start sm:self-auto"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Thêm Bản Ghi DNS Mới</span>
+            <span>Thêm Bản Ghi Mới</span>
           </button>
         </div>
 
         {/* Add record form */}
         {isAddingRecord && (
           <form onSubmit={handleCreateRecord} className="p-4 rounded-xl bg-slate-950 border border-slate-700/80 space-y-3 animate-fade-in">
-            <div className="text-xs font-bold text-white uppercase tracking-wider">Tạo bản ghi DNS mới</div>
+            <div className="text-xs font-bold text-white uppercase tracking-wider">
+              Tạo bản ghi DNS mới cho {activeDomainConfig.domain}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="text-[11px] text-slate-400 block mb-1">Loại</label>
@@ -298,7 +496,7 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
                 <label className="text-[11px] text-slate-400 block mb-1">Tên (@ hoặc subdomain)</label>
                 <input
                   type="text"
-                  placeholder="@, sub, www..."
+                  placeholder="@, sub, www, api..."
                   value={recordName}
                   onChange={(e) => setRecordName(e.target.value)}
                   className="w-full px-2.5 py-1.5 rounded bg-slate-900 border border-slate-700 text-xs text-white font-mono"
@@ -307,10 +505,10 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
               </div>
 
               <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Nội dung / IP đích</label>
+                <label className="text-[11px] text-slate-400 block mb-1">Nội dung / Giá trị trỏ đến</label>
                 <input
                   type="text"
-                  placeholder="104.21.78.142 hoặc alias"
+                  placeholder="104.21.78.142 hoặc alias target"
                   value={recordContent}
                   onChange={(e) => setRecordContent(e.target.value)}
                   className="w-full px-2.5 py-1.5 rounded bg-slate-900 border border-slate-700 text-xs text-white font-mono"
@@ -319,7 +517,7 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
               </div>
 
               <div>
-                <label className="text-[11px] text-slate-400 block mb-1">TTL &amp; Proxy</label>
+                <label className="text-[11px] text-slate-400 block mb-1">TTL &amp; Proxy Edge</label>
                 <div className="flex items-center gap-2">
                   <select
                     value={recordTtl}
@@ -356,7 +554,7 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
                 type="submit"
                 className="px-3.5 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold"
               >
-                Lưu Bản Ghi
+                Lưu Bản Ghi Cho {activeDomainConfig.domain}
               </button>
             </div>
           </form>
@@ -368,53 +566,60 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
             <thead>
               <tr className="border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 <th className="py-2.5 px-3">Loại</th>
-                <th className="py-2.5 px-3">Tên</th>
-                <th className="py-2.5 px-3">Nội Dung / Giá Trị</th>
+                <th className="py-2.5 px-3">Tên Host</th>
+                <th className="py-2.5 px-3">FQDN Đầy Đủ</th>
+                <th className="py-2.5 px-3">Nội Dung / Đích Đến</th>
                 <th className="py-2.5 px-3">TTL</th>
                 <th className="py-2.5 px-3">Proxy Edge</th>
                 <th className="py-2.5 px-3 text-right">Thao Tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 font-mono">
-              {dnsRecords.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3 px-3">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                      {r.type}
-                    </span>
-                  </td>
-                  <td className="py-3 px-3 font-semibold text-white">
-                    {r.name}
-                  </td>
-                  <td className="py-3 px-3 text-slate-300 max-w-xs truncate">
-                    {r.content}
-                  </td>
-                  <td className="py-3 px-3 text-slate-400">
-                    {r.ttl === 300 ? 'Auto (300s)' : `${r.ttl}s`}
-                  </td>
-                  <td className="py-3 px-3">
-                    <button
-                      onClick={() => onToggleProxy(r.id)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
-                        r.proxied
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30'
-                          : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
-                      }`}
-                      title="Chuyển đổi Proxy Cloudflare Edge"
-                    >
-                      {r.proxied ? 'Proxied (Argo)' : 'DNS Only'}
-                    </button>
-                  </td>
-                  <td className="py-3 px-3 text-right">
-                    <button
-                      onClick={() => onDeleteDnsRecord(r.id)}
-                      className="text-slate-500 hover:text-rose-400 transition-colors text-[11px]"
-                    >
-                      Xóa
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {activeDomainConfig.dnsRecords.map((r) => {
+                const fullHost = r.name === '@' ? activeDomainConfig.domain : `${r.name}.${activeDomainConfig.domain}`;
+                return (
+                  <tr key={r.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3 px-3">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                        {r.type}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 font-semibold text-white">
+                      {r.name}
+                    </td>
+                    <td className="py-3 px-3 text-slate-400 text-[11px]">
+                      {fullHost}
+                    </td>
+                    <td className="py-3 px-3 text-slate-300 max-w-xs truncate">
+                      {r.content}
+                    </td>
+                    <td className="py-3 px-3 text-slate-400">
+                      {r.ttl === 300 ? 'Auto (300s)' : `${r.ttl}s`}
+                    </td>
+                    <td className="py-3 px-3">
+                      <button
+                        onClick={() => handleToggleDomainProxy(r.id)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                          r.proxied
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30'
+                            : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                        }`}
+                        title="Chuyển đổi Proxy Cloudflare Edge"
+                      >
+                        {r.proxied ? 'Proxied (Argo)' : 'DNS Only'}
+                      </button>
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <button
+                        onClick={() => handleDeleteDomainRecord(r.id)}
+                        className="text-slate-500 hover:text-rose-400 transition-colors text-[11px]"
+                      >
+                        Xóa
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -426,7 +631,7 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Globe className="w-4 h-4 text-emerald-400" />
-              <span>Trạng Thái Phân Giải Anycast Toàn Cầu (DNS Propagation)</span>
+              <span>Trạng Thái Phân Giải Anycast Toàn Cầu ({activeDomainConfig.domain})</span>
             </h3>
             <p className="text-xs text-slate-400">Kiểm tra kết quả phân giải DNS trên 6 khu vực trọng yếu</p>
           </div>

@@ -13,7 +13,8 @@ import {
   Cpu,
   HardDrive,
   Mic,
-  Sparkles
+  Sparkles,
+  Network
 } from 'lucide-react';
 import { TabType } from '../types';
 
@@ -36,6 +37,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const menuItems: { id: TabType; label: string; icon: React.ComponentType<{ className?: string }>; badge?: string | number; badgeColor?: string }[] = [
     { id: 'overview', label: 'Tổng quan máy chủ', icon: LayoutDashboard },
+    { 
+      id: 'domains', 
+      label: 'Quản lý tên miền', 
+      icon: Network, 
+      badge: '5 TLDs', 
+      badgeColor: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' 
+    },
     { id: 'dns-ssl', label: 'DNS & HTTPS / SSL', icon: Globe },
     { id: 'metrics-charts', label: 'Biểu đồ Recharts', icon: LineChart },
     { 

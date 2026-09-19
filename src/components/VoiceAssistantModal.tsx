@@ -242,6 +242,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
   const sampleCommands = [
     { label: 'Kiểm tra CPU & RAM', cmd: 'Kiểm tra tình trạng CPU và RAM hiện tại' },
+    { label: 'Quản lý Tên miền', cmd: 'Mở trang quản lý tên miền tùy chỉnh .com, .dev, .ai, .io, .app' },
     { label: 'Rà soát Cảnh báo', cmd: 'Có bao nhiêu cảnh báo đang kích hoạt trên máy chủ?' },
     { label: 'Kiểm tra DNS & SSL', cmd: 'Kiểm tra chứng chỉ SSL và bản ghi DNS' },
     { label: 'Tối ưu Cơ sở dữ liệu', cmd: 'Mở tối ưu hóa các truy vấn cơ sở dữ liệu chậm' },

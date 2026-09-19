@@ -89,7 +89,7 @@ async function startServer() {
 Người quản trị vừa nói hoặc ra lệnh giọng nói: "${command}".
 
 Ngữ cảnh máy chủ thời gian thực:
-- Hostname: ${context?.hostname || "prod-edge-asia1.velclaw.net"}
+- Hostname: ${context?.hostname || "prod-edge-asia1.velclaw.com"}
 - CPU hiện tại: ${context?.cpuUsage || 45}%
 - RAM hiện tại: ${context?.ramUsagePercent || 60}% (${context?.ramUsedGb || 9.6} / 16.0 GB)
 - Cảnh báo đang kích hoạt: ${context?.activeAlertsCount || 0}
@@ -99,7 +99,7 @@ Ngữ cảnh máy chủ thời gian thực:
 Yêu cầu:
 1. Trả lời một câu ngắn gọn, súc tích (1-2 câu), chuyên nghiệp bằng tiếng Việt như một kỹ sư DevOps cao cấp.
 2. Quyết định xem có cần thực hiện hành động nào trên giao diện không:
-   - "NAVIGATE" (chuyển tab tới: 'overview', 'dns-ssl', 'metrics-charts', 'alerts', 'db-optimizer', 'logs', 'security-2fa', 'api-integration', 'reports')
+   - "NAVIGATE" (chuyển tab tới: 'overview', 'domains', 'dns-ssl', 'metrics-charts', 'alerts', 'db-optimizer', 'logs', 'security-2fa', 'api-integration', 'reports')
    - "TRIGGER_SPIKE" (nếu người dùng muốn thử nghiệm cảnh báo/đột biến tải)
    - "OPEN_REPORTS" (nếu muốn xuất báo cáo)
    - "NONE" nếu chỉ là câu hỏi thông tin.
@@ -108,7 +108,7 @@ Yêu cầu:
 {
   "reply": "câu trả lời cho quản trị viên",
   "action": "NAVIGATE" | "TRIGGER_SPIKE" | "OPEN_REPORTS" | "NONE",
-  "targetTab": "overview" | "dns-ssl" | "metrics-charts" | "alerts" | "db-optimizer" | "logs" | "security-2fa" | "api-integration" | "reports" | null
+  "targetTab": "overview" | "domains" | "dns-ssl" | "metrics-charts" | "alerts" | "db-optimizer" | "logs" | "security-2fa" | "api-integration" | "reports" | null
 }`;
 
       const response = await ai.models.generateContent({

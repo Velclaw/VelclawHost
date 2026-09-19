@@ -10,7 +10,8 @@ import {
   ApiKeyItem, 
   AlertThresholds, 
   SystemAlert,
-  TwoFactorState
+  TwoFactorState,
+  CustomDomain
 } from './types';
 import { 
   INITIAL_NODES, 
@@ -21,6 +22,7 @@ import {
   INITIAL_SLOW_QUERIES, 
   INITIAL_API_KEYS, 
   INITIAL_LOGS, 
+  INITIAL_CUSTOM_DOMAINS,
   generateHistoricalMetrics 
 } from './mockData';
 import { generateBackupCodes, verifyTotpCode } from './utils/totp';
@@ -30,6 +32,7 @@ import { downloadMetricsCsv, downloadLogsCsv } from './utils/csvExport';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { OverviewTab } from './components/OverviewTab';
+import { DomainManagementTab } from './components/DomainManagementTab';
 import { DnsSslTab } from './components/DnsSslTab';
 import { ChartsTab } from './components/ChartsTab';
 import { AlertsTab } from './components/AlertsTab';
@@ -77,6 +80,9 @@ export default function App() {
   // DNS & SSL
   const [dnsRecords, setDnsRecords] = useState<DnsRecord[]>(INITIAL_DNS_RECORDS);
   const [ssl, setSsl] = useState<SslInfo>(INITIAL_SSL);
+
+  // Custom Domains
+  const [customDomains, setCustomDomains] = useState<CustomDomain[]>(INITIAL_CUSTOM_DOMAINS);
 
   // Thresholds & Alerts
   const [thresholds, setThresholds] = useState<AlertThresholds>(INITIAL_THRESHOLDS);
@@ -367,6 +373,76 @@ export default function App() {
     setDnsRecords((prev) => prev.filter((r) => r.id !== id));
   };
 
+  // Custom Domain Handlers
+  const handleAddCustomDomain = (domainData: Omit<CustomDomain, 'id' | 'createdAt'>) => {
+    const newDomain: CustomDomain = {
+      ...domainData,
+      id: `cd-${Date.now()}`,
+      createdAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+    };
+    setCustomDomains((prev) => [newDomain, ...prev]);
+    setLogs((prev) => [
+      {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        level: 'INFO',
+        category: 'DNS',
+        message: `Đã cấu hình tên miền tùy chỉnh mới ${newDomain.domain} (${newDomain.recordType} -> ${newDomain.targetValue}) với trạng thái ${newDomain.status === 'active' ? 'Đang hoạt động' : 'Chờ duyệt DNS'}.`,
+        source: 'domain-manager',
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleDeleteCustomDomain = (id: string) => {
+    const target = customDomains.find((d) => d.id === id);
+    setCustomDomains((prev) => prev.filter((d) => d.id !== id));
+    if (target) {
+      setLogs((prev) => [
+        {
+          id: `log-${Date.now()}`,
+          timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          level: 'WARN',
+          category: 'DNS',
+          message: `Đã gỡ cấu hình tên miền tùy chỉnh ${target.domain}.`,
+          source: 'domain-manager',
+        },
+        ...prev,
+      ]);
+    }
+  };
+
+  const handleVerifyCustomDomain = async (id: string): Promise<boolean> => {
+    await new Promise((res) => setTimeout(res, 900));
+    setCustomDomains((prev) =>
+      prev.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              status: 'active',
+              sslStatus: 'active',
+              lastCheckedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+            }
+          : d
+      )
+    );
+    const domainObj = customDomains.find((d) => d.id === id);
+    if (domainObj) {
+      setLogs((prev) => [
+        {
+          id: `log-${Date.now()}`,
+          timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          level: 'INFO',
+          category: 'SSL',
+          message: `Xác thực Anycast DNS thành công cho tên miền ${domainObj.domain}. Cấp phát chứng chỉ Let's Encrypt TLS 1.3 hoàn tất.`,
+          source: 'acme-certbot',
+        },
+        ...prev,
+      ]);
+    }
+    return true;
+  };
+
   // DB Query Optimization handlers
   const handleOptimizeQuery = (id: string) => {
     setSlowQueries((prev) =>
@@ -528,6 +604,16 @@ export default function App() {
               onOpenSecurity={() => setActiveTab('security-2fa')}
               onNavigateToCharts={() => setActiveTab('metrics-charts')}
               isTwoFactorActive={twoFactor.enabled && twoFactor.verified}
+            />
+          )}
+
+          {activeTab === 'domains' && (
+            <DomainManagementTab
+              customDomains={customDomains}
+              currentNodes={nodes}
+              onAddDomain={handleAddCustomDomain}
+              onDeleteDomain={handleDeleteCustomDomain}
+              onVerifyDomain={handleVerifyCustomDomain}
             />
           )}
 

@@ -51,7 +51,7 @@ export const FcmNotificationModal: React.FC<FcmNotificationModalProps> = ({
   const handleSendTestNotification = () => {
     onTriggerTestPush(
       '⚠️ Cảnh báo CPU vượt ngưỡng 85%!',
-      'Node prod-edge-asia1.velclaw.net ghi nhận tải CPU 87.2% vượt ngưỡng khẩn cấp!'
+      'Node prod-edge-asia1.velclaw.com ghi nhận tải CPU 87.2% vượt ngưỡng khẩn cấp!'
     );
     setTestSent(true);
     setTimeout(() => setTestSent(false), 3000);

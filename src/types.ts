@@ -1,5 +1,6 @@
 export type TabType = 
   | 'overview'
+  | 'domains'
   | 'dns-ssl'
   | 'metrics-charts'
   | 'alerts'
@@ -45,6 +46,8 @@ export interface MetricSnapshot {
   latencyMs: number;
 }
 
+export type ChartTimeframe = 'live' | '1h' | '6h' | '12h' | '24h';
+
 export interface AlertThresholds {
   cpuWarning: number;
   cpuCritical: number;
@@ -69,6 +72,35 @@ export interface SystemAlert {
   threshold: number;
   resolved: boolean;
   resolvedAt?: string;
+}
+
+export type VelclawTld = 'com' | 'dev' | 'ai' | 'io' | 'app';
+
+export interface CustomDomain {
+  id: string;
+  domain: string;
+  tld: VelclawTld;
+  recordType: 'A' | 'CNAME';
+  targetValue: string;
+  status: 'pending' | 'active' | 'verifying' | 'failed';
+  sslStatus: 'active' | 'issuing' | 'pending';
+  createdAt: string;
+  lastCheckedAt?: string;
+  notes?: string;
+}
+
+export interface VelclawDomainConfig {
+  tld: VelclawTld;
+  domain: string;
+  role: string;
+  description: string;
+  badge: string;
+  color: 'emerald' | 'indigo' | 'purple' | 'cyan' | 'rose';
+  defaultHost: string;
+  wildcardSupported: boolean;
+  sslStatus: 'active' | 'generating' | 'expired';
+  tlsVersion: string;
+  dnsRecords: DnsRecord[];
 }
 
 export interface DnsRecord {
