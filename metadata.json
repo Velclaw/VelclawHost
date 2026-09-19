@@ -1,0 +1,6 @@
+{
+  "name": "Velclaw Hosting Platform",
+  "description": "Hệ thống quản lý dịch vụ lưu trữ web và giám sát tài nguyên máy chủ theo thời gian thực với cấu hình DNS, HTTPS/HTTP, cảnh báo tự động CPU/RAM, xác thực đa yếu tố 2FA, báo cáo xuất CSV/PDF và API tích hợp bên thứ ba.",
+  "requestFramePermissions": ["notifications", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
