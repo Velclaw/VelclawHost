@@ -148,6 +148,23 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  // Load domains from the VelclawHost Control Plane instead of treating mock data as source of truth.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/v1/domains')
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Control Plane API unavailable');
+        return response.json();
+      })
+      .then((payload) => {
+        if (!cancelled && Array.isArray(payload.domains)) setCustomDomains(payload.domains as CustomDomain[]);
+      })
+      .catch(() => {
+        // Keep the local mock dataset as a safe UI fallback during development.
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   // Real-time metric ticker simulation (every 2.5s)
   useEffect(() => {
     if (!isStreaming) return;
@@ -374,73 +391,66 @@ export default function App() {
   };
 
   // Custom Domain Handlers
-  const handleAddCustomDomain = (domainData: Omit<CustomDomain, 'id' | 'createdAt'>) => {
-    const newDomain: CustomDomain = {
-      ...domainData,
-      id: `cd-${Date.now()}`,
-      createdAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
-    };
-    setCustomDomains((prev) => [newDomain, ...prev]);
-    setLogs((prev) => [
-      {
-        id: `log-${Date.now()}`,
-        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-        level: 'INFO',
-        category: 'DNS',
-        message: `Đã cấu hình tên miền tùy chỉnh mới ${newDomain.domain} (${newDomain.recordType} -> ${newDomain.targetValue}) với trạng thái ${newDomain.status === 'active' ? 'Đang hoạt động' : 'Chờ duyệt DNS'}.`,
-        source: 'domain-manager',
-      },
-      ...prev,
-    ]);
+  const handleAddCustomDomain = async (domain: Omit<CustomDomain, 'id' | 'createdAt'>) => {
+    const response = await fetch('/api/v1/domains', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(domain),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Không thể tạo domain');
+    const created = payload.domain as CustomDomain;
+    setCustomDomains((prev) => [created, ...prev]);
+    setLogs((prev) => [{
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      level: 'INFO',
+      category: 'DNS',
+      message: `Đã tạo domain ${created.domain} trên VelclawHost Control Plane (${created.recordType} -> ${created.targetValue}).`,
+      source: 'velclawhost-api',
+    }, ...prev]);
   };
 
-  const handleDeleteCustomDomain = (id: string) => {
+  const handleDeleteCustomDomain = async (id: string) => {
     const target = customDomains.find((d) => d.id === id);
+    const response = await fetch(`/api/v1/domains/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!response.ok && response.status !== 404) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || 'Không thể xóa domain');
+    }
     setCustomDomains((prev) => prev.filter((d) => d.id !== id));
     if (target) {
-      setLogs((prev) => [
-        {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-          level: 'WARN',
-          category: 'DNS',
-          message: `Đã gỡ cấu hình tên miền tùy chỉnh ${target.domain}.`,
-          source: 'domain-manager',
-        },
-        ...prev,
-      ]);
+      setLogs((prev) => [{
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        level: 'WARN',
+        category: 'DNS',
+        message: `Đã gỡ domain ${target.domain} khỏi VelclawHost Control Plane.`,
+        source: 'velclawhost-api',
+      }, ...prev]);
     }
   };
 
   const handleVerifyCustomDomain = async (id: string): Promise<boolean> => {
-    await new Promise((res) => setTimeout(res, 900));
-    setCustomDomains((prev) =>
-      prev.map((d) =>
-        d.id === id
-          ? {
-              ...d,
-              status: 'active',
-              sslStatus: 'active',
-              lastCheckedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
-            }
-          : d
-      )
-    );
-    const domainObj = customDomains.find((d) => d.id === id);
+    const response = await fetch(`/api/v1/domains/${encodeURIComponent(id)}/verify`, { method: 'POST' });
+    const payload = await response.json().catch(() => ({}));
+    const domainObj = payload.domain as CustomDomain | undefined;
+    if (domainObj) setCustomDomains((prev) => prev.map((d) => d.id === id ? domainObj : d));
+    if (!response.ok) return false;
+    const verified = payload.status === 'verified';
     if (domainObj) {
-      setLogs((prev) => [
-        {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-          level: 'INFO',
-          category: 'SSL',
-          message: `Xác thực Anycast DNS thành công cho tên miền ${domainObj.domain}. Cấp phát chứng chỉ Let's Encrypt TLS 1.3 hoàn tất.`,
-          source: 'acme-certbot',
-        },
-        ...prev,
-      ]);
+      setLogs((prev) => [{
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        level: verified ? 'INFO' : 'WARN',
+        category: 'DNS',
+        message: verified
+          ? `DNS verification thành công cho ${domainObj.domain}; trạng thái Control Plane chuyển sang active.`
+          : `DNS verification mismatch cho ${domainObj.domain}; kiểm tra lại record ${domainObj.recordType} -> ${domainObj.targetValue}.`,
+        source: 'velclawhost-dns-verifier',
+      }, ...prev]);
     }
-    return true;
+    return verified;
   };
 
   // DB Query Optimization handlers
