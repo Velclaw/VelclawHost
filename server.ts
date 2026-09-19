@@ -23,13 +23,108 @@ function getGeminiClient(): GoogleGenAI | null {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT || 3000);
 
   app.use(express.json());
 
   // API Health Endpoint
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", service: "Velclaw Hosting Platform Server", timestamp: new Date().toISOString() });
+  });
+
+  // VelclawHost Control Plane API
+  const apiToken = process.env.VELCLAWHOST_API_TOKEN?.trim() || '';
+  const requireApiToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (!apiToken) return next();
+    const auth = req.header('authorization') || '';
+    if (auth === 'Bearer ' + apiToken) return next();
+    return res.status(401).json({ error: 'Unauthorized' });
+  };
+
+  type DomainRecord = {
+    id: string; domain: string; recordType: 'A' | 'CNAME'; targetValue: string;
+    status: 'pending' | 'active' | 'verifying' | 'failed'; sslStatus: 'active' | 'issuing' | 'pending';
+    createdAt: string; lastCheckedAt?: string; notes?: string;
+  };
+  const domains = new Map<string, DomainRecord>();
+  const normalizeTarget = (value: string) => value.trim().toLowerCase().replace(/\.$/, '');
+  const supportedDomain = (value: string) => /^(?:[a-z0-9-]+\.)+(?:com|dev|ai|io|app)$/i.test(value.trim());
+
+  async function resolveDns(domain: string, type: 'A' | 'CNAME') {
+    const url = new URL('https://cloudflare-dns.com/dns-query');
+    url.searchParams.set('name', domain);
+    url.searchParams.set('type', type);
+    const response = await fetch(url, { headers: { accept: 'application/dns-json' } });
+    if (!response.ok) throw new Error('DNS resolver returned HTTP ' + response.status);
+    const payload = await response.json() as { Answer?: Array<{ type: number; data: string }> };
+    return (payload.Answer || []).map((answer) => answer.data);
+  }
+
+  app.get('/api/v1/health', (_req, res) => {
+    res.json({ status: 'HEALTHY', service: 'velclawhost-control-plane', timestamp: new Date().toISOString(), domains: domains.size });
+  });
+
+  app.get('/api/v1/domains', requireApiToken, (_req, res) => {
+    res.json({ status: 'success', domains: [...domains.values()] });
+  });
+
+  app.post('/api/v1/domains', requireApiToken, (req, res) => {
+    const domain = String(req.body?.domain || '').trim().toLowerCase();
+    const recordType = req.body?.recordType === 'CNAME' ? 'CNAME' : 'A';
+    const targetValue = String(req.body?.targetValue || '').trim();
+    if (!supportedDomain(domain)) return res.status(400).json({ error: 'Unsupported domain. Use .com, .dev, .ai, .io or .app.' });
+    if (!targetValue) return res.status(400).json({ error: 'targetValue is required.' });
+    if ([...domains.values()].some((item) => item.domain === domain)) return res.status(409).json({ error: 'Domain already exists.' });
+    const id = 'dom-' + Date.now();
+    const item: DomainRecord = { id, domain, recordType, targetValue, status: 'pending', sslStatus: 'pending', createdAt: new Date().toISOString(), notes: typeof req.body?.notes === 'string' ? req.body.notes.trim() : undefined };
+    domains.set(id, item);
+    res.status(201).json({ status: 'success', domain: item });
+  });
+
+  app.post('/api/v1/domains/:id/verify', requireApiToken, async (req, res) => {
+    const item = domains.get(req.params.id);
+    if (!item) return res.status(404).json({ error: 'Domain not found.' });
+    item.status = 'verifying';
+    item.lastCheckedAt = new Date().toISOString();
+    try {
+      const values = await resolveDns(item.domain, item.recordType);
+      const expected = normalizeTarget(item.targetValue);
+      const matched = values.some((value) => normalizeTarget(value) === expected);
+      item.status = matched ? 'active' : 'failed';
+      item.sslStatus = matched ? 'active' : 'pending';
+      item.lastCheckedAt = new Date().toISOString();
+      return res.json({ status: matched ? 'verified' : 'mismatch', domain: item, observed: values });
+    } catch (error) {
+      item.status = 'failed';
+      item.sslStatus = 'pending';
+      return res.status(502).json({ error: 'DNS verification failed.', details: error instanceof Error ? error.message : String(error), domain: item });
+    }
+  });
+
+  app.delete('/api/v1/domains/:id', requireApiToken, (req, res) => {
+    if (!domains.delete(req.params.id)) return res.status(404).json({ error: 'Domain not found.' });
+    res.status(204).end();
+  });
+
+  app.get('/api/v1/metrics', requireApiToken, (_req, res) => {
+    const memory = process.memoryUsage();
+    res.json({ status: 'success', timestamp: new Date().toISOString(), service: 'velclawhost-control-plane', runtime: { node: process.version, uptime_seconds: Math.round(process.uptime()), heap_used_mb: Math.round(memory.heapUsed / 1024 / 1024), rss_mb: Math.round(memory.rss / 1024 / 1024) }, domains: { total: domains.size, active: [...domains.values()].filter((d) => d.status === 'active').length, pending: [...domains.values()].filter((d) => d.status !== 'active').length } });
+  });
+
+  app.get('/api/v1/prometheus', requireApiToken, (_req, res) => {
+    const all = [...domains.values()];
+    const body = [
+      '# HELP velclawhost_domains_total Number of domains managed by VelclawHost',
+      '# TYPE velclawhost_domains_total gauge',
+      'velclawhost_domains_total ' + all.length,
+      '# HELP velclawhost_domains_active Number of active domains',
+      '# TYPE velclawhost_domains_active gauge',
+      'velclawhost_domains_active ' + all.filter((d) => d.status === 'active').length,
+      '# HELP velclawhost_uptime_seconds Process uptime in seconds',
+      '# TYPE velclawhost_uptime_seconds gauge',
+      'velclawhost_uptime_seconds ' + Math.round(process.uptime()),
+    ].join('\n') + '\n';
+    res.type('text/plain; version=0.0.4').send(body);
   });
 
   // AI Voice Command & Diagnostic Endpoint
