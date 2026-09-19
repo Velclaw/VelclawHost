@@ -365,3 +365,59 @@ server {
 - **Bản quyền**: © 2026 Velclaw Cloud Architecture Team.
 - **Tác giả / Quản trị viên**: Huynh Thuong (`huynhthuong.xyz@gmail.com`).
 - **Mã nguồn**: Được phát triển và tối ưu hóa cho hệ sinh thái hạ tầng đám mây phân tán độ trễ thấp.
+
+
+---
+
+## Control Plane API
+
+VelclawHost exposes a minimal control-plane contract for the Velclaw core platform. The browser console and external deploy clients use the same API.
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/v1/health` | Control-plane health; no token required |
+| GET | `/api/v1/domains` | List managed domains |
+| POST | `/api/v1/domains` | Register a domain target |
+| POST | `/api/v1/domains/:id/verify` | Resolve DNS and verify the configured A/CNAME target |
+| DELETE | `/api/v1/domains/:id` | Remove a managed domain |
+| GET | `/api/v1/metrics` | Runtime and domain metrics |
+| GET | `/api/v1/prometheus` | Prometheus text exposition |
+
+When `VELCLAWHOST_API_TOKEN` is configured, protected endpoints require:
+
+```
+Authorization: Bearer <VELCLAWHOST_API_TOKEN>
+```
+
+### Domain deployment contract
+
+Request:
+
+```json
+{
+  "domain": "api.example.com",
+  "recordType": "CNAME",
+  "targetValue": "edge.velclaw.dev",
+  "notes": "production ingress"
+}
+```
+
+The server only accepts domain names under the Velclaw five-TLD namespace (`.com`, `.dev`, `.ai`, `.io`, `.app`). DNS verification is performed against a public DNS-over-HTTPS resolver; the service does not claim a domain is active merely because it was registered in the UI.
+
+### Velclaw integration boundary
+
+```
+VELCLAW
+   |
+   | deploy spec / domain target
+   v
+VELCLAWHOST
+   |-- domain registry
+   |-- DNS verification
+   |-- runtime health
+   |-- metrics / Prometheus
+   v
+Ingress / Runtime
+```
+
+The Velclaw core repository remains the product layer. VelclawHost is the infrastructure control plane. Production DNS, TLS, proxy and runtime credentials must be injected through deployment secrets rather than committed to this repository.
