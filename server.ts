@@ -64,6 +64,40 @@ async function startServer() {
     res.json({ status: 'HEALTHY', service: 'velclawhost-control-plane', timestamp: new Date().toISOString(), domains: domains.size });
   });
 
+  type DeploymentRecord = {
+    id: string; projectName: string; repoUrl: string; branch: string; commitSha: string | null;
+    customDomain: string | null; status: 'queued' | 'building' | 'waiting_approval' | 'ready' | 'failed';
+    createdAt: string;
+  };
+  const deployments = new Map<string, DeploymentRecord>();
+
+  app.get('/api/v1/deployments', requireApiToken, (_req, res) => {
+    res.json({ status: 'success', deployments: [...deployments.values()] });
+  });
+
+  app.post('/api/v1/deployments', requireApiToken, (req, res) => {
+    const projectName = String(req.body?.projectName || '').trim();
+    const repoUrl = String(req.body?.repoUrl || '').trim();
+    const branch = String(req.body?.branch || 'main').trim();
+    const commitSha = req.body?.commitSha ? String(req.body.commitSha).trim() : null;
+    const customDomain = req.body?.customDomain ? String(req.body.customDomain).trim().toLowerCase() : null;
+    if (!projectName || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/.test(projectName)) return res.status(400).json({ error: 'Invalid projectName.' });
+    if (!/^https:\/\/github\.com\/[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9][A-Za-z0-9._-]{0,99}(?:\.git)?$/i.test(repoUrl)) return res.status(400).json({ error: 'Only canonical HTTPS GitHub repository URLs are supported.' });
+    if (!/^[A-Za-z0-9._/-]{1,120}$/.test(branch)) return res.status(400).json({ error: 'Invalid branch.' });
+    if (commitSha && !/^[0-9a-f]{40}$/i.test(commitSha)) return res.status(400).json({ error: 'Invalid commit SHA.' });
+    if (customDomain && !supportedDomain(customDomain)) return res.status(400).json({ error: 'Unsupported custom domain.' });
+    const id = 'dep-' + Date.now();
+    const item: DeploymentRecord = { id, projectName, repoUrl, branch, commitSha, customDomain, status: 'queued', createdAt: new Date().toISOString() };
+    deployments.set(id, item);
+    res.status(202).json({ status: 'queued', deployment: item });
+  });
+
+  app.get('/api/v1/deployments/:id', requireApiToken, (req, res) => {
+    const item = deployments.get(req.params.id);
+    if (!item) return res.status(404).json({ error: 'Deployment not found.' });
+    res.json({ status: 'success', deployment: item });
+  });
+
   app.get('/api/v1/domains', requireApiToken, (_req, res) => {
     res.json({ status: 'success', domains: [...domains.values()] });
   });
