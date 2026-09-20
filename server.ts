@@ -230,54 +230,11 @@ async function startServer() {
   app.post('/api/v1/deployments/:id/execute', requireApiToken, async (req, res) => {
     const item = deployments.get(req.params.id);
     if (!item) return res.status(404).json({ error: 'Deployment not found.' });
-    if (item.status !== 'queued') {
-      return res.status(409).json({ error: 'Deployment is not executable from its current state.', deployment: item });
-    }
-
-    item.status = 'building';
-    item.startedAt = new Date().toISOString();
-    item.error = undefined;
-    await persistState();
-
-    try {
-      const remote = item.repoUrl.replace(/\\.git$/i, '');
-      const { stdout } = await execFileAsync('git', ['ls-remote', remote, item.branch], {
-        timeout: 15000,
-        maxBuffer: 1024 * 1024,
-      });
-      const line = stdout.trim().split('\\n').find(Boolean);
-      const observedCommit = line?.split(/\\s+/)[0] || '';
-      if (!observedCommit || !/^[0-9a-f]{40}$/i.test(observedCommit)) {
-        throw new Error('Repository branch could not be resolved.');
-      }
-      if (item.commitSha && item.commitSha.toLowerCase() !== observedCommit.toLowerCase()) {
-        throw new Error('Requested commit SHA does not match the remote branch tip.');
-      }
-
-      item.sourceCommit = observedCommit;
-      item.sourceValidatedAt = new Date().toISOString();
-
-      // This phase deliberately stops before build/runtime provisioning.
-      // A deployment is not marked ready until a runtime executor, artifact store,
-      // health probe, and domain/TLS binding are configured.
-      item.status = 'waiting_approval';
-      item.completedAt = new Date().toISOString();
-      await persistState();
-      return res.status(200).json({
-        status: 'waiting_approval',
-        deployment: item,
-        next: 'runtime_executor',
-        message: 'Source validated. Runtime provisioning is not enabled on this control-plane instance.',
-      });
-    } catch (error) {
-      item.status = 'failed';
-      item.completedAt = new Date().toISOString();
-      item.error = error instanceof Error ? error.message : String(error);
-      await persistState();
-      return res.status(422).json({ status: 'failed', deployment: item });
-    }
+    if (!['queued','retryable_failed'].includes(item.status)) return res.status(409).json({ error: 'Deployment is not executable from its current state.', deployment: item });
+    await deploymentQueue.enqueue({ id: 'job-' + item.id, deploymentId: item.id, priority: Number(req.body?.priority || 0), maxAttempts: 3, availableAt: new Date().toISOString() });
+    void runDeploymentJob();
+    return res.status(202).json({ status: 'queued', deployment: item });
   });
-
 
   type RuntimeRecord = {
     deploymentId: string; runtimeId: string; state: 'provisioning' | 'running' | 'failed' | 'stopped';
@@ -348,7 +305,7 @@ async function startServer() {
   app.post('/api/v1/deployments/:id/runtime/plan', requireApiToken, (req, res) => {
     const item = deployments.get(req.params.id);
     if (!item) return res.status(404).json({ error: 'Deployment not found.' });
-    if (item.status !== 'waiting_approval') return res.status(409).json({ error: 'Runtime planning requires waiting_approval state.', deployment: item });
+    if (!['source_validating','building','runtime_provisioning','health_check'].includes(item.status)) return res.status(409).json({ error: 'Runtime planning requires an active deployment state.', deployment: item });
     const existing = runtimes.get(item.id);
     if (existing) return res.json({ status: 'success', runtime: existing });
     const now = new Date().toISOString();
@@ -642,7 +599,7 @@ async function startServer() {
 
   app.get('/api/v1/metrics', requireApiToken, (_req, res) => {
     const memory = process.memoryUsage();
-    res.json({ status: 'success', timestamp: new Date().toISOString(), service: 'velclawhost-control-plane', deployments: { total: deployments.size, queued: [...deployments.values()].filter((d) => d.status === 'queued').length, building: [...deployments.values()].filter((d) => d.status === 'building').length, waiting_approval: [...deployments.values()].filter((d) => d.status === 'waiting_approval').length, failed: [...deployments.values()].filter((d) => d.status === 'failed').length, ready: [...deployments.values()].filter((d) => d.status === 'ready').length }, runtime: { node: process.version, uptime_seconds: Math.round(process.uptime()), heap_used_mb: Math.round(memory.heapUsed / 1024 / 1024), rss_mb: Math.round(memory.rss / 1024 / 1024) }, domains: { total: domains.size, active: [...domains.values()].filter((d) => d.status === 'active').length, pending: [...domains.values()].filter((d) => d.status !== 'active').length } });
+    res.json({ status: 'success', timestamp: new Date().toISOString(), service: 'velclawhost-control-plane', deployments: { total: deployments.size, queued: [...deployments.values()].filter((d) => d.status === 'queued').length, building: [...deployments.values()].filter((d) => d.status === 'building').length, source_validating: [...deployments.values()].filter((d) => d.status === 'source_validating').length, runtime_provisioning: [...deployments.values()].filter((d) => d.status === 'runtime_provisioning').length, health_check: [...deployments.values()].filter((d) => d.status === 'health_check').length, failed: [...deployments.values()].filter((d) => d.status === 'retryable_failed' || d.status === 'terminal_failed').length, ready: [...deployments.values()].filter((d) => d.status === 'ready').length }, runtime: { node: process.version, uptime_seconds: Math.round(process.uptime()), heap_used_mb: Math.round(memory.heapUsed / 1024 / 1024), rss_mb: Math.round(memory.rss / 1024 / 1024) }, domains: { total: domains.size, active: [...domains.values()].filter((d) => d.status === 'active').length, pending: [...domains.values()].filter((d) => d.status !== 'active').length } });
   });
 
   app.get('/api/v1/prometheus', requireApiToken, (_req, res) => {
@@ -707,7 +664,7 @@ async function startServer() {
         if (!containerPresent) {
           runtime.state = 'failed';
           runtime.updatedAt = new Date().toISOString();
-          deployment.status = 'failed';
+          deployment.status = 'terminal_failed';
           deployment.completedAt = new Date().toISOString();
           deployment.error = 'Runtime container is no longer present.';
           reconciliation.runtimeUnhealthy += 1;
@@ -728,7 +685,7 @@ async function startServer() {
           }
 
           runtime.updatedAt = new Date().toISOString();
-          if (deployment.status === 'waiting_approval') {
+          if (deployment.status === 'health_check' || deployment.status === 'runtime_provisioning') {
             deployment.status = 'ready';
             deployment.completedAt = new Date().toISOString();
             deployment.error = undefined;
