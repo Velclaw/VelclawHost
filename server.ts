@@ -39,7 +39,6 @@ async function startServer() {
 
   // VelclawHost Control Plane API
   const apiToken = process.env.VELCLAWHOST_API_TOKEN?.trim() || '';
-  const PORT = Number(process.env.PORT || 3000);
   const requireApiToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (!apiToken) return next();
     const auth = req.header('authorization') || '';
