@@ -94,6 +94,7 @@ async function startServer() {
     const id = 'dep-' + Date.now();
     const item: DeploymentRecord = { id, projectName, repoUrl, branch, commitSha, customDomain, status: 'queued', createdAt: new Date().toISOString() };
     deployments.set(id, item);
+    await persistState();
     res.status(202).json({ status: 'queued', deployment: item });
   });
 
@@ -167,6 +168,59 @@ async function startServer() {
     return port;
   }
 
+  const stateFile = process.env.VELCLAWHOST_STATE_FILE || path.join(process.cwd(), 'data', 'control-plane-state.json');
+
+  type PersistedState = {
+    version: 1;
+    nextRuntimePort: number;
+    domains: DomainRecord[];
+    deployments: DeploymentRecord[];
+    runtimes: RuntimeRecord[];
+  };
+
+  let persistChain = Promise.resolve();
+
+  async function persistState() {
+    const snapshot: PersistedState = {
+      version: 1,
+      nextRuntimePort,
+      domains: [...domains.values()],
+      deployments: [...deployments.values()],
+      runtimes: [...runtimes.values()],
+    };
+    persistChain = persistChain.then(async () => {
+      const dir = path.dirname(stateFile);
+      await fs.mkdir(dir, { recursive: true });
+      const tempFile = stateFile + '.tmp';
+      await fs.writeFile(tempFile, JSON.stringify(snapshot, null, 2) + '\n', 'utf8');
+      await fs.rename(tempFile, stateFile);
+    });
+    return persistChain;
+  }
+
+  async function loadState() {
+    try {
+      const raw = await fs.readFile(stateFile, 'utf8');
+      const snapshot = JSON.parse(raw) as PersistedState;
+      if (snapshot.version !== 1) throw new Error('Unsupported control-plane state version.');
+      for (const item of snapshot.domains || []) domains.set(item.id, item);
+      for (const item of snapshot.deployments || []) deployments.set(item.id, item);
+      for (const item of snapshot.runtimes || []) {
+        runtimes.set(item.deploymentId, item);
+        runtimePorts.add(item.port);
+      }
+      if (Number.isInteger(snapshot.nextRuntimePort) && snapshot.nextRuntimePort > 0) {
+        nextRuntimePort = snapshot.nextRuntimePort;
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.error('Failed to load control-plane state:', error);
+      }
+    }
+  }
+
+  await loadState();
+
   app.post('/api/v1/deployments/:id/runtime/plan', requireApiToken, (req, res) => {
     const item = deployments.get(req.params.id);
     if (!item) return res.status(404).json({ error: 'Deployment not found.' });
@@ -184,6 +238,7 @@ async function startServer() {
       updatedAt: now,
     };
     runtimes.set(item.id, runtime);
+    await persistState();
     res.status(201).json({ status: 'planned', runtime, next: 'runtime_provider' });
   });
 
@@ -224,6 +279,7 @@ async function startServer() {
       const inspect = await execFileAsync('docker', ['inspect', containerName], { timeout: 10000, maxBuffer: 1024 * 1024 }).catch(() => null);
       if (inspect) {
         runtime.state = 'running';
+        await persistState();
         runtime.updatedAt = new Date().toISOString();
         runtime.healthUrl = `http://127.0.0.1:${runtime.port}`;
         return res.json({ status: 'running', deployment: item, runtime, next: 'health_check' });
@@ -240,6 +296,7 @@ async function startServer() {
       ], { timeout: 30000, maxBuffer: 1024 * 1024 });
 
       runtime.state = 'running';
+      await persistState();
       runtime.updatedAt = new Date().toISOString();
       runtime.healthUrl = `http://127.0.0.1:${runtime.port}`;
       return res.status(201).json({
@@ -306,6 +363,7 @@ async function startServer() {
         maxBuffer: 1024 * 1024,
       });
       runtime.state = 'stopped';
+      await persistState();
       runtime.updatedAt = new Date().toISOString();
       item.status = 'failed';
       item.error = 'Runtime stopped by operator.';
@@ -344,6 +402,7 @@ async function startServer() {
       runtime.state = 'running';
       runtime.updatedAt = new Date().toISOString();
       item.status = 'ready';
+      await persistState();
       item.completedAt = new Date().toISOString();
       item.error = undefined;
       return res.json({ status: 'healthy', deployment: item, runtime });
@@ -369,6 +428,7 @@ async function startServer() {
     const id = 'dom-' + Date.now();
     const item: DomainRecord = { id, domain, recordType, targetValue, status: 'pending', sslStatus: 'pending', createdAt: new Date().toISOString(), notes: typeof req.body?.notes === 'string' ? req.body.notes.trim() : undefined };
     domains.set(id, item);
+    await persistState();
     res.status(201).json({ status: 'success', domain: item });
   });
 
@@ -384,6 +444,7 @@ async function startServer() {
       item.status = matched ? 'active' : 'failed';
       item.sslStatus = matched ? 'active' : 'pending';
       item.lastCheckedAt = new Date().toISOString();
+      await persistState();
       return res.json({ status: matched ? 'verified' : 'mismatch', domain: item, observed: values });
     } catch (error) {
       item.status = 'failed';
@@ -406,6 +467,7 @@ async function startServer() {
     domain.deploymentId = deployment.id;
     domain.sslStatus = 'pending';
     domain.lastCheckedAt = new Date().toISOString();
+    await persistState();
 
     const configDir = process.env.CADDY_CONFIG_DIR || path.join(process.cwd(), 'deploy', 'generated');
     const configPath = path.join(configDir, 'Caddyfile');
@@ -438,6 +500,7 @@ async function startServer() {
       });
     } catch (error) {
       domain.deploymentId = undefined;
+      await persistState();
       return res.status(502).json({
         error: 'Failed to generate or reload reverse-proxy configuration.',
         details: error instanceof Error ? error.message : String(error),
@@ -448,6 +511,7 @@ async function startServer() {
 
   app.delete('/api/v1/domains/:id', requireApiToken, (req, res) => {
     if (!domains.delete(req.params.id)) return res.status(404).json({ error: 'Domain not found.' });
+    await persistState();
     res.status(204).end();
   });
 
