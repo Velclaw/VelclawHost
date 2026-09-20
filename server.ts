@@ -162,7 +162,7 @@ async function startServer() {
         await execFileAsync('git', ['-C', checkoutDir, 'checkout', '--detach', observedCommit], { timeout: 30000, maxBuffer: 1024 * 1024 });
         await execFileAsync('docker', ['build', '--pull', '-t', image, checkoutDir], { timeout: 15 * 60 * 1000, maxBuffer: 8 * 1024 * 1024 });
         let runtimeImage = image;
-        const registry = process.env.IMAGE_REGISTRY?.trim().replace(/\\/$/, '');
+        const registry = process.env.IMAGE_REGISTRY?.trim().replace(/\/$/, '');
         if (registry && String(process.env.IMAGE_PUSH || '').toLowerCase() === 'true') {
           runtimeImage = registry + '/' + safeProject + ':' + observedCommit.slice(0, 12);
           await execFileAsync('docker', ['tag', image, runtimeImage], { timeout: 30000, maxBuffer: 1024 * 1024 });
@@ -498,12 +498,12 @@ async function startServer() {
     } catch (error) {
       runtime.state = 'failed';
       runtime.updatedAt = new Date().toISOString();
-      item.status = 'failed';
+      item.status = 'terminal_failed';
       item.error = error instanceof Error ? error.message : String(error);
       return res.status(502).json({ status: 'unhealthy', deployment: item, runtime });
     }
   });
-\n  app.get('/api/v1/domains', requireApiToken, (_req, res) => {
+  app.get('/api/v1/domains', requireApiToken, (_req, res) => {
     res.json({ status: 'success', domains: [...domains.values()] });
   });
 
