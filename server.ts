@@ -161,6 +161,13 @@ async function startServer() {
         await execFileAsync('git', ['-C', checkoutDir, 'fetch', '--depth', '1', 'origin', observedCommit], { timeout: 60000, maxBuffer: 2 * 1024 * 1024 });
         await execFileAsync('git', ['-C', checkoutDir, 'checkout', '--detach', observedCommit], { timeout: 30000, maxBuffer: 1024 * 1024 });
         await execFileAsync('docker', ['build', '--pull', '-t', image, checkoutDir], { timeout: 15 * 60 * 1000, maxBuffer: 8 * 1024 * 1024 });
+        let runtimeImage = image;
+        const registry = process.env.IMAGE_REGISTRY?.trim().replace(/\\/$/, '');
+        if (registry && String(process.env.IMAGE_PUSH || '').toLowerCase() === 'true') {
+          runtimeImage = registry + '/' + safeProject + ':' + observedCommit.slice(0, 12);
+          await execFileAsync('docker', ['tag', image, runtimeImage], { timeout: 30000, maxBuffer: 1024 * 1024 });
+          await execFileAsync('docker', ['push', runtimeImage], { timeout: 10 * 60 * 1000, maxBuffer: 8 * 1024 * 1024 });
+        }
 
         item.status = 'runtime_provisioning';
         await persistState();
@@ -175,7 +182,7 @@ async function startServer() {
         if (!Number.isInteger(containerPort) || containerPort < 1 || containerPort > 65535) throw new Error('Invalid RUNTIME_CONTAINER_PORT.');
         const containerName = 'velclawhost-' + item.id;
         await execFileAsync('docker', ['rm', '-f', containerName], { timeout: 15000, maxBuffer: 1024 * 1024 }).catch(() => {});
-        await execFileAsync('docker', ['run', '-d', '--name', containerName, '--restart', 'unless-stopped', '--label', 'velclawhost.deployment=' + item.id, '--label', 'velclawhost.project=' + item.projectName, '-p', runtime.port + ':' + containerPort, image], { timeout: 30000, maxBuffer: 2 * 1024 * 1024 });
+        await execFileAsync('docker', ['run', '-d', '--name', containerName, '--restart', 'unless-stopped', '--label', 'velclawhost.deployment=' + item.id, '--label', 'velclawhost.project=' + item.projectName, '-p', runtime.port + ':' + containerPort, runtimeImage], { timeout: 30000, maxBuffer: 2 * 1024 * 1024 });
         runtime.state = 'running';
         runtime.healthUrl = 'http://127.0.0.1:' + runtime.port;
         runtime.updatedAt = new Date().toISOString();
@@ -446,7 +453,7 @@ async function startServer() {
       });
       runtime.state = 'stopped';
       runtime.updatedAt = new Date().toISOString();
-      item.status = 'failed';
+      item.status = 'terminal_failed';
       item.error = 'Runtime stopped by operator.';
       item.completedAt = new Date().toISOString();
       await persistState();
@@ -477,8 +484,8 @@ async function startServer() {
       if (!healthy) {
         runtime.state = 'failed';
         runtime.updatedAt = new Date().toISOString();
-        item.status = 'failed';
-        item.error = `Health check returned HTTP ${response.status}.`;
+        item.status = 'terminal_failed';
+        item.error = `Health check returned HTTP ${response.status}`;
         return res.status(502).json({ status: 'unhealthy', deployment: item, runtime });
       }
       runtime.state = 'running';
