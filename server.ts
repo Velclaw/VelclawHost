@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createServer as createViteServer } from "vite";
@@ -47,7 +48,7 @@ async function startServer() {
   type DomainRecord = {
     id: string; domain: string; recordType: 'A' | 'CNAME'; targetValue: string;
     status: 'pending' | 'active' | 'verifying' | 'failed'; sslStatus: 'active' | 'issuing' | 'pending';
-    createdAt: string; lastCheckedAt?: string; notes?: string;
+    createdAt: string; lastCheckedAt?: string; notes?: string; deploymentId?: string;
   };
   const domains = new Map<string, DomainRecord>();
   const normalizeTarget = (value: string) => value.trim().toLowerCase().replace(/\.$/, '');
@@ -388,6 +389,60 @@ async function startServer() {
       item.status = 'failed';
       item.sslStatus = 'pending';
       return res.status(502).json({ error: 'DNS verification failed.', details: error instanceof Error ? error.message : String(error), domain: item });
+    }
+  });
+
+  app.post('/api/v1/deployments/:id/domain/bind', requireApiToken, async (req, res) => {
+    const deployment = deployments.get(req.params.id);
+    const runtime = runtimes.get(req.params.id);
+    const domainId = String(req.body?.domainId || '').trim();
+    const domain = domains.get(domainId);
+    if (!deployment) return res.status(404).json({ error: 'Deployment not found.' });
+    if (!runtime) return res.status(409).json({ error: 'Runtime plan not found.' });
+    if (runtime.state !== 'running') return res.status(409).json({ error: 'Runtime must be running before domain binding.', runtime });
+    if (!domain) return res.status(404).json({ error: 'Domain not found.' });
+    if (domain.status !== 'active') return res.status(409).json({ error: 'Domain must pass DNS verification before binding.', domain });
+
+    domain.deploymentId = deployment.id;
+    domain.sslStatus = 'pending';
+    domain.lastCheckedAt = new Date().toISOString();
+
+    const configDir = process.env.CADDY_CONFIG_DIR || path.join(process.cwd(), 'deploy', 'generated');
+    const configPath = path.join(configDir, 'Caddyfile');
+    try {
+      await fs.mkdir(configDir, { recursive: true });
+      const bindings = [...domains.values()].filter((entry) => entry.status === 'active' && entry.deploymentId).map((entry) => {
+        const boundRuntime = runtimes.get(deployments.get(entry.deploymentId!)?.id || '');
+        if (!boundRuntime || boundRuntime.state !== 'running') return null;
+        const safeDomain = entry.domain.replace(/[^a-z0-9.-]/gi, '');
+        return `${safeDomain} {
+  reverse_proxy 127.0.0.1:${boundRuntime.port}
+}`;
+      }).filter(Boolean).join('\n\n');
+
+      await fs.writeFile(configPath, bindings ? bindings + '\n' : '# VelclawHost generated Caddy configuration\\n', 'utf8');
+
+      const autoReload = String(process.env.CADDY_AUTO_RELOAD || 'false').toLowerCase() === 'true';
+      if (autoReload) {
+        await execFileAsync('caddy', ['reload', '--config', configPath, '--adapter', 'caddyfile'], {
+          timeout: 15000,
+          maxBuffer: 1024 * 1024,
+        });
+      }
+
+      return res.status(201).json({
+        status: 'bound',
+        domain,
+        runtime,
+        proxy: { provider: 'caddy', configPath, reloaded: autoReload },
+      });
+    } catch (error) {
+      domain.deploymentId = undefined;
+      return res.status(502).json({
+        error: 'Failed to generate or reload reverse-proxy configuration.',
+        details: error instanceof Error ? error.message : String(error),
+        domain,
+      });
     }
   });
 
