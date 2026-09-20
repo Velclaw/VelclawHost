@@ -452,3 +452,28 @@ ready
 ```
 
 This prevents the control plane from reporting a deployment as live before an actual runtime is provisioned and health-checked.
+
+
+### Runtime planning contract
+
+After source validation, the control plane can reserve a runtime slot with:
+
+`POST /api/v1/deployments/:id/runtime/plan`
+
+This creates a runtime record and allocates a local port from `RUNTIME_PORT_START` (default `4100`). It is only a **resource plan**: no container or process is started, and the deployment is not marked ready.
+
+The intended boundary is:
+
+```text
+Control Plane
+  └─ runtime plan
+       │
+       ▼
+Runtime Provider Adapter
+  ├─ Docker
+  ├─ Kubernetes
+  └─ managed runtime
+       │
+       ▼
+health probe → domain binding → TLS → ready
+```
