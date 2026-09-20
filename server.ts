@@ -561,53 +561,62 @@ async function startServer() {
 
     try {
       const provider = String(process.env.RUNTIME_PROVIDER || 'none').toLowerCase();
-      if (provider === 'docker') {
-        for (const runtime of runtimes.values()) {
-          if (runtime.state !== 'running') continue;
-          const deployment = deployments.get(runtime.deploymentId);
-          if (!deployment) continue;
+      if (provider !== 'docker') return;
 
-          const containerName = `velclawhost-${deployment.id}`;
+      for (const runtime of runtimes.values()) {
+        if (runtime.state !== 'running') continue;
+        const deployment = deployments.get(runtime.deploymentId);
+        if (!deployment) continue;
+
+        const containerName = `velclawhost-${deployment.id}`;
+        let containerPresent = true;
+        try {
+          await execFileAsync('docker', ['inspect', containerName], {
+            timeout: 5000,
+            maxBuffer: 1024 * 1024,
+          });
+        } catch {
+          containerPresent = false;
+        }
+
+        if (!containerPresent) {
+          runtime.state = 'failed';
+          runtime.updatedAt = new Date().toISOString();
+          deployment.status = 'failed';
+          deployment.completedAt = new Date().toISOString();
+          deployment.error = 'Runtime container is no longer present.';
+          reconciliation.runtimeUnhealthy += 1;
+          await persistState();
+          continue;
+        }
+
+        if (!runtime.healthUrl) continue;
+
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 5000);
           try {
-            await execFileAsync('docker', ['inspect', containerName], {
-              timeout: 5000,
-              maxBuffer: 1024 * 1024,
-            });
-          } catch {
-            runtime.state = 'failed';
-            runtime.updatedAt = new Date().toISOString();
-            if (deployment.status === 'ready' || deployment.status === 'waiting_approval') {
-              deployment.status = 'failed';
-              deployment.completedAt = new Date().toISOString();
-              deployment.error = 'Runtime container is no longer present.';
-            }
-            reconciliation.runtimeUnhealthy += 1;
-            await persistState();
-            continue;
+            const response = await fetch(runtime.healthUrl, { signal: controller.signal });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          } finally {
+            clearTimeout(timer);
           }
 
-          if (runtime.healthUrl && (deployment.status === 'ready' || deployment.status === 'waiting_approval')) {
-            try {
-              const controller = new AbortController();
-              const timer = setTimeout(() => controller.abort(), 5000);
-              const response = await fetch(runtime.healthUrl, { signal: controller.signal });
-              clearTimeout(timer);
-              if (!response.ok) throw new Error(`HTTP ${response.status}`);
-              if (deployment.status === 'waiting_approval') {
-                deployment.status = 'ready';
-                deployment.completedAt = new Date().toISOString();
-                deployment.error = undefined;
-              }
-            } catch (error) {
-              runtime.state = 'failed';
-              runtime.updatedAt = new Date().toISOString();
-              deployment.status = 'failed';
-              deployment.completedAt = new Date().toISOString();
-              deployment.error = 'Runtime health check failed: ' + (error instanceof Error ? error.message : String(error));
-              reconciliation.runtimeUnhealthy += 1;
-            }
-            await persistState();
+          runtime.updatedAt = new Date().toISOString();
+          if (deployment.status === 'waiting_approval') {
+            deployment.status = 'ready';
+            deployment.completedAt = new Date().toISOString();
+            deployment.error = undefined;
           }
+          await persistState();
+        } catch (error) {
+          runtime.state = 'failed';
+          runtime.updatedAt = new Date().toISOString();
+          deployment.status = 'failed';
+          deployment.completedAt = new Date().toISOString();
+          deployment.error = 'Runtime health check failed: ' + (error instanceof Error ? error.message : String(error));
+          reconciliation.runtimeUnhealthy += 1;
+          await persistState();
         }
       }
     } catch (error) {
@@ -618,7 +627,6 @@ async function startServer() {
       reconciliationBusy = false;
     }
   }
-
   const reconciliationIntervalMs = Math.max(
     5000,
     Number(process.env.RECONCILE_INTERVAL_MS || 30000),
