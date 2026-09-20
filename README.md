@@ -557,3 +557,7 @@ Run the migration before starting the service. The application does not auto-cre
 ### Current verification status
 
 The control-plane branch contains the state-store abstraction and reconciliation worker. GitHub Actions has not yet reported a workflow run for the latest commit, so deployment readiness must not be inferred from source state alone.
+
+### Deployment queue
+
+New deployments are persisted as `queued` and picked up by the in-process deployment queue worker. The worker validates the repository branch tip and requested commit SHA, then moves the deployment to `waiting_approval`; it does not execute arbitrary build commands. Configure `DEPLOYMENT_QUEUE_INTERVAL_MS` to change the polling interval (minimum 5 seconds).
