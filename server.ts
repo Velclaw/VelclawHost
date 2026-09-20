@@ -104,6 +104,85 @@ async function startServer() {
     res.json({ status: 'success', deployment: item });
   });
 
+  type QueueMetrics = {
+    enqueued: number;
+    claimed: number;
+    completed: number;
+    failed: number;
+    lastError: string | null;
+  };
+  const queueMetrics: QueueMetrics = {
+    enqueued: 0,
+    claimed: 0,
+    completed: 0,
+    failed: 0,
+    lastError: null,
+  };
+  let queueBusy = false;
+
+  async function processDeploymentQueue() {
+    if (queueBusy) return;
+    queueBusy = true;
+    try {
+      const candidate = [...deployments.values()]
+        .filter((item) => item.status === 'queued')
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+      if (!candidate) return;
+
+      queueMetrics.claimed += 1;
+      candidate.status = 'building';
+      candidate.startedAt = new Date().toISOString();
+      candidate.error = undefined;
+      await persistState();
+
+      try {
+        const remote = candidate.repoUrl.replace(/\.git$/i, '');
+        const { stdout } = await execFileAsync('git', ['ls-remote', remote, candidate.branch], {
+          timeout: 15000,
+          maxBuffer: 1024 * 1024,
+        });
+        const line = stdout.trim().split('\n').find(Boolean);
+        const observedCommit = line?.split(/\s+/)[0] || '';
+        if (!observedCommit || !/^[0-9a-f]{40}$/i.test(observedCommit)) {
+          throw new Error('Repository branch could not be resolved.');
+        }
+        if (candidate.commitSha && candidate.commitSha.toLowerCase() !== observedCommit.toLowerCase()) {
+          throw new Error('Requested commit SHA does not match the remote branch tip.');
+        }
+
+        candidate.sourceCommit = observedCommit;
+        candidate.sourceValidatedAt = new Date().toISOString();
+        candidate.status = 'waiting_approval';
+        candidate.completedAt = new Date().toISOString();
+        await persistState();
+        queueMetrics.completed += 1;
+      } catch (error) {
+        candidate.status = 'failed';
+        candidate.completedAt = new Date().toISOString();
+        candidate.error = error instanceof Error ? error.message : String(error);
+        queueMetrics.failed += 1;
+        queueMetrics.lastError = candidate.error;
+        await persistState();
+      }
+    } finally {
+      queueBusy = false;
+    }
+  }
+
+  const queueIntervalMs = Math.max(5000, Number(process.env.DEPLOYMENT_QUEUE_INTERVAL_MS || 10000));
+  const queueTimer = setInterval(() => void processDeploymentQueue(), queueIntervalMs);
+  queueTimer.unref?.();
+
+  app.get('/api/v1/queue', requireApiToken, (_req, res) => {
+    res.json({
+      status: 'success',
+      running: queueBusy,
+      interval_ms: queueIntervalMs,
+      queued: [...deployments.values()].filter((item) => item.status === 'queued').length,
+      ...queueMetrics,
+    });
+  });
+
   app.post('/api/v1/deployments/:id/execute', requireApiToken, async (req, res) => {
     const item = deployments.get(req.params.id);
     if (!item) return res.status(404).json({ error: 'Deployment not found.' });
