@@ -150,7 +150,48 @@ async function startServer() {
     }
   });
 
-  app.get('/api/v1/domains', requireApiToken, (_req, res) => {
+
+  type RuntimeRecord = {
+    deploymentId: string; runtimeId: string; state: 'provisioning' | 'running' | 'failed' | 'stopped';
+    port: number; healthUrl: string | null; createdAt: string; updatedAt: string;
+  };
+  const runtimes = new Map<string, RuntimeRecord>();
+  const runtimePorts = new Set<number>();
+  let nextRuntimePort = Number(process.env.RUNTIME_PORT_START || 4100);
+
+  function allocateRuntimePort() {
+    while (runtimePorts.has(nextRuntimePort)) nextRuntimePort += 1;
+    const port = nextRuntimePort++;
+    runtimePorts.add(port);
+    return port;
+  }
+
+  app.post('/api/v1/deployments/:id/runtime/plan', requireApiToken, (req, res) => {
+    const item = deployments.get(req.params.id);
+    if (!item) return res.status(404).json({ error: 'Deployment not found.' });
+    if (item.status !== 'waiting_approval') return res.status(409).json({ error: 'Runtime planning requires waiting_approval state.', deployment: item });
+    const existing = runtimes.get(item.id);
+    if (existing) return res.json({ status: 'success', runtime: existing });
+    const now = new Date().toISOString();
+    const runtime: RuntimeRecord = {
+      deploymentId: item.id,
+      runtimeId: 'rt-' + Date.now(),
+      state: 'provisioning',
+      port: allocateRuntimePort(),
+      healthUrl: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    runtimes.set(item.id, runtime);
+    res.status(201).json({ status: 'planned', runtime, next: 'runtime_provider' });
+  });
+
+  app.get('/api/v1/deployments/:id/runtime', requireApiToken, (req, res) => {
+    const runtime = runtimes.get(req.params.id);
+    if (!runtime) return res.status(404).json({ error: 'Runtime plan not found.' });
+    res.json({ status: 'success', runtime });
+  });
+\n  app.get('/api/v1/domains', requireApiToken, (_req, res) => {
     res.json({ status: 'success', domains: [...domains.values()] });
   });
 
