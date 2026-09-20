@@ -397,7 +397,7 @@ async function startServer() {
     } catch (error) {
       runtime.state = 'failed';
       runtime.updatedAt = new Date().toISOString();
-      item.status = 'failed';
+      item.status = 'terminal_failed';
       item.completedAt = new Date().toISOString();
       item.error = error instanceof Error ? error.message : String(error);
       await persistState();
@@ -701,7 +701,7 @@ async function startServer() {
         } catch (error) {
           runtime.state = 'failed';
           runtime.updatedAt = new Date().toISOString();
-          deployment.status = 'failed';
+          deployment.status = 'terminal_failed';
           deployment.completedAt = new Date().toISOString();
           deployment.error = 'Runtime health check failed: ' + (error instanceof Error ? error.message : String(error));
           reconciliation.runtimeUnhealthy += 1;
