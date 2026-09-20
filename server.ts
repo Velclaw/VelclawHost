@@ -258,6 +258,68 @@ async function startServer() {
     }
   });
 
+  app.get('/api/v1/deployments/:id/runtime/logs', requireApiToken, async (req, res) => {
+    const item = deployments.get(req.params.id);
+    const runtime = runtimes.get(req.params.id);
+    if (!item) return res.status(404).json({ error: 'Deployment not found.' });
+    if (!runtime) return res.status(404).json({ error: 'Runtime not found.' });
+
+    const provider = String(process.env.RUNTIME_PROVIDER || 'none').toLowerCase();
+    if (provider !== 'docker') {
+      return res.status(503).json({ error: 'Docker runtime provider is not enabled.', runtime });
+    }
+
+    const containerName = `velclawhost-${item.id}`;
+    const tail = Math.min(Math.max(Number(req.query.tail || 100), 1), 1000);
+    try {
+      const { stdout } = await execFileAsync('docker', ['logs', '--tail', String(tail), containerName], {
+        timeout: 10000,
+        maxBuffer: 2 * 1024 * 1024,
+      });
+      return res.json({ status: 'success', deployment: item, runtime, logs: stdout });
+    } catch (error) {
+      return res.status(502).json({
+        error: 'Unable to read runtime logs.',
+        details: error instanceof Error ? error.message : String(error),
+        deployment: item,
+        runtime,
+      });
+    }
+  });
+
+  app.post('/api/v1/deployments/:id/runtime/stop', requireApiToken, async (req, res) => {
+    const item = deployments.get(req.params.id);
+    const runtime = runtimes.get(req.params.id);
+    if (!item) return res.status(404).json({ error: 'Deployment not found.' });
+    if (!runtime) return res.status(404).json({ error: 'Runtime not found.' });
+
+    const provider = String(process.env.RUNTIME_PROVIDER || 'none').toLowerCase();
+    if (provider !== 'docker') {
+      return res.status(503).json({ error: 'Docker runtime provider is not enabled.', runtime });
+    }
+
+    const containerName = `velclawhost-${item.id}`;
+    try {
+      await execFileAsync('docker', ['stop', '--time', '10', containerName], {
+        timeout: 15000,
+        maxBuffer: 1024 * 1024,
+      });
+      runtime.state = 'stopped';
+      runtime.updatedAt = new Date().toISOString();
+      item.status = 'failed';
+      item.error = 'Runtime stopped by operator.';
+      item.completedAt = new Date().toISOString();
+      return res.json({ status: 'stopped', deployment: item, runtime });
+    } catch (error) {
+      return res.status(502).json({
+        error: 'Unable to stop runtime.',
+        details: error instanceof Error ? error.message : String(error),
+        deployment: item,
+        runtime,
+      });
+    }
+  });
+
   app.post('/api/v1/deployments/:id/runtime/health', requireApiToken, async (req, res) => {
     const item = deployments.get(req.params.id);
     const runtime = runtimes.get(req.params.id);
