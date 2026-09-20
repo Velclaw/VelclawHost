@@ -196,6 +196,20 @@ async function startServer() {
           if (!response.ok) throw new Error('Health check returned HTTP ' + response.status);
         } finally { clearTimeout(timer); }
 
+        if (item.customDomain) {
+          const domain = [...domains.values()].find((entry) => entry.domain === item.customDomain && entry.status === 'active');
+          if (domain) {
+            const bindHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (apiToken) bindHeaders.authorization = 'Bearer ' + apiToken;
+            const bindResponse = await fetch('http://127.0.0.1:' + PORT + '/api/v1/deployments/' + item.id + '/domain/bind', {
+              method: 'POST',
+              headers: bindHeaders,
+              body: JSON.stringify({ domainId: domain.id }),
+            });
+            if (!bindResponse.ok) throw new Error('Domain binding failed with HTTP ' + bindResponse.status);
+          }
+        }
+
         item.status = 'ready';
         item.completedAt = new Date().toISOString();
         await persistState();
