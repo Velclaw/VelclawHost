@@ -505,3 +505,17 @@ POST /api/v1/deployments/:id/runtime/stop
 ```
 
 The control plane keeps the deployment state separate from the container state: stopping the runtime moves the deployment out of `ready` and records an operator action instead of silently leaving stale readiness.
+
+
+### Domain binding and Caddy
+
+After DNS verification and a running runtime, bind a verified domain:
+
+```
+POST /api/v1/deployments/:id/domain/bind
+{ "domainId": "dom-..." }
+```
+
+The control plane generates a Caddyfile containing one site block per active binding and proxies the hostname to the runtime's allocated loopback port. Caddy's `reverse_proxy` directive supports local upstreams and active health checks; automatic public HTTPS requires the domain to resolve to the proxy and ports 80/443 to be reachable. citeturn0search0turn0search1turn0search4
+
+By default the control plane only writes the generated configuration. Set `CADDY_AUTO_RELOAD=true` to have it invoke Caddy's reload command. This remains disabled by default so a control-plane API request cannot unexpectedly alter a production proxy.
