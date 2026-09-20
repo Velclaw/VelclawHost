@@ -7,3 +7,6 @@ coverage/
 .env*
 !.env.example
 data/
+
+.velclawhost-tmp/
+deploy/generated/Caddyfile
