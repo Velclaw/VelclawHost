@@ -101,17 +101,59 @@ class PostgresDeploymentQueue implements DeploymentQueueStore {
   }
 }
 
-class DisabledQueue implements DeploymentQueueStore {
+class InMemoryDeploymentQueue implements DeploymentQueueStore {
+  private readonly jobs = new Map<string, QueueJob>();
+
   async enqueue(input: Omit<QueueJob, "attempts" | "status">) {
-    return { ...input, status:"queued" as const, attempts:0, claimedAt:null, claimedBy:null, startedAt:null, completedAt:null, lastError:null };
+    const existing = [...this.jobs.values()].find((job) => job.deploymentId === input.deploymentId && ['queued','claimed','retryable_failed'].includes(job.status));
+    if (existing) return existing;
+    const job = { ...input, status: 'queued' as const, attempts: 0, claimedAt:null, claimedBy:null, startedAt:null, completedAt:null, lastError:null };
+    this.jobs.set(job.id, job);
+    return job;
   }
-  async claim() { return null; }
-  async complete() {}
-  async retry() { return "terminal_failed" as const; }
-  async fail() {}
-  async stats() { return {}; }
+
+  async claim(workerId: string) {
+    const candidate = [...this.jobs.values()]
+      .filter((job) => ['queued','retryable_failed'].includes(job.status) && new Date(job.availableAt).getTime() <= Date.now() && job.attempts < job.maxAttempts)
+      .sort((a,b) => b.priority - a.priority || a.availableAt.localeCompare(b.availableAt))[0];
+    if (!candidate) return null;
+    candidate.status = 'claimed';
+    candidate.attempts += 1;
+    candidate.claimedAt = new Date().toISOString();
+    candidate.claimedBy = workerId;
+    candidate.startedAt = candidate.claimedAt;
+    return candidate;
+  }
+
+  async complete(jobId: string) {
+    const job = this.jobs.get(jobId);
+    if (job) { job.status='completed'; job.completedAt=new Date().toISOString(); job.lastError=null; }
+  }
+
+  async retry(jobId: string, error: string, delayMs: number) {
+    const job = this.jobs.get(jobId);
+    if (!job) return 'terminal_failed' as const;
+    job.lastError = error;
+    if (job.attempts >= job.maxAttempts) { job.status='terminal_failed'; job.completedAt=new Date().toISOString(); return 'terminal_failed' as const; }
+    job.status='queued';
+    job.availableAt=new Date(Date.now()+Math.max(1000,delayMs)).toISOString();
+    job.claimedAt=null;
+    job.claimedBy=null;
+    return 'queued' as const;
+  }
+
+  async fail(jobId: string, error: string) {
+    const job=this.jobs.get(jobId);
+    if (job) { job.status='terminal_failed'; job.completedAt=new Date().toISOString(); job.lastError=error; }
+  }
+
+  async stats() {
+    const result: Record<string, number> = {};
+    for (const job of this.jobs.values()) result[job.status] = (result[job.status] || 0) + 1;
+    return result;
+  }
 }
 
 export function createDeploymentQueue(databaseUrl?: string): DeploymentQueueStore {
-  return databaseUrl?.trim() ? new PostgresDeploymentQueue(databaseUrl.trim()) : new DisabledQueue();
+  return databaseUrl?.trim() ? new PostgresDeploymentQueue(databaseUrl.trim()) : new InMemoryDeploymentQueue();
 }
