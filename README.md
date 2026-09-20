@@ -564,8 +564,8 @@ New deployments are persisted as `queued` and picked up by the in-process deploy
 
 ### Production deployment pipeline
 
-The control plane now supports a durable PostgreSQL deployment queue when `VELCLAWHOST_STATE_STORE=postgres`. Queue jobs use transactional row claiming with `FOR UPDATE SKIP LOCKED`, bounded retries with exponential backoff, and active-deployment idempotency. PostgreSQL documents `SKIP LOCKED` specifically as useful for queue-like tables with multiple consumers. citeturn0search12
+The control plane now supports a durable PostgreSQL deployment queue when `VELCLAWHOST_STATE_STORE=postgres`. Queue jobs use transactional row claiming with `FOR UPDATE SKIP LOCKED`, bounded retries with exponential backoff, and active-deployment idempotency. PostgreSQL documents `SKIP LOCKED` specifically as useful for queue-like tables with multiple consumers.
 
-Set `DEPLOYMENT_EXECUTOR=docker` to enable the build/runtime worker. It validates the GitHub branch, clones the exact commit, builds a Docker image, optionally pushes it when `IMAGE_REGISTRY` + `IMAGE_PUSH=true` are configured, starts the runtime, and performs a health check. Caddy remains responsible for public TLS; its automatic HTTPS requires correct DNS and public reachability of ports 80/443. citeturn1search0turn1search1
+Set `DEPLOYMENT_EXECUTOR=docker` to enable the build/runtime worker. It validates the GitHub branch, clones the exact commit, builds a Docker image, optionally pushes it when `IMAGE_REGISTRY` + `IMAGE_PUSH=true` are configured, starts the runtime, and performs a health check. Caddy remains responsible for public TLS; its automatic HTTPS requires correct DNS and public reachability of ports 80/443.
 
 Production requires the PostgreSQL migrations in `db/migrations/`, persistent Docker/Caddy state, server-side secrets, and a controlled worker host. The repository does not commit credentials or assume a live production database.
