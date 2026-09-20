@@ -191,6 +191,109 @@ async function startServer() {
     if (!runtime) return res.status(404).json({ error: 'Runtime plan not found.' });
     res.json({ status: 'success', runtime });
   });
+
+  app.post('/api/v1/deployments/:id/runtime/provision', requireApiToken, async (req, res) => {
+    const item = deployments.get(req.params.id);
+    const runtime = runtimes.get(req.params.id);
+    if (!item) return res.status(404).json({ error: 'Deployment not found.' });
+    if (!runtime) return res.status(404).json({ error: 'Runtime plan not found.' });
+    if (runtime.state !== 'provisioning') return res.status(409).json({ error: 'Runtime is not in provisioning state.', runtime });
+
+    const provider = String(process.env.RUNTIME_PROVIDER || 'none').toLowerCase();
+    if (provider !== 'docker') {
+      return res.status(503).json({
+        error: 'Docker runtime provider is not enabled.',
+        required: 'RUNTIME_PROVIDER=docker',
+        runtime,
+      });
+    }
+
+    const image = String(process.env.RUNTIME_IMAGE || '').trim();
+    if (!image) {
+      return res.status(503).json({ error: 'RUNTIME_IMAGE is not configured; refusing to start an unspecified container.' });
+    }
+
+    const containerPort = Number(process.env.RUNTIME_CONTAINER_PORT || 3000);
+    if (!Number.isInteger(containerPort) || containerPort < 1 || containerPort > 65535) {
+      return res.status(500).json({ error: 'Invalid RUNTIME_CONTAINER_PORT.' });
+    }
+
+    const containerName = `velclawhost-${item.id}`;
+    try {
+      const inspect = await execFileAsync('docker', ['inspect', containerName], { timeout: 10000, maxBuffer: 1024 * 1024 }).catch(() => null);
+      if (inspect) {
+        runtime.state = 'running';
+        runtime.updatedAt = new Date().toISOString();
+        runtime.healthUrl = `http://127.0.0.1:${runtime.port}`;
+        item.status = 'ready';
+        item.completedAt = new Date().toISOString();
+        return res.json({ status: 'running', deployment: item, runtime });
+      }
+
+      await execFileAsync('docker', [
+        'run', '-d',
+        '--name', containerName,
+        '--restart', 'unless-stopped',
+        '--label', 'com.velclawhost.deployment=' + item.id,
+        '--label', 'com.velclawhost.project=' + item.projectName,
+        '-p', `${runtime.port}:${containerPort}`,
+        image,
+      ], { timeout: 30000, maxBuffer: 1024 * 1024 });
+
+      runtime.state = 'running';
+      runtime.updatedAt = new Date().toISOString();
+      runtime.healthUrl = `http://127.0.0.1:${runtime.port}`;
+      item.status = 'ready';
+      item.completedAt = new Date().toISOString();
+
+      return res.status(201).json({
+        status: 'running',
+        deployment: item,
+        runtime,
+        health: 'pending',
+        next: 'health_check',
+      });
+    } catch (error) {
+      runtime.state = 'failed';
+      runtime.updatedAt = new Date().toISOString();
+      item.status = 'failed';
+      item.completedAt = new Date().toISOString();
+      item.error = error instanceof Error ? error.message : String(error);
+      return res.status(502).json({ status: 'failed', deployment: item, runtime });
+    }
+  });
+
+  app.post('/api/v1/deployments/:id/runtime/health', requireApiToken, async (req, res) => {
+    const item = deployments.get(req.params.id);
+    const runtime = runtimes.get(req.params.id);
+    if (!item) return res.status(404).json({ error: 'Deployment not found.' });
+    if (!runtime) return res.status(404).json({ error: 'Runtime not found.' });
+    if (!runtime.healthUrl) return res.status(409).json({ error: 'Runtime has no health endpoint.' });
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(runtime.healthUrl, { signal: controller.signal });
+      clearTimeout(timer);
+      const healthy = response.ok;
+      if (!healthy) {
+        runtime.state = 'failed';
+        runtime.updatedAt = new Date().toISOString();
+        item.status = 'failed';
+        item.error = `Health check returned HTTP ${response.status}.`;
+        return res.status(502).json({ status: 'unhealthy', deployment: item, runtime });
+      }
+      runtime.state = 'running';
+      runtime.updatedAt = new Date().toISOString();
+      return res.json({ status: 'healthy', deployment: item, runtime });
+    } catch (error) {
+      runtime.state = 'failed';
+      runtime.updatedAt = new Date().toISOString();
+      item.status = 'failed';
+      item.error = error instanceof Error ? error.message : String(error);
+      return res.status(502).json({ status: 'unhealthy', deployment: item, runtime });
+    }
+  });
 \n  app.get('/api/v1/domains', requireApiToken, (_req, res) => {
     res.json({ status: 'success', domains: [...domains.values()] });
   });
