@@ -1,9 +1,12 @@
 import express from "express";
 import path from "path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 
 let aiClient: GoogleGenAI | null = null;
+const execFileAsync = promisify(execFile);
 
 function getGeminiClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -67,7 +70,8 @@ async function startServer() {
   type DeploymentRecord = {
     id: string; projectName: string; repoUrl: string; branch: string; commitSha: string | null;
     customDomain: string | null; status: 'queued' | 'building' | 'waiting_approval' | 'ready' | 'failed';
-    createdAt: string;
+    createdAt: string; startedAt?: string; completedAt?: string; sourceValidatedAt?: string;
+    sourceCommit?: string; error?: string;
   };
   const deployments = new Map<string, DeploymentRecord>();
 
@@ -96,6 +100,54 @@ async function startServer() {
     const item = deployments.get(req.params.id);
     if (!item) return res.status(404).json({ error: 'Deployment not found.' });
     res.json({ status: 'success', deployment: item });
+  });
+
+  app.post('/api/v1/deployments/:id/execute', requireApiToken, async (req, res) => {
+    const item = deployments.get(req.params.id);
+    if (!item) return res.status(404).json({ error: 'Deployment not found.' });
+    if (item.status !== 'queued') {
+      return res.status(409).json({ error: 'Deployment is not executable from its current state.', deployment: item });
+    }
+
+    item.status = 'building';
+    item.startedAt = new Date().toISOString();
+    item.error = undefined;
+
+    try {
+      const remote = item.repoUrl.replace(/\\.git$/i, '');
+      const { stdout } = await execFileAsync('git', ['ls-remote', remote, item.branch], {
+        timeout: 15000,
+        maxBuffer: 1024 * 1024,
+      });
+      const line = stdout.trim().split('\\n').find(Boolean);
+      const observedCommit = line?.split(/\\s+/)[0] || '';
+      if (!observedCommit || !/^[0-9a-f]{40}$/i.test(observedCommit)) {
+        throw new Error('Repository branch could not be resolved.');
+      }
+      if (item.commitSha && item.commitSha.toLowerCase() !== observedCommit.toLowerCase()) {
+        throw new Error('Requested commit SHA does not match the remote branch tip.');
+      }
+
+      item.sourceCommit = observedCommit;
+      item.sourceValidatedAt = new Date().toISOString();
+
+      // This phase deliberately stops before build/runtime provisioning.
+      // A deployment is not marked ready until a runtime executor, artifact store,
+      // health probe, and domain/TLS binding are configured.
+      item.status = 'waiting_approval';
+      item.completedAt = new Date().toISOString();
+      return res.status(200).json({
+        status: 'waiting_approval',
+        deployment: item,
+        next: 'runtime_executor',
+        message: 'Source validated. Runtime provisioning is not enabled on this control-plane instance.',
+      });
+    } catch (error) {
+      item.status = 'failed';
+      item.completedAt = new Date().toISOString();
+      item.error = error instanceof Error ? error.message : String(error);
+      return res.status(422).json({ status: 'failed', deployment: item });
+    }
   });
 
   app.get('/api/v1/domains', requireApiToken, (_req, res) => {
@@ -142,7 +194,7 @@ async function startServer() {
 
   app.get('/api/v1/metrics', requireApiToken, (_req, res) => {
     const memory = process.memoryUsage();
-    res.json({ status: 'success', timestamp: new Date().toISOString(), service: 'velclawhost-control-plane', runtime: { node: process.version, uptime_seconds: Math.round(process.uptime()), heap_used_mb: Math.round(memory.heapUsed / 1024 / 1024), rss_mb: Math.round(memory.rss / 1024 / 1024) }, domains: { total: domains.size, active: [...domains.values()].filter((d) => d.status === 'active').length, pending: [...domains.values()].filter((d) => d.status !== 'active').length } });
+    res.json({ status: 'success', timestamp: new Date().toISOString(), service: 'velclawhost-control-plane', deployments: { total: deployments.size, queued: [...deployments.values()].filter((d) => d.status === 'queued').length, building: [...deployments.values()].filter((d) => d.status === 'building').length, waiting_approval: [...deployments.values()].filter((d) => d.status === 'waiting_approval').length, failed: [...deployments.values()].filter((d) => d.status === 'failed').length, ready: [...deployments.values()].filter((d) => d.status === 'ready').length }, runtime: { node: process.version, uptime_seconds: Math.round(process.uptime()), heap_used_mb: Math.round(memory.heapUsed / 1024 / 1024), rss_mb: Math.round(memory.rss / 1024 / 1024) }, domains: { total: domains.size, active: [...domains.values()].filter((d) => d.status === 'active').length, pending: [...domains.values()].filter((d) => d.status !== 'active').length } });
   });
 
   app.get('/api/v1/prometheus', requireApiToken, (_req, res) => {
