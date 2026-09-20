@@ -114,6 +114,7 @@ async function startServer() {
     item.status = 'building';
     item.startedAt = new Date().toISOString();
     item.error = undefined;
+    await persistState();
 
     try {
       const remote = item.repoUrl.replace(/\\.git$/i, '');
@@ -138,6 +139,7 @@ async function startServer() {
       // health probe, and domain/TLS binding are configured.
       item.status = 'waiting_approval';
       item.completedAt = new Date().toISOString();
+      await persistState();
       return res.status(200).json({
         status: 'waiting_approval',
         deployment: item,
@@ -148,6 +150,7 @@ async function startServer() {
       item.status = 'failed';
       item.completedAt = new Date().toISOString();
       item.error = error instanceof Error ? error.message : String(error);
+      await persistState();
       return res.status(422).json({ status: 'failed', deployment: item });
     }
   });
@@ -279,9 +282,9 @@ async function startServer() {
       const inspect = await execFileAsync('docker', ['inspect', containerName], { timeout: 10000, maxBuffer: 1024 * 1024 }).catch(() => null);
       if (inspect) {
         runtime.state = 'running';
-        await persistState();
         runtime.updatedAt = new Date().toISOString();
         runtime.healthUrl = `http://127.0.0.1:${runtime.port}`;
+        await persistState();
         return res.json({ status: 'running', deployment: item, runtime, next: 'health_check' });
       }
 
@@ -296,9 +299,9 @@ async function startServer() {
       ], { timeout: 30000, maxBuffer: 1024 * 1024 });
 
       runtime.state = 'running';
-      await persistState();
       runtime.updatedAt = new Date().toISOString();
       runtime.healthUrl = `http://127.0.0.1:${runtime.port}`;
+      await persistState();
       return res.status(201).json({
         status: 'running',
         deployment: item,
@@ -312,6 +315,7 @@ async function startServer() {
       item.status = 'failed';
       item.completedAt = new Date().toISOString();
       item.error = error instanceof Error ? error.message : String(error);
+      await persistState();
       return res.status(502).json({ status: 'failed', deployment: item, runtime });
     }
   });
@@ -363,11 +367,11 @@ async function startServer() {
         maxBuffer: 1024 * 1024,
       });
       runtime.state = 'stopped';
-      await persistState();
       runtime.updatedAt = new Date().toISOString();
       item.status = 'failed';
       item.error = 'Runtime stopped by operator.';
       item.completedAt = new Date().toISOString();
+      await persistState();
       return res.json({ status: 'stopped', deployment: item, runtime });
     } catch (error) {
       return res.status(502).json({
