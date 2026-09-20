@@ -32,6 +32,11 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Initialize the deployment queue before any route/worker can invoke runDeploymentJob().
+  // Keeping this before the first queue tick avoids a temporal-dead-zone crash during startup.
+  const deploymentQueue = createDeploymentQueue(process.env.VELCLAWHOST_STATE_STORE === 'postgres' ? process.env.DATABASE_URL : undefined);
+  const workerId = process.env.VELCLAWHOST_WORKER_ID?.trim() || 'worker-' + process.pid;
+
   // API Health Endpoint
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", service: "Velclaw Hosting Platform Server", timestamp: new Date().toISOString() });
@@ -282,8 +287,6 @@ async function startServer() {
     deployments: DeploymentRecord[];
     runtimes: RuntimeRecord[];
   };
-  const deploymentQueue = createDeploymentQueue(process.env.VELCLAWHOST_STATE_STORE === 'postgres' ? process.env.DATABASE_URL : undefined);
-  const workerId = process.env.VELCLAWHOST_WORKER_ID?.trim() || 'worker-' + process.pid;
   const stateStore = createControlPlaneStateStore({
     store: process.env.VELCLAWHOST_STATE_STORE,
     stateFile,
