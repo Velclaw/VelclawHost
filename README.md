@@ -380,6 +380,9 @@ VelclawHost exposes a minimal control-plane contract for the Velclaw core platfo
 | POST | `/api/v1/domains` | Register a domain target |
 | POST | `/api/v1/domains/:id/verify` | Resolve DNS and verify the configured A/CNAME target |
 | DELETE | `/api/v1/domains/:id` | Remove a managed domain |
+| POST | `/api/v1/deployments` | Queue a deployment specification |
+| GET | `/api/v1/deployments/:id` | Read deployment state |
+| POST | `/api/v1/deployments/:id/execute` | Validate the remote Git ref and advance the deployment to `waiting_approval` |
 | GET | `/api/v1/metrics` | Runtime and domain metrics |
 | GET | `/api/v1/prometheus` | Prometheus text exposition |
 
@@ -421,3 +424,31 @@ Ingress / Runtime
 ```
 
 The Velclaw core repository remains the product layer. VelclawHost is the infrastructure control plane. Production DNS, TLS, proxy and runtime credentials must be injected through deployment secrets rather than committed to this repository.
+
+
+### Staged deployment executor
+
+The current executor is intentionally conservative. `POST /api/v1/deployments/:id/execute` performs a real `git ls-remote` against the requested public GitHub repository and branch, verifies an optional 40-character commit SHA, and records the observed source commit.
+
+A successful source validation moves the deployment from `queued` to `waiting_approval`. It does **not** claim that a build, artifact upload, runtime container, health check, domain binding, or TLS issuance has completed. Those stages require the next runtime executor layer.
+
+Deployment lifecycle:
+
+```text
+queued
+  |
+  | /execute
+  v
+building
+  |
+  +--> failed
+  |
+  v
+waiting_approval
+  |
+  | future runtime executor
+  v
+ready
+```
+
+This prevents the control plane from reporting a deployment as live before an actual runtime is provisioned and health-checked.
