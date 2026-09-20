@@ -365,3 +365,207 @@ server {
 - **Bản quyền**: © 2026 Velclaw Cloud Architecture Team.
 - **Tác giả / Quản trị viên**: Huynh Thuong (`huynhthuong.xyz@gmail.com`).
 - **Mã nguồn**: Được phát triển và tối ưu hóa cho hệ sinh thái hạ tầng đám mây phân tán độ trễ thấp.
+
+
+---
+
+
+### Control-plane reconciliation
+
+VelclawHost runs a bounded reconciliation loop in the server process. It verifies Docker-managed runtime containers, probes configured runtime health endpoints, and moves stale runtimes/deployments to `failed` instead of treating a persisted `running` record as proof of liveness.
+
+Configuration:
+
+```env
+RECONCILE_INTERVAL_MS=30000
+VELCLAWHOST_FAIL_ON_STATE_ERROR=true
+```
+
+The reconciliation status is available at `GET /api/v1/reconciliation` and reports run count, failures, unhealthy runtimes, and the last run timestamp.
+
+## Control Plane API
+
+VelclawHost exposes a minimal control-plane contract for the Velclaw core platform. The browser console and external deploy clients use the same API.
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/v1/health` | Control-plane health; no token required |
+| GET | `/api/v1/domains` | List managed domains |
+| POST | `/api/v1/domains` | Register a domain target |
+| POST | `/api/v1/domains/:id/verify` | Resolve DNS and verify the configured A/CNAME target |
+| DELETE | `/api/v1/domains/:id` | Remove a managed domain |
+| POST | `/api/v1/deployments` | Queue a deployment specification |
+| GET | `/api/v1/deployments/:id` | Read deployment state |
+| POST | `/api/v1/deployments/:id/execute` | Validate the remote Git ref and advance the deployment to `waiting_approval` |
+| GET | `/api/v1/metrics` | Runtime and domain metrics |
+| GET | `/api/v1/prometheus` | Prometheus text exposition |
+
+When `VELCLAWHOST_API_TOKEN` is configured, protected endpoints require:
+
+```
+Authorization: Bearer <VELCLAWHOST_API_TOKEN>
+```
+
+### Domain deployment contract
+
+Request:
+
+```json
+{
+  "domain": "api.example.com",
+  "recordType": "CNAME",
+  "targetValue": "edge.velclaw.dev",
+  "notes": "production ingress"
+}
+```
+
+The server only accepts domain names under the Velclaw five-TLD namespace (`.com`, `.dev`, `.ai`, `.io`, `.app`). DNS verification is performed against a public DNS-over-HTTPS resolver; the service does not claim a domain is active merely because it was registered in the UI.
+
+### Velclaw integration boundary
+
+```
+VELCLAW
+   |
+   | deploy spec / domain target
+   v
+VELCLAWHOST
+   |-- domain registry
+   |-- DNS verification
+   |-- runtime health
+   |-- metrics / Prometheus
+   v
+Ingress / Runtime
+```
+
+The Velclaw core repository remains the product layer. VelclawHost is the infrastructure control plane. Production DNS, TLS, proxy and runtime credentials must be injected through deployment secrets rather than committed to this repository.
+
+
+### Staged deployment executor
+
+The current executor is intentionally conservative. `POST /api/v1/deployments/:id/execute` performs a real `git ls-remote` against the requested public GitHub repository and branch, verifies an optional 40-character commit SHA, and records the observed source commit.
+
+A successful source validation moves the deployment from `queued` to `waiting_approval`. It does **not** claim that a build, artifact upload, runtime container, health check, domain binding, or TLS issuance has completed. Those stages require the next runtime executor layer.
+
+Deployment lifecycle:
+
+```text
+queued
+  |
+  | /execute
+  v
+building
+  |
+  +--> failed
+  |
+  v
+waiting_approval
+  |
+  | future runtime executor
+  v
+ready
+```
+
+This prevents the control plane from reporting a deployment as live before an actual runtime is provisioned and health-checked.
+
+
+### Runtime planning contract
+
+After source validation, the control plane can reserve a runtime slot with:
+
+`POST /api/v1/deployments/:id/runtime/plan`
+
+This creates a runtime record and allocates a local port from `RUNTIME_PORT_START` (default `4100`). It is only a **resource plan**: no container or process is started, and the deployment is not marked ready.
+
+The intended boundary is:
+
+```text
+Control Plane
+  └─ runtime plan
+       │
+       ▼
+Runtime Provider Adapter
+  ├─ Docker
+  ├─ Kubernetes
+  └─ managed runtime
+       │
+       ▼
+health probe → domain binding → TLS → ready
+```
+
+
+### Docker runtime provider
+
+Set these server-side variables to enable the Docker adapter:
+
+```env
+RUNTIME_PROVIDER=docker
+RUNTIME_IMAGE=ghcr.io/your-org/your-image:tag
+RUNTIME_CONTAINER_PORT=3000
+RUNTIME_PORT_START=4100
+```
+
+The provider only starts the explicitly configured `RUNTIME_IMAGE`; it never accepts an arbitrary image from the deployment request. It creates a labelled container with a restart policy and maps the planned host port to the configured container port. Docker supports creating/starting containers, published ports, labels and restart policies through its Engine interface. citeturn0search0turn0search1turn0search5
+
+The control plane then performs an HTTP health probe. Only a successful probe changes the deployment to `ready`. A container being started is therefore not treated as proof that the application is healthy.
+
+
+### Runtime operations
+
+For an enabled Docker provider, operators can inspect the latest container output and stop a runtime through the control plane:
+
+```
+GET  /api/v1/deployments/:id/runtime/logs?tail=100
+POST /api/v1/deployments/:id/runtime/stop
+```
+
+The control plane keeps the deployment state separate from the container state: stopping the runtime moves the deployment out of `ready` and records an operator action instead of silently leaving stale readiness.
+
+
+### Domain binding and Caddy
+
+After DNS verification and a running runtime, bind a verified domain:
+
+```
+POST /api/v1/deployments/:id/domain/bind
+{ "domainId": "dom-..." }
+```
+
+The control plane generates a Caddyfile containing one site block per active binding and proxies the hostname to the runtime's allocated loopback port. Caddy's `reverse_proxy` directive supports local upstreams and active health checks; automatic public HTTPS requires the domain to resolve to the proxy and ports 80/443 to be reachable. citeturn0search0turn0search1turn0search4
+
+By default the control plane only writes the generated configuration. Set `CADDY_AUTO_RELOAD=true` to have it invoke Caddy's reload command. This remains disabled by default so a control-plane API request cannot unexpectedly alter a production proxy.
+
+
+### Persistent state backends
+
+The control plane supports two state stores:
+
+- `VELCLAWHOST_STATE_STORE=file` (default): atomic JSON snapshot for local development.
+- `VELCLAWHOST_STATE_STORE=postgres`: PostgreSQL-backed snapshot using `DATABASE_URL` and the `db/migrations/001_control_plane_state.sql` migration.
+
+PostgreSQL is the production-oriented option because the state is stored as `jsonb`, which PostgreSQL can index and query efficiently when needed. citeturn0search0turn0search3
+
+Example:
+
+```env
+VELCLAWHOST_STATE_STORE=postgres
+DATABASE_URL=postgresql://...
+```
+
+Run the migration before starting the service. The application does not auto-create production database schema.
+
+
+### Current verification status
+
+The control-plane branch contains the state-store abstraction and reconciliation worker. GitHub Actions has not yet reported a workflow run for the latest commit, so deployment readiness must not be inferred from source state alone.
+
+### Deployment queue
+
+New deployments are persisted as `queued` and picked up by the in-process deployment queue worker. The worker validates the repository branch tip and requested commit SHA, then moves the deployment to `waiting_approval`; it does not execute arbitrary build commands. Configure `DEPLOYMENT_QUEUE_INTERVAL_MS` to change the polling interval (minimum 5 seconds).
+
+### Production deployment pipeline
+
+The control plane now supports a durable PostgreSQL deployment queue when `VELCLAWHOST_STATE_STORE=postgres`. Queue jobs use transactional row claiming with `FOR UPDATE SKIP LOCKED`, bounded retries with exponential backoff, and active-deployment idempotency. PostgreSQL documents `SKIP LOCKED` specifically as useful for queue-like tables with multiple consumers.
+
+Set `DEPLOYMENT_EXECUTOR=docker` to enable the build/runtime worker. It validates the GitHub branch, clones the exact commit, builds a Docker image, optionally pushes it when `IMAGE_REGISTRY` + `IMAGE_PUSH=true` are configured, starts the runtime, and performs a health check. Caddy remains responsible for public TLS; its automatic HTTPS requires correct DNS and public reachability of ports 80/443.
+
+Production requires the PostgreSQL migrations in `db/migrations/`, persistent Docker/Caddy state, server-side secrets, and a controlled worker host. The repository does not commit credentials or assume a live production database.

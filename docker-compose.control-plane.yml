@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: velclawhost
+      POSTGRES_USER: velclawhost
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - velclawhost-postgres:/var/lib/postgresql/data
+
+  velclawhost:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      VELCLAWHOST_STATE_STORE: postgres
+      DATABASE_URL: postgresql://velclawhost:${POSTGRES_PASSWORD}@postgres:5432/velclawhost
+      VELCLAWHOST_API_TOKEN: ${VELCLAWHOST_API_TOKEN:?set VELCLAWHOST_API_TOKEN}
+      VELCLAWHOST_WORKER_ID: control-plane-1
+      DEPLOYMENT_EXECUTOR: docker
+      DEPLOYMENT_QUEUE_INTERVAL_MS: 5000
+      RUNTIME_PROVIDER: docker
+      RUNTIME_CONTAINER_PORT: 3000
+      RUNTIME_PORT_START: 4100
+      CADDY_CONFIG_DIR: /app/deploy/generated
+      CADDY_UPSTREAM_HOST: host.docker.internal
+      CADDY_AUTO_RELOAD: "true"
+      CADDY_ADMIN_URL: http://caddy:2019
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./deploy/generated:/app/deploy/generated
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - velclawhost
+    ports:
+      - "80:80"
+      - "443:443"
+      - "2019:2019"
+    volumes:
+      - ./deploy/generated/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  velclawhost-postgres:
+  caddy-data:
+  caddy-config:
