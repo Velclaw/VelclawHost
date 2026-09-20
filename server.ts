@@ -135,6 +135,7 @@ async function startServer() {
         const { stdout } = await execFileAsync('git', ['ls-remote', remote, item.branch], { timeout: 15000, maxBuffer: 1024 * 1024 });
         const line = stdout.trim().split('\\n').find(Boolean);
         const observedCommit = line?.split(/\\s+/)[0] || '';
+        if (!observedCommit) throw new Error('Repository branch returned no commit.');
         if (!observedCommit || !/^[0-9a-f]{40}$/i.test(observedCommit)) throw new Error('Repository branch could not be resolved.');
         if (item.commitSha && item.commitSha.toLowerCase() !== observedCommit.toLowerCase()) throw new Error('Requested commit SHA does not match the remote branch tip.');
         item.sourceCommit = observedCommit;
