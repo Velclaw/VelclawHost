@@ -420,7 +420,7 @@ async function startServer() {
 }`;
       }).filter(Boolean).join('\n\n');
 
-      await fs.writeFile(configPath, bindings ? bindings + '\n' : '# VelclawHost generated Caddy configuration\\n', 'utf8');
+      await fs.writeFile(configPath, bindings ? bindings + '\n' : '# VelclawHost generated Caddy configuration\n', 'utf8');
 
       const autoReload = String(process.env.CADDY_AUTO_RELOAD || 'false').toLowerCase() === 'true';
       if (autoReload) {
