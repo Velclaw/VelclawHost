@@ -56,9 +56,9 @@ class PostgresStateStore implements ControlPlaneStateStore {
 
   async save(state: ControlPlaneState): Promise<void> {
     const json = JSON.stringify(state).replace(/'/g, "''");
-    await this.query(`INSERT INTO control_plane_state (id, state, updated_at)
+    await this.query(`BEGIN;\nINSERT INTO control_plane_state (id, state, updated_at)
 VALUES (1, '${json}'::jsonb, NOW())
-ON CONFLICT (id) DO UPDATE SET state = EXCLUDED.state, updated_at = NOW()`);
+ON CONFLICT (id) DO UPDATE SET state = EXCLUDED.state, updated_at = NOW();\nCOMMIT;`);
   }
 }
 
