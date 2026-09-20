@@ -81,7 +81,7 @@ async function startServer() {
     res.json({ status: 'success', deployments: [...deployments.values()] });
   });
 
-  app.post('/api/v1/deployments', requireApiToken, (req, res) => {
+  app.post('/api/v1/deployments', requireApiToken, async (req, res) => {
     const projectName = String(req.body?.projectName || '').trim();
     const repoUrl = String(req.body?.repoUrl || '').trim();
     const branch = String(req.body?.branch || 'main').trim();
@@ -237,7 +237,7 @@ async function startServer() {
   queueTimer.unref?.();
   void runDeploymentJob();
 
-  app.get('/api/v1/queue', requireApiToken, (_req, res) => {
+  app.get('/api/v1/queue', requireApiToken, async (_req, res) => {
     res.json({
       status: 'success',
       running: queueBusy,
@@ -324,7 +324,7 @@ async function startServer() {
 
   await loadState();
 
-  app.post('/api/v1/deployments/:id/runtime/plan', requireApiToken, (req, res) => {
+  app.post('/api/v1/deployments/:id/runtime/plan', requireApiToken, async (req, res) => {
     const item = deployments.get(req.params.id);
     if (!item) return res.status(404).json({ error: 'Deployment not found.' });
     if (!['source_validating','building','runtime_provisioning','health_check'].includes(item.status)) return res.status(409).json({ error: 'Runtime planning requires an active deployment state.', deployment: item });
@@ -522,7 +522,7 @@ async function startServer() {
     res.json({ status: 'success', domains: [...domains.values()] });
   });
 
-  app.post('/api/v1/domains', requireApiToken, (req, res) => {
+  app.post('/api/v1/domains', requireApiToken, async (req, res) => {
     const domain = String(req.body?.domain || '').trim().toLowerCase();
     const recordType = req.body?.recordType === 'CNAME' ? 'CNAME' : 'A';
     const targetValue = String(req.body?.targetValue || '').trim();
@@ -625,7 +625,7 @@ async function startServer() {
     }
   });
 
-  app.delete('/api/v1/domains/:id', requireApiToken, (req, res) => {
+  app.delete('/api/v1/domains/:id', requireApiToken, async (req, res) => {
     if (!domains.delete(req.params.id)) return res.status(404).json({ error: 'Domain not found.' });
     await persistState();
     res.status(204).end();
