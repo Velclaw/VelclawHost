@@ -5,6 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import { createDeploymentQueue } from "./lib/control-plane/deployment-queue";
 
 let aiClient: GoogleGenAI | null = null;
 const execFileAsync = promisify(execFile);
@@ -70,7 +71,7 @@ async function startServer() {
 
   type DeploymentRecord = {
     id: string; projectName: string; repoUrl: string; branch: string; commitSha: string | null;
-    customDomain: string | null; status: 'queued' | 'building' | 'waiting_approval' | 'ready' | 'failed';
+    customDomain: string | null; status: 'queued' | 'claimed' | 'source_validating' | 'building' | 'runtime_provisioning' | 'health_check' | 'ready' | 'retryable_failed' | 'terminal_failed';
     createdAt: string; startedAt?: string; completedAt?: string; sourceValidatedAt?: string;
     sourceCommit?: string; error?: string;
   };
@@ -96,7 +97,8 @@ async function startServer() {
     deployments.set(id, item);
     await persistState();
     queueMetrics.enqueued += 1;
-    void processDeploymentQueue();
+    await deploymentQueue.enqueue({ id: 'job-' + id, deploymentId: id, priority: Number(req.body?.priority || 0), maxAttempts: 3, availableAt: new Date().toISOString() });
+    void runDeploymentJob();
     res.status(202).json({ status: 'queued', deployment: item });
   });
 
@@ -106,65 +108,102 @@ async function startServer() {
     res.json({ status: 'success', deployment: item });
   });
 
-  type QueueMetrics = {
-    enqueued: number;
-    claimed: number;
-    completed: number;
-    failed: number;
-    lastError: string | null;
-  };
-  const queueMetrics: QueueMetrics = {
-    enqueued: 0,
-    claimed: 0,
-    completed: 0,
-    failed: 0,
-    lastError: null,
-  };
+  type QueueMetrics = { enqueued: number; claimed: number; completed: number; failed: number; lastError: string | null; };
+  const queueMetrics: QueueMetrics = { enqueued: 0, claimed: 0, completed: 0, failed: 0, lastError: null };
   let queueBusy = false;
 
-  async function processDeploymentQueue() {
+  async function runDeploymentJob() {
     if (queueBusy) return;
     queueBusy = true;
     try {
-      const candidate = [...deployments.values()]
-        .filter((item) => item.status === 'queued')
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
-      if (!candidate) return;
-
+      const job = await deploymentQueue.claim(workerId);
+      if (!job) return;
       queueMetrics.claimed += 1;
-      candidate.status = 'building';
-      candidate.startedAt = new Date().toISOString();
-      candidate.error = undefined;
+      const item = deployments.get(job.deploymentId);
+      if (!item) {
+        await deploymentQueue.fail(job.id, 'Deployment record not found.');
+        queueMetrics.failed += 1;
+        return;
+      }
+      item.status = 'source_validating';
+      item.startedAt = new Date().toISOString();
+      item.error = undefined;
       await persistState();
 
       try {
-        const remote = candidate.repoUrl.replace(/\.git$/i, '');
-        const { stdout } = await execFileAsync('git', ['ls-remote', remote, candidate.branch], {
-          timeout: 15000,
-          maxBuffer: 1024 * 1024,
-        });
-        const line = stdout.trim().split('\n').find(Boolean);
-        const observedCommit = line?.split(/\s+/)[0] || '';
-        if (!observedCommit || !/^[0-9a-f]{40}$/i.test(observedCommit)) {
-          throw new Error('Repository branch could not be resolved.');
-        }
-        if (candidate.commitSha && candidate.commitSha.toLowerCase() !== observedCommit.toLowerCase()) {
-          throw new Error('Requested commit SHA does not match the remote branch tip.');
+        const remote = item.repoUrl.replace(/\\.git$/i, '');
+        const { stdout } = await execFileAsync('git', ['ls-remote', remote, item.branch], { timeout: 15000, maxBuffer: 1024 * 1024 });
+        const line = stdout.trim().split('\\n').find(Boolean);
+        const observedCommit = line?.split(/\\s+/)[0] || '';
+        if (!observedCommit || !/^[0-9a-f]{40}$/i.test(observedCommit)) throw new Error('Repository branch could not be resolved.');
+        if (item.commitSha && item.commitSha.toLowerCase() !== observedCommit.toLowerCase()) throw new Error('Requested commit SHA does not match the remote branch tip.');
+        item.sourceCommit = observedCommit;
+        item.sourceValidatedAt = new Date().toISOString();
+
+        if (String(process.env.DEPLOYMENT_EXECUTOR || 'none').toLowerCase() !== 'docker') {
+          item.status = 'source_validating';
+          await persistState();
+          await deploymentQueue.complete(job.id);
+          queueMetrics.completed += 1;
+          return;
         }
 
-        candidate.sourceCommit = observedCommit;
-        candidate.sourceValidatedAt = new Date().toISOString();
-        candidate.status = 'waiting_approval';
-        candidate.completedAt = new Date().toISOString();
+        item.status = 'building';
         await persistState();
+
+        const osTmp = path.join(process.cwd(), '.velclawhost-tmp');
+        const checkoutDir = path.join(osTmp, item.id);
+        const safeProject = item.projectName.toLowerCase().replace(/[^a-z0-9._-]/g, '-');
+        const image = 'velclawhost/' + safeProject + ':' + observedCommit.slice(0, 12);
+        await fs.rm(checkoutDir, { recursive: true, force: true });
+        await fs.mkdir(osTmp, { recursive: true });
+        await execFileAsync('git', ['clone', '--depth', '1', '--branch', item.branch, remote, checkoutDir], { timeout: 120000, maxBuffer: 2 * 1024 * 1024 });
+        await execFileAsync('git', ['-C', checkoutDir, 'fetch', '--depth', '1', 'origin', observedCommit], { timeout: 60000, maxBuffer: 2 * 1024 * 1024 });
+        await execFileAsync('git', ['-C', checkoutDir, 'checkout', '--detach', observedCommit], { timeout: 30000, maxBuffer: 1024 * 1024 });
+        await execFileAsync('docker', ['build', '--pull', '-t', image, checkoutDir], { timeout: 15 * 60 * 1000, maxBuffer: 8 * 1024 * 1024 });
+
+        item.status = 'runtime_provisioning';
+        await persistState();
+
+        let runtime = runtimes.get(item.id);
+        if (!runtime) {
+          const now = new Date().toISOString();
+          runtime = { deploymentId:item.id, runtimeId:'rt-'+Date.now(), state:'provisioning', port:allocateRuntimePort(), healthUrl:null, createdAt:now, updatedAt:now };
+          runtimes.set(item.id, runtime);
+        }
+        const containerPort = Number(process.env.RUNTIME_CONTAINER_PORT || 3000);
+        if (!Number.isInteger(containerPort) || containerPort < 1 || containerPort > 65535) throw new Error('Invalid RUNTIME_CONTAINER_PORT.');
+        const containerName = 'velclawhost-' + item.id;
+        await execFileAsync('docker', ['rm', '-f', containerName], { timeout: 15000, maxBuffer: 1024 * 1024 }).catch(() => {});
+        await execFileAsync('docker', ['run', '-d', '--name', containerName, '--restart', 'unless-stopped', '--label', 'velclawhost.deployment=' + item.id, '--label', 'velclawhost.project=' + item.projectName, '-p', runtime.port + ':' + containerPort, image], { timeout: 30000, maxBuffer: 2 * 1024 * 1024 });
+        runtime.state = 'running';
+        runtime.healthUrl = 'http://127.0.0.1:' + runtime.port;
+        runtime.updatedAt = new Date().toISOString();
+        item.status = 'health_check';
+        await persistState();
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+        try {
+          const response = await fetch(runtime.healthUrl, { signal: controller.signal });
+          if (!response.ok) throw new Error('Health check returned HTTP ' + response.status);
+        } finally { clearTimeout(timer); }
+
+        item.status = 'ready';
+        item.completedAt = new Date().toISOString();
+        await persistState();
+        await deploymentQueue.complete(job.id);
         queueMetrics.completed += 1;
       } catch (error) {
-        candidate.status = 'failed';
-        candidate.completedAt = new Date().toISOString();
-        candidate.error = error instanceof Error ? error.message : String(error);
-        queueMetrics.failed += 1;
-        queueMetrics.lastError = candidate.error;
+        const message = error instanceof Error ? error.message : String(error);
+        item.error = message;
+        const retryable = job.attempts < job.maxAttempts;
+        item.status = retryable ? 'retryable_failed' : 'terminal_failed';
+        item.completedAt = retryable ? undefined : new Date().toISOString();
         await persistState();
+        const next = await deploymentQueue.retry(job.id, message, Math.min(300000, 30000 * (2 ** Math.max(0, job.attempts - 1))));
+        if (next === 'terminal_failed') queueMetrics.failed += 1;
+        queueMetrics.lastError = message;
       }
     } finally {
       queueBusy = false;
@@ -172,15 +211,18 @@ async function startServer() {
   }
 
   const queueIntervalMs = Math.max(5000, Number(process.env.DEPLOYMENT_QUEUE_INTERVAL_MS || 10000));
-  const queueTimer = setInterval(() => void processDeploymentQueue(), queueIntervalMs);
+  const queueTimer = setInterval(() => void runDeploymentJob(), queueIntervalMs);
   queueTimer.unref?.();
+  void runDeploymentJob();
 
   app.get('/api/v1/queue', requireApiToken, (_req, res) => {
     res.json({
       status: 'success',
       running: queueBusy,
       interval_ms: queueIntervalMs,
-      queued: [...deployments.values()].filter((item) => item.status === 'queued').length,
+      queued: [...deployments.values()].filter((item) => item.status === 'queued' || item.status === 'retryable_failed').length,
+      durable: String(process.env.VELCLAWHOST_STATE_STORE || 'file').toLowerCase() === 'postgres',
+      database: await deploymentQueue.stats(),
       ...queueMetrics,
     });
   });
@@ -261,6 +303,8 @@ async function startServer() {
     deployments: DeploymentRecord[];
     runtimes: RuntimeRecord[];
   };
+  const deploymentQueue = createDeploymentQueue(process.env.VELCLAWHOST_STATE_STORE === 'postgres' ? process.env.DATABASE_URL : undefined);
+  const workerId = process.env.VELCLAWHOST_WORKER_ID?.trim() || 'worker-' + process.pid;
   const stateStore = createControlPlaneStateStore({
     store: process.env.VELCLAWHOST_STATE_STORE,
     stateFile,
