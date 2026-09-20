@@ -536,6 +536,108 @@ async function startServer() {
     res.type('text/plain; version=0.0.4').send(body);
   });
 
+  type ReconciliationMetrics = {
+    runs: number;
+    failures: number;
+    runtimeUnhealthy: number;
+    lastRunAt: string | null;
+    lastError: string | null;
+  };
+  const reconciliation: ReconciliationMetrics = {
+    runs: 0,
+    failures: 0,
+    runtimeUnhealthy: 0,
+    lastRunAt: null,
+    lastError: null,
+  };
+  let reconciliationBusy = false;
+
+  async function reconcileControlPlane() {
+    if (reconciliationBusy) return;
+    reconciliationBusy = true;
+    reconciliation.runs += 1;
+    reconciliation.lastRunAt = new Date().toISOString();
+    reconciliation.lastError = null;
+
+    try {
+      const provider = String(process.env.RUNTIME_PROVIDER || 'none').toLowerCase();
+      if (provider === 'docker') {
+        for (const runtime of runtimes.values()) {
+          if (runtime.state !== 'running') continue;
+          const deployment = deployments.get(runtime.deploymentId);
+          if (!deployment) continue;
+
+          const containerName = `velclawhost-${deployment.id}`;
+          try {
+            await execFileAsync('docker', ['inspect', containerName], {
+              timeout: 5000,
+              maxBuffer: 1024 * 1024,
+            });
+          } catch {
+            runtime.state = 'failed';
+            runtime.updatedAt = new Date().toISOString();
+            if (deployment.status === 'ready' || deployment.status === 'waiting_approval') {
+              deployment.status = 'failed';
+              deployment.completedAt = new Date().toISOString();
+              deployment.error = 'Runtime container is no longer present.';
+            }
+            reconciliation.runtimeUnhealthy += 1;
+            await persistState();
+            continue;
+          }
+
+          if (runtime.healthUrl && (deployment.status === 'ready' || deployment.status === 'waiting_approval')) {
+            try {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 5000);
+              const response = await fetch(runtime.healthUrl, { signal: controller.signal });
+              clearTimeout(timer);
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              if (deployment.status === 'waiting_approval') {
+                deployment.status = 'ready';
+                deployment.completedAt = new Date().toISOString();
+                deployment.error = undefined;
+              }
+            } catch (error) {
+              runtime.state = 'failed';
+              runtime.updatedAt = new Date().toISOString();
+              deployment.status = 'failed';
+              deployment.completedAt = new Date().toISOString();
+              deployment.error = 'Runtime health check failed: ' + (error instanceof Error ? error.message : String(error));
+              reconciliation.runtimeUnhealthy += 1;
+            }
+            await persistState();
+          }
+        }
+      }
+    } catch (error) {
+      reconciliation.failures += 1;
+      reconciliation.lastError = error instanceof Error ? error.message : String(error);
+      console.error('Control-plane reconciliation failed:', error);
+    } finally {
+      reconciliationBusy = false;
+    }
+  }
+
+  const reconciliationIntervalMs = Math.max(
+    5000,
+    Number(process.env.RECONCILE_INTERVAL_MS || 30000),
+  );
+  const reconciliationTimer = setInterval(() => {
+    void reconcileControlPlane();
+  }, reconciliationIntervalMs);
+  reconciliationTimer.unref?.();
+  void reconcileControlPlane();
+
+  app.get('/api/v1/reconciliation', requireApiToken, (_req, res) => {
+    res.json({
+      status: 'success',
+      running: reconciliationBusy,
+      interval_ms: reconciliationIntervalMs,
+      ...reconciliation,
+    });
+  });
+
   // AI Voice Command & Diagnostic Endpoint
   app.post("/api/ai/voice-command", async (req, res) => {
     try {
