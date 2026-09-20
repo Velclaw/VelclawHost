@@ -95,6 +95,8 @@ async function startServer() {
     const item: DeploymentRecord = { id, projectName, repoUrl, branch, commitSha, customDomain, status: 'queued', createdAt: new Date().toISOString() };
     deployments.set(id, item);
     await persistState();
+    queueMetrics.enqueued += 1;
+    void processDeploymentQueue();
     res.status(202).json({ status: 'queued', deployment: item });
   });
 
