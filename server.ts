@@ -225,9 +225,7 @@ async function startServer() {
         runtime.state = 'running';
         runtime.updatedAt = new Date().toISOString();
         runtime.healthUrl = `http://127.0.0.1:${runtime.port}`;
-        item.status = 'ready';
-        item.completedAt = new Date().toISOString();
-        return res.json({ status: 'running', deployment: item, runtime });
+        return res.json({ status: 'running', deployment: item, runtime, next: 'health_check' });
       }
 
       await execFileAsync('docker', [
@@ -243,9 +241,6 @@ async function startServer() {
       runtime.state = 'running';
       runtime.updatedAt = new Date().toISOString();
       runtime.healthUrl = `http://127.0.0.1:${runtime.port}`;
-      item.status = 'ready';
-      item.completedAt = new Date().toISOString();
-
       return res.status(201).json({
         status: 'running',
         deployment: item,
@@ -285,6 +280,9 @@ async function startServer() {
       }
       runtime.state = 'running';
       runtime.updatedAt = new Date().toISOString();
+      item.status = 'ready';
+      item.completedAt = new Date().toISOString();
+      item.error = undefined;
       return res.json({ status: 'healthy', deployment: item, runtime });
     } catch (error) {
       runtime.state = 'failed';
