@@ -493,3 +493,15 @@ RUNTIME_PORT_START=4100
 The provider only starts the explicitly configured `RUNTIME_IMAGE`; it never accepts an arbitrary image from the deployment request. It creates a labelled container with a restart policy and maps the planned host port to the configured container port. Docker supports creating/starting containers, published ports, labels and restart policies through its Engine interface. citeturn0search0turn0search1turn0search5
 
 The control plane then performs an HTTP health probe. Only a successful probe changes the deployment to `ready`. A container being started is therefore not treated as proof that the application is healthy.
+
+
+### Runtime operations
+
+For an enabled Docker provider, operators can inspect the latest container output and stop a runtime through the control plane:
+
+```
+GET  /api/v1/deployments/:id/runtime/logs?tail=100
+POST /api/v1/deployments/:id/runtime/stop
+```
+
+The control plane keeps the deployment state separate from the container state: stopping the runtime moves the deployment out of `ready` and records an operator action instead of silently leaving stale readiness.
