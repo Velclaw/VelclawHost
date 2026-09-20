@@ -172,21 +172,7 @@ async function startServer() {
   }
 
   const stateFile = process.env.VELCLAWHOST_STATE_FILE || path.join(process.cwd(), 'data', 'control-plane-state.json');
-  const stateStore = String(process.env.VELCLAWHOST_STATE_STORE || 'file').toLowerCase();
-  const databaseUrl = process.env.DATABASE_URL?.trim() || '';
-
-  async function postgresQuery(sql: string) {
-    if (!databaseUrl) throw new Error('DATABASE_URL is required when VELCLAWHOST_STATE_STORE=postgres.');
-    const { stdout } = await execFileAsync('psql', [databaseUrl, '-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', sql], {
-      timeout: 15000,
-      maxBuffer: 8 * 1024 * 1024,
-    });
-    return stdout.trim();
-  }
-
-  const sqlLiteral = (value: string) => "'" + value.replace(/'/g, "''") + "'";
-
-
+  const { createControlPlaneStateStore } = await import('./lib/control-plane/state-store');
   type PersistedState = {
     version: 1;
     nextRuntimePort: number;
@@ -194,9 +180,13 @@ async function startServer() {
     deployments: DeploymentRecord[];
     runtimes: RuntimeRecord[];
   };
+  const stateStore = createControlPlaneStateStore({
+    store: process.env.VELCLAWHOST_STATE_STORE,
+    stateFile,
+    databaseUrl: process.env.DATABASE_URL?.trim(),
+  });
 
   let persistChain = Promise.resolve();
-
   async function persistState() {
     const snapshot: PersistedState = {
       version: 1,
@@ -205,47 +195,26 @@ async function startServer() {
       deployments: [...deployments.values()],
       runtimes: [...runtimes.values()],
     };
-    persistChain = persistChain.then(async () => {
-      const json = JSON.stringify(snapshot);
-      if (stateStore === 'postgres') {
-        await postgresQuery(`INSERT INTO control_plane_state (id, state, updated_at)
-VALUES (1, ${sqlLiteral(json)}::jsonb, NOW())
-ON CONFLICT (id) DO UPDATE SET state = EXCLUDED.state, updated_at = NOW()`);
-        return;
-      }
-      const dir = path.dirname(stateFile);
-      await fs.mkdir(dir, { recursive: true });
-      const tempFile = stateFile + '.tmp';
-      await fs.writeFile(tempFile, JSON.stringify(snapshot, null, 2) + '\n', 'utf8');
-      await fs.rename(tempFile, stateFile);
-    });
+    persistChain = persistChain.then(() => stateStore.save(snapshot));
     return persistChain;
   }
 
   async function loadState() {
     try {
-      let raw = '';
-      if (stateStore === 'postgres') {
-        raw = await postgresQuery('SELECT state::text FROM control_plane_state WHERE id = 1');
-        if (!raw) return;
-      } else {
-        raw = await fs.readFile(stateFile, 'utf8');
-      }
-      const snapshot = JSON.parse(raw) as PersistedState;
+      const snapshot = await stateStore.load();
+      if (!snapshot) return;
       if (snapshot.version !== 1) throw new Error('Unsupported control-plane state version.');
-      for (const item of snapshot.domains || []) domains.set(item.id, item);
-      for (const item of snapshot.deployments || []) deployments.set(item.id, item);
+      for (const item of snapshot.domains || []) domains.set(item.id, item as DomainRecord);
+      for (const item of snapshot.deployments || []) deployments.set(item.id, item as DeploymentRecord);
       for (const item of snapshot.runtimes || []) {
-        runtimes.set(item.deploymentId, item);
-        runtimePorts.add(item.port);
+        const runtime = item as RuntimeRecord;
+        runtimes.set(runtime.deploymentId, runtime);
+        runtimePorts.add(runtime.port);
       }
-      if (Number.isInteger(snapshot.nextRuntimePort) && snapshot.nextRuntimePort > 0) {
-        nextRuntimePort = snapshot.nextRuntimePort;
-      }
+      if (Number.isInteger(snapshot.nextRuntimePort) && snapshot.nextRuntimePort > 0) nextRuntimePort = snapshot.nextRuntimePort;
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        console.error('Failed to load control-plane state:', error);
-      }
+      console.error('Failed to load control-plane state:', error);
+      if (String(process.env.VELCLAWHOST_FAIL_ON_STATE_ERROR).toLowerCase() === 'true') throw error;
     }
   }
 
