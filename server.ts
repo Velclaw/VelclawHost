@@ -560,6 +560,7 @@ async function startServer() {
 
     const configDir = process.env.CADDY_CONFIG_DIR || path.join(process.cwd(), 'deploy', 'generated');
     const configPath = path.join(configDir, 'Caddyfile');
+    const upstreamHost = process.env.CADDY_UPSTREAM_HOST || '127.0.0.1';
     try {
       await fs.mkdir(configDir, { recursive: true });
       const bindings = [...domains.values()].filter((entry) => entry.status === 'active' && entry.deploymentId).map((entry) => {
@@ -567,7 +568,7 @@ async function startServer() {
         if (!boundRuntime || boundRuntime.state !== 'running') return null;
         const safeDomain = entry.domain.replace(/[^a-z0-9.-]/gi, '');
         return `${safeDomain} {
-  reverse_proxy 127.0.0.1:${boundRuntime.port}
+  reverse_proxy ${upstreamHost}:${boundRuntime.port}
 }`;
       }).filter(Boolean).join('\n\n');
 
@@ -575,10 +576,21 @@ async function startServer() {
 
       const autoReload = String(process.env.CADDY_AUTO_RELOAD || 'false').toLowerCase() === 'true';
       if (autoReload) {
-        await execFileAsync('caddy', ['reload', '--config', configPath, '--adapter', 'caddyfile'], {
-          timeout: 15000,
-          maxBuffer: 1024 * 1024,
-        });
+        const adminUrl = process.env.CADDY_ADMIN_URL?.trim();
+        if (adminUrl) {
+          const caddyConfig = await fs.readFile(configPath, 'utf8');
+          const response = await fetch(adminUrl.replace(/\/$/, '') + '/load', {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/caddyfile' },
+            body: caddyConfig,
+          });
+          if (!response.ok) throw new Error('Caddy admin reload returned HTTP ' + response.status);
+        } else {
+          await execFileAsync('caddy', ['reload', '--config', configPath, '--adapter', 'caddyfile'], {
+            timeout: 15000,
+            maxBuffer: 1024 * 1024,
+          });
+        }
       }
 
       return res.status(201).json({
