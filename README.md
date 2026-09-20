@@ -552,3 +552,8 @@ DATABASE_URL=postgresql://...
 ```
 
 Run the migration before starting the service. The application does not auto-create production database schema.
+
+
+### Current verification status
+
+The control-plane branch contains the state-store abstraction and reconciliation worker. GitHub Actions has not yet reported a workflow run for the latest commit, so deployment readiness must not be inferred from source state alone.
