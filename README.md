@@ -369,6 +369,20 @@ server {
 
 ---
 
+
+### Control-plane reconciliation
+
+VelclawHost runs a bounded reconciliation loop in the server process. It verifies Docker-managed runtime containers, probes configured runtime health endpoints, and moves stale runtimes/deployments to `failed` instead of treating a persisted `running` record as proof of liveness.
+
+Configuration:
+
+```env
+RECONCILE_INTERVAL_MS=30000
+VELCLAWHOST_FAIL_ON_STATE_ERROR=true
+```
+
+The reconciliation status is available at `GET /api/v1/reconciliation` and reports run count, failures, unhealthy runtimes, and the last run timestamp.
+
 ## Control Plane API
 
 VelclawHost exposes a minimal control-plane contract for the Velclaw core platform. The browser console and external deploy clients use the same API.
