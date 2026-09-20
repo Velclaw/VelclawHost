@@ -519,3 +519,22 @@ POST /api/v1/deployments/:id/domain/bind
 The control plane generates a Caddyfile containing one site block per active binding and proxies the hostname to the runtime's allocated loopback port. Caddy's `reverse_proxy` directive supports local upstreams and active health checks; automatic public HTTPS requires the domain to resolve to the proxy and ports 80/443 to be reachable. citeturn0search0turn0search1turn0search4
 
 By default the control plane only writes the generated configuration. Set `CADDY_AUTO_RELOAD=true` to have it invoke Caddy's reload command. This remains disabled by default so a control-plane API request cannot unexpectedly alter a production proxy.
+
+
+### Persistent state backends
+
+The control plane supports two state stores:
+
+- `VELCLAWHOST_STATE_STORE=file` (default): atomic JSON snapshot for local development.
+- `VELCLAWHOST_STATE_STORE=postgres`: PostgreSQL-backed snapshot using `DATABASE_URL` and the `db/migrations/001_control_plane_state.sql` migration.
+
+PostgreSQL is the production-oriented option because the state is stored as `jsonb`, which PostgreSQL can index and query efficiently when needed. citeturn0search0turn0search3
+
+Example:
+
+```env
+VELCLAWHOST_STATE_STORE=postgres
+DATABASE_URL=postgresql://...
+```
+
+Run the migration before starting the service. The application does not auto-create production database schema.
