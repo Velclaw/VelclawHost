@@ -1,1 +1,13 @@
-# VelclawHost will manage this file.
+# VelclawHost control-plane ingress
+# DNS: host.velclaw.app -> this server
+# Caddy terminates TLS automatically and proxies to the control plane.
+host.velclaw.app {
+  reverse_proxy velclawhost:3000
+  encode zstd gzip
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+  }
+}
