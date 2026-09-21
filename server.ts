@@ -58,7 +58,7 @@ async function startServer() {
   };
   const domains = new Map<string, DomainRecord>();
   const normalizeTarget = (value: string) => value.trim().toLowerCase().replace(/\.$/, '');
-  const supportedDomain = (value: string) => /^(?:[a-z0-9-]+\.)+(?:com|dev|ai|io|app)$/i.test(value.trim());
+  const supportedDomain = (value: string) => /^(?:[a-z0-9-]+\.)+(?:cfd|com|dev|ai|io|app)$/i.test(value.trim());
 
   async function resolveDns(domain: string, type: 'A' | 'CNAME') {
     const url = new URL('https://cloudflare-dns.com/dns-query');
@@ -822,7 +822,7 @@ async function startServer() {
 Người quản trị vừa nói hoặc ra lệnh giọng nói: "${command}".
 
 Ngữ cảnh máy chủ thời gian thực:
-- Hostname: ${context?.hostname || "prod-edge-asia1.velclaw.com"}
+- Hostname: ${context?.hostname || "prod-edge-asia1.velclaw.cfd"}
 - CPU hiện tại: ${context?.cpuUsage || 45}%
 - RAM hiện tại: ${context?.ramUsagePercent || 60}% (${context?.ramUsedGb || 9.6} / 16.0 GB)
 - Cảnh báo đang kích hoạt: ${context?.activeAlertsCount || 0}
