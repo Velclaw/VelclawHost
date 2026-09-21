@@ -14,9 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.4"
+
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run build
+      - run: docker build --tag velclawhost:ci .
