@@ -66,7 +66,7 @@ export const ApiIntegrationTab: React.FC<ApiIntegrationTabProps> = ({
       if (selectedEndpoint === '/api/v1/metrics') {
         setApiResponse(JSON.stringify({
           status: 'success',
-          hostname: 'prod-edge-asia1.velclaw.com',
+          hostname: 'prod-edge-asia1.velclaw.cfd',
           timestamp: new Date().toISOString(),
           system: {
             cpu_usage_percent: currentMetric.cpuUsage,
@@ -95,16 +95,16 @@ export const ApiIntegrationTab: React.FC<ApiIntegrationTabProps> = ({
         setApiResponse([
           '# HELP velclaw_cpu_usage_percent Current CPU utilization percentage',
           '# TYPE velclaw_cpu_usage_percent gauge',
-          `velclaw_cpu_usage_percent{hostname="prod-edge-asia1.velclaw.com"} ${currentMetric.cpuUsage.toFixed(1)}`,
+          `velclaw_cpu_usage_percent{hostname="prod-edge-asia1.velclaw.cfd"} ${currentMetric.cpuUsage.toFixed(1)}`,
           '# HELP velclaw_ram_usage_percent Current RAM memory usage percentage',
           '# TYPE velclaw_ram_usage_percent gauge',
-          `velclaw_ram_usage_percent{hostname="prod-edge-asia1.velclaw.com"} ${currentMetric.ramUsagePercent.toFixed(1)}`,
+          `velclaw_ram_usage_percent{hostname="prod-edge-asia1.velclaw.cfd"} ${currentMetric.ramUsagePercent.toFixed(1)}`,
           '# HELP velclaw_network_in_bytes Total incoming network bandwidth in megabits',
           '# TYPE velclaw_network_in_bytes counter',
-          `velclaw_network_in_bytes{hostname="prod-edge-asia1.velclaw.com"} ${currentMetric.networkInMbps.toFixed(0)}`,
+          `velclaw_network_in_bytes{hostname="prod-edge-asia1.velclaw.cfd"} ${currentMetric.networkInMbps.toFixed(0)}`,
           '# HELP velclaw_active_connections Current active TCP socket connections',
           '# TYPE velclaw_active_connections gauge',
-          `velclaw_active_connections{hostname="prod-edge-asia1.velclaw.com"} ${currentMetric.activeConnections}`
+          `velclaw_active_connections{hostname="prod-edge-asia1.velclaw.cfd"} ${currentMetric.activeConnections}`
         ].join('\n'));
       }
     }, 450);
@@ -312,7 +312,7 @@ export const ApiIntegrationTab: React.FC<ApiIntegrationTabProps> = ({
     scheme: 'https'
     bearer_token: '${apiKeys[0]?.keyMasked || 'YOUR_API_KEY'}'
     static_configs:
-      - targets: ['prod-edge-asia1.velclaw.com:443']`}
+      - targets: ['prod-edge-asia1.velclaw.cfd:443']`}
           </pre>
         </div>
       </div>
