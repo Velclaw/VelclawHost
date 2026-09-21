@@ -54,12 +54,12 @@ export const VELCLAW_DOMAINS: VelclawDomainConfig[] = [
     dnsRecords: [
       { id: 'com-1', type: 'A', name: '@', content: '104.21.78.142', ttl: 300, proxied: true, status: 'active' },
       { id: 'com-2', type: 'AAAA', name: '@', content: '2606:4700:3037::ac43:8e12', ttl: 300, proxied: true, status: 'active' },
-      { id: 'com-3', type: 'CNAME', name: 'www', content: 'velclaw.com', ttl: 300, proxied: true, status: 'active' },
+      { id: 'com-3', type: 'CNAME', name: 'www', content: 'velclaw.cfd', ttl: 300, proxied: true, status: 'active' },
       { id: 'com-4', type: 'CNAME', name: '*', content: 'prod-edge-asia1.velclaw.cfd', ttl: 300, proxied: true, status: 'active' },
-      { id: 'com-5', type: 'TXT', name: '@', content: 'v=spf1 include:_spf.velclaw.com ~all', ttl: 3600, proxied: false, status: 'active' },
+      { id: 'com-5', type: 'TXT', name: '@', content: 'v=spf1 include:_spf.velclaw.cfd ~all', ttl: 3600, proxied: false, status: 'active' },
       { id: 'com-6', type: 'CAA', name: '@', content: '0 issue "letsencrypt.org"', ttl: 3600, proxied: false, status: 'active' },
-      { id: 'com-7', type: 'NS', name: '@', content: 'ns1.velclaw.com', ttl: 86400, proxied: false, status: 'active' },
-      { id: 'com-8', type: 'NS', name: '@', content: 'ns2.velclaw.com', ttl: 86400, proxied: false, status: 'active' },
+      { id: 'com-7', type: 'NS', name: '@', content: 'ns1.velclaw.cfd', ttl: 86400, proxied: false, status: 'active' },
+      { id: 'com-8', type: 'NS', name: '@', content: 'ns2.velclaw.cfd', ttl: 86400, proxied: false, status: 'active' },
     ]
   },
   {
@@ -141,7 +141,7 @@ export const VELCLAW_DOMAINS: VelclawDomainConfig[] = [
 ];
 
 export const INITIAL_SSL: SslInfo = {
-  domain: 'velclaw.com',
+  domain: 'velclaw.cfd',
   issuer: "Let's Encrypt Authority E6 (ISRG Root X1)",
   type: 'ECDSA 384 bits (High Security)',
   validFrom: '2026-08-15',
