@@ -142,7 +142,7 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
       }
     } else {
       if (!validateHostname(clean)) {
-        setTargetError('Bản ghi CNAME yêu cầu Hostname hợp lệ (ví dụ: prod-edge-asia1.velclaw.com)');
+        setTargetError('Bản ghi CNAME yêu cầu Hostname hợp lệ (ví dụ: prod-edge-asia1.velclaw.cfd)');
       } else {
         setTargetError(null);
       }
@@ -156,7 +156,7 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
       setTargetValue('104.21.78.142');
       setTargetError(null);
     } else {
-      setTargetValue('prod-edge-asia1.velclaw.com');
+      setTargetValue('prod-edge-asia1.velclaw.cfd');
       setTargetError(null);
     }
   };
@@ -515,7 +515,7 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
               <input
                 id="input-custom-domain-target"
                 type="text"
-                placeholder={recordType === 'A' ? '104.21.78.142' : 'prod-edge-asia1.velclaw.com'}
+                placeholder={recordType === 'A' ? '104.21.78.142' : 'prod-edge-asia1.velclaw.cfd'}
                 value={targetValue}
                 onChange={(e) => handleTargetChange(e.target.value)}
                 className={`w-full px-3 py-2 rounded-xl bg-slate-950 border text-xs text-white font-mono placeholder:text-slate-600 focus:outline-none focus:ring-1 ${
@@ -533,7 +533,7 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
                 </div>
               ) : (
                 <div className="text-[10px] text-slate-500 mt-1">
-                  {recordType === 'A' ? 'Gợi ý: 104.21.78.142 hoặc 172.67.190.84' : 'Gợi ý: prod-edge-asia1.velclaw.com'}
+                  {recordType === 'A' ? 'Gợi ý: 104.21.78.142 hoặc 172.67.190.84' : 'Gợi ý: prod-edge-asia1.velclaw.cfd'}
                 </div>
               )}
             </div>

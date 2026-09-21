@@ -7,7 +7,7 @@
 ## 📌 Mục Lục
 
 - [1. Giới Thiệu Tổng Quan](#1-giới-thiệu-tổng-quan)
-- [2. Kiến Trúc Cụm 5 Tên Miền Chính Thức (Official TLDs)](#2-kiến-trúc-cụm-5-tên-miền-chính-thức-official-tlds)
+- [2. Kiến Trúc Domain Hiện Tại](#2-kiến-trúc-domain-hiện-tại)
 - [3. Kiến Trúc VelclawHost Control Plane](#3-kiến-trúc-velclawhost-control-plane)
 - [4. Các Tính Năng & Phân Hệ Trọng Yếu](#4-các-tính-năng--phân-hệ-trọng-yếu)
 - [5. Cấu Trúc Mã Nguồn (Project Structure)](#5-cấu-trúc-mã-nguồn-project-structure)
@@ -24,30 +24,24 @@
 
 ---
 
-## 2. Kiến Trúc Cụm 5 Tên Miền Chính Thức (Official TLDs)
+## 2. Kiến Trúc Domain Hiện Tại
 
-Hệ thống đã **loại bỏ hoàn toàn** tên miền cũ `velclaw.cfd` và quy chuẩn vận hành trên 5 Top-Level Domains (TLD) cao cấp, phân định rõ ràng theo vai trò kỹ thuật và nghiệp vụ:
+VelclawHost sử dụng **`velclaw.cfd`** làm domain triển khai hiện tại và namespace first-party duy nhất cho Velclaw. Các domain `.com`, `.ai`, `.dev`, `.io`, `.app` chỉ là **mục tiêu di trú trong tương lai**, không phải endpoint production hiện tại.
 
+```text
+VELCLAW ECOSYSTEM
+      │
+      └── velclaw.cfd
+          ├── https://velclaw.cfd
+          ├── https://velclaw.cfd/docs
+          ├── https://velclaw.cfd/api/*
+          └── https://*.velclaw.cfd
 ```
-                               ┌────────────────────────┐
-                               │  VELCLAW ECOSYSTEM     │
-                               └───────────┬────────────┘
-                                           │
-         ┌──────────────────┬──────────────┼──────────────┬──────────────────┐
-         ▼                  ▼              ▼              ▼                  ▼
-    velclaw.com        velclaw.dev    velclaw.ai     velclaw.io         velclaw.app
-    [CANONICAL]        [DEV/STAGING]  [AI ENGINES]   [INGRESS GATEWAY]  [SAAS PORTAL]
-```
 
-| Tên Miền | Định Danh | Vai Trò & Chức Năng Cốt Lõi | Routing & Endpoint Mẫu |
-| :--- | :--- | :--- | :--- |
-| **`velclaw.com`** | **CANONICAL** | Cổng thông tin chính thức, Enterprise Ingress, thương mại & trang chủ. | `https://velclaw.com`<br/>`https://*.velclaw.com` |
-| **`velclaw.dev`** | **DEV PREVIEW** | Môi trường thử nghiệm cho nhà phát triển, branch preview deployments và ephemeral sandboxes. | `https://preview.velclaw.dev`<br/>`https://pr-104.velclaw.dev` |
-| **`velclaw.ai`** | **AI ENGINE** | Cụm máy chủ phân tán cho Antigravity Agents, Gemini LLM router, Real-time Voice và Vector Search. | `https://api.velclaw.ai`<br/>`https://agents.velclaw.ai` |
-| **`velclaw.io`** | **INGRESS IO** | High-IOPS Gateway, WebSocket streaming, gRPC routing và Prometheus metrics export. | `https://gateway.velclaw.io`<br/>`https://realtime.velclaw.io` |
-| **`velclaw.app`** | **SAAS CONSOLE** | Giao diện điều khiển máy chủ dành cho khách hàng cuối, quản lý domain, firewall và logs. | `https://console.velclaw.app`<br/>`https://auth.velclaw.app` |
-
----
+| Namespace | Trạng thái | Vai trò |
+| :--- | :--- | :--- |
+| **`velclaw.cfd`** | **CURRENT / CANONICAL** | Production, Control Plane, Docs, API và deployment previews. |
+| `.com` / `.ai` / `.dev` / `.io` / `.app` | **FUTURE MIGRATION** | Chỉ giữ làm mục tiêu khi có domain chính thức và kế hoạch migration. |
 
 ## 3. Kiến Trúc VelclawHost Control Plane
 
@@ -71,9 +65,9 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
   └───────┼────────────────────────────────────────┘
           ▼
    Running Container Workloads
-   ├── app-frontend   (Port 3000 -> https://project.velclaw.com)
-   ├── preview-branch (Port 3001 -> https://feat-auth.velclaw.dev)
-   └── ai-agent-core  (Port 8080 -> https://inference.velclaw.ai)
+   ├── app-frontend   (Port 3000 -> https://project.velclaw.cfd)
+   ├── preview-branch (Port 3001 -> https://feat-auth.velclaw.cfd)
+   └── ai-agent-core  (Port 8080 -> https://inference.velclaw.cfd)
 ```
 
 ### Điểm Vượt Trội Của Kiến Trúc Này:
@@ -86,7 +80,7 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 ## 4. Các Tính Năng & Phân Hệ Trọng Yếu
 
 ### 🌐 4.1. Quản Lý Tên Miền Tùy Chỉnh (Domain Management Tab)
-- **Cấu hình tên miền độc lập**: Cho phép người dùng kết nối tên miền riêng vào hạ tầng VelclawHost trên 5 TLDs quy chuẩn (`.com`, `.dev`, `.ai`, `.io`, `.app`).
+- **Cấu hình tên miền độc lập**: Cho phép người dùng kết nối tên miền riêng vào hạ tầng VelclawHost trên namespace first-party hiện tại `velclaw.cfd` và custom domains.
 - **Trường nhập liệu & Cấu hình DNS**:
   - *Tên miền (Domain Name)*: Kiểm tra cú pháp thời gian thực, phát hiện và gán huy hiệu nhận diện TLD tức thì (.COM, .DEV, .AI, .IO, .APP).
   - *Loại bản ghi DNS*: Hỗ trợ bản ghi **A** (trỏ tới địa chỉ IPv4 máy chủ edge) và **CNAME** (trỏ tới Ingress Hostname alias).
@@ -99,7 +93,7 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 - **Bảng hướng dẫn ủy quyền DNS (DNS Delegation Guide)**: Hướng dẫn chi tiết giá trị Host, Type, Target Value và TTL cho từng tên miền tại Cloudflare, Namecheap, GoDaddy.
 
 ### 🌐 4.2. Quản Lý DNS Anycast & SSL (Tab DNS & SSL)
-- **Bộ chuyển đổi nhanh 5 TLDs**: Cho phép cấu hình độc lập bảng bản ghi DNS (*A, AAAA, CNAME, TXT, CAA, NS*) cho từng tên miền (`.com`, `.dev`, `.ai`, `.io`, `.app`).
+- **Quản lý namespace first-party `velclaw.cfd`**: Cho phép cấu hình độc lập bảng bản ghi DNS (*A, AAAA, CNAME, TXT, CAA, NS*) cho `velclaw.cfd` và các custom domains được người dùng cấu hình.
 - **Chuyển đổi Proxy Cloudflare Edge**: Bật/tắt chế độ giấu IP gốc (Orange Cloud Proxied vs. Gray Cloud DNS-only) chỉ với 1-click.
 - **Kiểm Tra Phân Giải Toàn Cầu (Global Anycast Propagation)**: Kiểm tra trạng thái phản hồi DNS đồng thời tại 6 khu vực trọng yếu: Tokyo (NRT), Singapore (SIN), Frankfurt (FRA), London (LHR), Ashburn (IAD), Sydney (SYD).
 - **Cấu hình Nginx Ingress & HSTS**: Tự động chuyển hướng HTTP 301 sang HTTPS và thiết lập `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`.
@@ -167,7 +161,7 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 │   ├── main.tsx                 # Điểm khởi tạo ứng dụng React
 │   ├── App.tsx                  # Component điều phối chính, thanh điều hướng & modal
 │   ├── types.ts                 # Định nghĩa toàn bộ TypeScript Interfaces & Types
-│   ├── mockData.ts              # Dữ liệu khởi tạo: 5 TLDs, nodes, metrics, SSL, alerts
+│   ├── mockData.ts              # Dữ liệu khởi tạo: current `velclaw.cfd` namespace, migration targets, nodes, metrics, SSL, alerts
 │   ├── index.css                # CSS toàn cục sử dụng Tailwind CSS
 │   ├── utils/
 │   │   ├── pdfExport.ts         # Module tạo và xuất báo cáo hệ thống chuẩn PDF
@@ -176,8 +170,8 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 │       ├── Navbar.tsx           # Thanh điều hướng phía trên kèm trạng thái kết nối
 │       ├── Sidebar.tsx          # Menu bên trái chuyển đổi giữa các phân hệ
 │       ├── OverviewTab.tsx       # Bảng tổng quan hạ tầng & node clusters
-│       ├── DomainManagementTab.tsx # Cấu hình tên miền tùy chỉnh (.com, .dev, .ai, .io, .app)
-│       ├── DnsSslTab.tsx        # Quản lý cụm 5 TLDs, bản ghi DNS, Anycast & SSL
+│       ├── DomainManagementTab.tsx # Cấu hình `velclaw.cfd` và custom domains
+│       ├── DnsSslTab.tsx        # Quản lý `velclaw.cfd`, bản ghi DNS, Anycast & SSL
 │       ├── ChartsTab.tsx        # Trung tâm biểu đồ thời gian thực & heatmap
 │       ├── ChartFullscreenModal.tsx # Modal phóng to biểu đồ toàn màn hình chuyên sâu
 │       ├── AlertsTab.tsx        # Quản lý sự cố, ngưỡng cảnh báo & nút giả lập spike
@@ -275,7 +269,7 @@ File thực thi backend tự sinh tại `dist/server.cjs` ở dạng CommonJS đ
 ## 7. Hướng Dẫn Cấu Hình DNS & Ingress Reverse Proxy Mẫu
 
 ### 🌐 7.1. Cấu Hình Wildcard DNS Trên Cloudflare
-Tại trang quản trị DNS của Cloudflare cho các domain (`velclaw.com`, `velclaw.dev`, `velclaw.ai`, `velclaw.io`, `velclaw.app`), tạo 2 bản ghi gốc:
+Cloudflare authoritative DNS cho **`velclaw.cfd`** phải có domain gốc và wildcard cùng trỏ về VelclawHost edge/runtime:
 
 ```text
 Type     Name      Target / IPv4        Proxy status    TTL
@@ -283,14 +277,14 @@ A        @         <IP_VPS_VELCLAWHOST> Proxied (Orange) Auto
 CNAME    *         @                    Proxied (Orange) Auto
 ```
 
----
+Các domain `.com`, `.ai`, `.dev`, `.io`, `.app` chỉ được thêm sau khi migration domain chính thức được phê duyệt.
 
 ### 🛡️ 7.2. Cấu Hình Reverse Proxy Bằng Caddy (Khuyên Dùng Nhất)
 Tạo file `Caddyfile` trên máy chủ Host:
 
 ```caddy
 # Tự động hóa SSL Let's Encrypt cho toàn bộ cụm subdomain của Velclaw
-*.velclaw.com, *.velclaw.dev, *.velclaw.ai, *.velclaw.io, *.velclaw.app {
+*.velclaw.cfd {
     tls {
         dns cloudflare {env.CLOUDFLARE_API_TOKEN}
     }
@@ -317,7 +311,7 @@ Tạo file cấu hình `/etc/nginx/sites-available/velclaw.conf`:
 server {
     listen 80;
     listen [::]:80;
-    server_name velclaw.com *.velclaw.com velclaw.dev *.velclaw.dev velclaw.ai *.velclaw.ai velclaw.io *.velclaw.io velclaw.app *.velclaw.app;
+    server_name velclaw.cfd *.velclaw.cfd;
     return 301 https://$host$request_uri;
 }
 
@@ -414,12 +408,12 @@ Request:
 {
   "domain": "api.example.com",
   "recordType": "CNAME",
-  "targetValue": "edge.velclaw.dev",
+  "targetValue": "edge.velclaw.cfd",
   "notes": "production ingress"
 }
 ```
 
-The server only accepts domain names under the Velclaw five-TLD namespace (`.com`, `.dev`, `.ai`, `.io`, `.app`). DNS verification is performed against a public DNS-over-HTTPS resolver; the service does not claim a domain is active merely because it was registered in the UI.
+The server accepts the current first-party namespace `velclaw.cfd` and custom domains. DNS verification is performed against a public DNS-over-HTTPS resolver; the service does not claim a domain is active merely because it was registered in the UI.
 
 ### Velclaw integration boundary
 
