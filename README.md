@@ -7,7 +7,7 @@
 ## 📌 Mục Lục
 
 - [1. Giới Thiệu Tổng Quan](#1-giới-thiệu-tổng-quan)
-- [2. Kiến Trúc Cụm 5 Tên Miền Chính Thức (Official TLDs)](#2-kiến-trúc-cụm-5-tên-miền-chính-thức-official-tlds)
+- [2. Kiến Trúc Domain Hiện Tại](#2-kiến-trúc-domain-hiện-tại)
 - [3. Kiến Trúc VelclawHost Control Plane](#3-kiến-trúc-velclawhost-control-plane)
 - [4. Các Tính Năng & Phân Hệ Trọng Yếu](#4-các-tính-năng--phân-hệ-trọng-yếu)
 - [5. Cấu Trúc Mã Nguồn (Project Structure)](#5-cấu-trúc-mã-nguồn-project-structure)
@@ -161,7 +161,7 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 │   ├── main.tsx                 # Điểm khởi tạo ứng dụng React
 │   ├── App.tsx                  # Component điều phối chính, thanh điều hướng & modal
 │   ├── types.ts                 # Định nghĩa toàn bộ TypeScript Interfaces & Types
-│   ├── mockData.ts              # Dữ liệu khởi tạo: 5 TLDs, nodes, metrics, SSL, alerts
+│   ├── mockData.ts              # Dữ liệu khởi tạo: current `velclaw.cfd` namespace, migration targets, nodes, metrics, SSL, alerts
 │   ├── index.css                # CSS toàn cục sử dụng Tailwind CSS
 │   ├── utils/
 │   │   ├── pdfExport.ts         # Module tạo và xuất báo cáo hệ thống chuẩn PDF
@@ -170,8 +170,8 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 │       ├── Navbar.tsx           # Thanh điều hướng phía trên kèm trạng thái kết nối
 │       ├── Sidebar.tsx          # Menu bên trái chuyển đổi giữa các phân hệ
 │       ├── OverviewTab.tsx       # Bảng tổng quan hạ tầng & node clusters
-│       ├── DomainManagementTab.tsx # Cấu hình tên miền tùy chỉnh (.com, .dev, .ai, .io, .app)
-│       ├── DnsSslTab.tsx        # Quản lý cụm 5 TLDs, bản ghi DNS, Anycast & SSL
+│       ├── DomainManagementTab.tsx # Cấu hình `velclaw.cfd` và custom domains
+│       ├── DnsSslTab.tsx        # Quản lý `velclaw.cfd`, bản ghi DNS, Anycast & SSL
 │       ├── ChartsTab.tsx        # Trung tâm biểu đồ thời gian thực & heatmap
 │       ├── ChartFullscreenModal.tsx # Modal phóng to biểu đồ toàn màn hình chuyên sâu
 │       ├── AlertsTab.tsx        # Quản lý sự cố, ngưỡng cảnh báo & nút giả lập spike
@@ -284,7 +284,7 @@ Tạo file `Caddyfile` trên máy chủ Host:
 
 ```caddy
 # Tự động hóa SSL Let's Encrypt cho toàn bộ cụm subdomain của Velclaw
-*.velclaw.com, *.velclaw.dev, *.velclaw.ai, *.velclaw.io, *.velclaw.app {
+*.velclaw.cfd {
     tls {
         dns cloudflare {env.CLOUDFLARE_API_TOKEN}
     }
@@ -311,7 +311,7 @@ Tạo file cấu hình `/etc/nginx/sites-available/velclaw.conf`:
 server {
     listen 80;
     listen [::]:80;
-    server_name velclaw.com *.velclaw.com velclaw.dev *.velclaw.dev velclaw.ai *.velclaw.ai velclaw.io *.velclaw.io velclaw.app *.velclaw.app;
+    server_name velclaw.cfd *.velclaw.cfd;
     return 301 https://$host$request_uri;
 }
 
@@ -408,12 +408,12 @@ Request:
 {
   "domain": "api.example.com",
   "recordType": "CNAME",
-  "targetValue": "edge.velclaw.dev",
+  "targetValue": "edge.velclaw.cfd",
   "notes": "production ingress"
 }
 ```
 
-The server only accepts domain names under the Velclaw five-TLD namespace (`.com`, `.dev`, `.ai`, `.io`, `.app`). DNS verification is performed against a public DNS-over-HTTPS resolver; the service does not claim a domain is active merely because it was registered in the UI.
+The server accepts the current first-party namespace `velclaw.cfd` and custom domains. DNS verification is performed against a public DNS-over-HTTPS resolver; the service does not claim a domain is active merely because it was registered in the UI.
 
 ### Velclaw integration boundary
 
