@@ -74,7 +74,7 @@ export interface SystemAlert {
   resolvedAt?: string;
 }
 
-export type VelclawTld = 'com' | 'dev' | 'ai' | 'io' | 'app';
+export type VelclawTld = 'cfd' | 'com' | 'dev' | 'ai' | 'io' | 'app';
 
 export interface CustomDomain {
   id: string;
