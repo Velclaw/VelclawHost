@@ -3,7 +3,7 @@ import { HostNode, MetricSnapshot, DnsRecord, SslInfo, SystemLog, SlowQuery, Api
 export const INITIAL_NODES: HostNode[] = [
   {
     id: 'node-01',
-    hostname: 'prod-edge-asia1.velclaw.com',
+    hostname: 'prod-edge-asia1.velclaw.cfd',
     ipV4: '104.21.78.142',
     ipV6: '2606:4700:3037::ac43:8e12',
     os: 'Debian GNU/Linux 12 (Bookworm x86_64)',
@@ -41,13 +41,13 @@ export const INITIAL_NODES: HostNode[] = [
 
 export const VELCLAW_DOMAINS: VelclawDomainConfig[] = [
   {
-    tld: 'com',
-    domain: 'velclaw.com',
-    role: 'Canonical & Enterprise Ingress',
+    tld: 'cfd',
+    domain: 'velclaw.cfd',
+    role: 'Canonical & Production Ingress',
     description: 'Tên miền chính thức của nền tảng Velclaw, phục vụ cổng thông tin khách hàng và production routing.',
-    badge: 'CANONICAL',
+    badge: 'CURRENT CANONICAL',
     color: 'emerald',
-    defaultHost: 'prod-edge-asia1.velclaw.com',
+    defaultHost: 'prod-edge-asia1.velclaw.cfd',
     wildcardSupported: true,
     sslStatus: 'active',
     tlsVersion: 'TLSv1.3 (RFC 8446)',
@@ -55,7 +55,7 @@ export const VELCLAW_DOMAINS: VelclawDomainConfig[] = [
       { id: 'com-1', type: 'A', name: '@', content: '104.21.78.142', ttl: 300, proxied: true, status: 'active' },
       { id: 'com-2', type: 'AAAA', name: '@', content: '2606:4700:3037::ac43:8e12', ttl: 300, proxied: true, status: 'active' },
       { id: 'com-3', type: 'CNAME', name: 'www', content: 'velclaw.com', ttl: 300, proxied: true, status: 'active' },
-      { id: 'com-4', type: 'CNAME', name: '*', content: 'prod-edge-asia1.velclaw.com', ttl: 300, proxied: true, status: 'active' },
+      { id: 'com-4', type: 'CNAME', name: '*', content: 'prod-edge-asia1.velclaw.cfd', ttl: 300, proxied: true, status: 'active' },
       { id: 'com-5', type: 'TXT', name: '@', content: 'v=spf1 include:_spf.velclaw.com ~all', ttl: 3600, proxied: false, status: 'active' },
       { id: 'com-6', type: 'CAA', name: '@', content: '0 issue "letsencrypt.org"', ttl: 3600, proxied: false, status: 'active' },
       { id: 'com-7', type: 'NS', name: '@', content: 'ns1.velclaw.com', ttl: 86400, proxied: false, status: 'active' },
@@ -177,7 +177,7 @@ export const INITIAL_ALERTS: SystemAlert[] = [
     type: 'CPU_HIGH',
     severity: 'warning',
     title: 'Cảnh báo phụ tải CPU chạm 78.4%',
-    message: 'Tải CPU của node prod-edge-asia1.velclaw.com đã vượt ngưỡng cảnh báo 75% trong 3 phút.',
+    message: 'Tải CPU của node prod-edge-asia1.velclaw.cfd đã vượt ngưỡng cảnh báo 75% trong 3 phút.',
     timestamp: 'Hôm nay, 14:15:20',
     value: 78.4,
     threshold: 75,
