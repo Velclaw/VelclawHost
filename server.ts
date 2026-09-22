@@ -6,6 +6,9 @@ import { promisify } from "node:util";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import { createDeploymentQueue } from "./lib/control-plane/deployment-queue";
+import { getRegistrarProvider } from "./lib/providers";
+import { RegistrarProviderError } from "./lib/providers/registrar";
+import { VELCLAW_FIRST_PARTY_DOMAINS, isSupportedDomain } from "./lib/control-plane/domain-config";
 
 let aiClient: GoogleGenAI | null = null;
 const execFileAsync = promisify(execFile);
@@ -44,6 +47,8 @@ async function startServer() {
 
   // VelclawHost Control Plane API
   const apiToken = process.env.VELCLAWHOST_API_TOKEN?.trim() || '';
+  const getConfiguredRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_REGISTRAR || 'none');
+  const getSourceRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_SOURCE_REGISTRAR || 'none');
   const requireApiToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (!apiToken) return next();
     const auth = req.header('authorization') || '';
@@ -58,7 +63,7 @@ async function startServer() {
   };
   const domains = new Map<string, DomainRecord>();
   const normalizeTarget = (value: string) => value.trim().toLowerCase().replace(/\.$/, '');
-  const supportedDomain = (value: string) => /^(?:[a-z0-9-]+\.)+(?:cfd|com|dev|ai|io|app)$/i.test(value.trim());
+  const supportedDomain = isSupportedDomain;
 
   async function resolveDns(domain: string, type: 'A' | 'CNAME') {
     const url = new URL('https://cloudflare-dns.com/dns-query');
@@ -281,7 +286,7 @@ async function startServer() {
   const stateFile = process.env.VELCLAWHOST_STATE_FILE || path.join(process.cwd(), 'data', 'control-plane-state.json');
   const { createControlPlaneStateStore } = await import('./lib/control-plane/state-store');
   type PersistedState = {
-    version: 1;
+    version: 1 | 2;
     nextRuntimePort: number;
     domains: DomainRecord[];
     deployments: DeploymentRecord[];
@@ -310,7 +315,7 @@ async function startServer() {
     try {
       const snapshot = await stateStore.load();
       if (!snapshot) return;
-      if (snapshot.version !== 1) throw new Error('Unsupported control-plane state version.');
+      if (snapshot.version !== 1 && snapshot.version !== 2) throw new Error('Unsupported control-plane state version.');
       for (const item of snapshot.domains || []) domains.set(item.id, item as DomainRecord);
       for (const item of snapshot.deployments || []) deployments.set(item.id, item as DeploymentRecord);
       for (const item of snapshot.runtimes || []) {
@@ -525,11 +530,103 @@ async function startServer() {
     res.json({ status: 'success', domains: [...domains.values()] });
   });
 
+  // Registrar control-plane boundary. VelclawHost owns the workflow/UI;
+  // registrar credentials stay server-side and are never exposed to the browser.
+  app.get('/api/v1/registrar/config', requireApiToken, (_req, res) => {
+    res.json({
+      status: 'success',
+      mode: process.env.VELCLAWHOST_REGISTRAR ? 'registrar-adapter' : 'control-plane',
+      registrar: process.env.VELCLAWHOST_REGISTRAR || null,
+      sourceRegistrar: process.env.VELCLAWHOST_SOURCE_REGISTRAR || null,
+      firstPartyDomains: VELCLAW_FIRST_PARTY_DOMAINS,
+    });
+  });
+
+  app.get('/api/v1/registrar/domains/:domain/availability', requireApiToken, async (req, res) => {
+    try {
+      const provider = getConfiguredRegistrar();
+      const result = await provider.getAvailability(req.params.domain);
+      return res.json({ status: 'success', provider: provider.name, result });
+    } catch (error) {
+      const status = error instanceof RegistrarProviderError ? error.status : 503;
+      return res.status(status).json({ error: error instanceof Error ? error.message : String(error), code: error instanceof RegistrarProviderError ? error.code : 'REGISTRAR_ERROR' });
+    }
+  });
+
+  // Transfer-out from Vercel: fetch the EPP/Auth-Code from the source registrar.
+  // The code is returned only over an authenticated control-plane request.
+  app.get('/api/v1/registrar/source/:domain/auth-code', requireApiToken, async (req, res) => {
+    try {
+      const provider = getSourceRegistrar();
+      const result = await provider.getAuthCode(req.params.domain);
+      return res.json({ status: 'success', provider: provider.name, domain: result.domain, authCode: result.authCode });
+    } catch (error) {
+      const status = error instanceof RegistrarProviderError ? error.status : 503;
+      return res.status(status).json({ error: error instanceof Error ? error.message : String(error), code: error instanceof RegistrarProviderError ? error.code : 'REGISTRAR_ERROR' });
+    }
+  });
+
+  app.get('/api/v1/registrar/source/:domain/transfer', requireApiToken, async (req, res) => {
+    try {
+      const provider = getSourceRegistrar();
+      const result = await provider.getTransferStatus(req.params.domain);
+      return res.json({ status: 'success', provider: provider.name, result });
+    } catch (error) {
+      const status = error instanceof RegistrarProviderError ? error.status : 503;
+      return res.status(status).json({ error: error instanceof Error ? error.message : String(error), code: error instanceof RegistrarProviderError ? error.code : 'REGISTRAR_ERROR' });
+    }
+  });
+
+  // Target-registrar transfer-in. This is intentionally disabled until a real
+  // VelclawHost registrar/reseller adapter is configured.
+  app.post('/api/v1/registrar/domains/:domain/transfer-in', requireApiToken, async (req, res) => {
+    try {
+      const provider = getConfiguredRegistrar();
+      const authCode = String(req.body?.authCode || '').trim();
+      if (!authCode) return res.status(400).json({ error: 'authCode is required.' });
+      const result = await provider.transferIn({
+        domain: req.params.domain,
+        authCode,
+        years: Number.isInteger(req.body?.years) ? req.body.years : 1,
+        autoRenew: req.body?.autoRenew !== false,
+        expectedPrice: typeof req.body?.expectedPrice === 'number' ? req.body.expectedPrice : undefined,
+        contactInformation: req.body?.contactInformation && typeof req.body.contactInformation === 'object' ? req.body.contactInformation : undefined,
+      });
+      return res.status(202).json({ status: 'accepted', provider: provider.name, transfer: result });
+    } catch (error) {
+      const status = error instanceof RegistrarProviderError ? error.status : 503;
+      return res.status(status).json({ error: error instanceof Error ? error.message : String(error), code: error instanceof RegistrarProviderError ? error.code : 'REGISTRAR_ERROR' });
+    }
+  });
+
+  app.get('/api/v1/registrar/domains/:domain/transfer', requireApiToken, async (req, res) => {
+    try {
+      const provider = getConfiguredRegistrar();
+      const result = await provider.getTransferStatus(req.params.domain);
+      return res.json({ status: 'success', provider: provider.name, transfer: result });
+    } catch (error) {
+      const status = error instanceof RegistrarProviderError ? error.status : 503;
+      return res.status(status).json({ error: error instanceof Error ? error.message : String(error), code: error instanceof RegistrarProviderError ? error.code : 'REGISTRAR_ERROR' });
+    }
+  });
+
+  app.patch('/api/v1/registrar/domains/:domain/nameservers', requireApiToken, async (req, res) => {
+    try {
+      const provider = getConfiguredRegistrar();
+      const nameservers = Array.isArray(req.body?.nameservers) ? req.body.nameservers.map(String) : [];
+      const result = await provider.updateNameservers(req.params.domain, nameservers);
+      return res.json({ status: 'success', provider: provider.name, domain: req.params.domain, result });
+    } catch (error) {
+      const status = error instanceof RegistrarProviderError ? error.status : 503;
+      return res.status(status).json({ error: error instanceof Error ? error.message : String(error), code: error instanceof RegistrarProviderError ? error.code : 'REGISTRAR_ERROR' });
+    }
+  });
+
   app.post('/api/v1/domains', requireApiToken, async (req, res) => {
     const domain = String(req.body?.domain || '').trim().toLowerCase();
     const recordType = req.body?.recordType === 'CNAME' ? 'CNAME' : 'A';
     const targetValue = String(req.body?.targetValue || '').trim();
-    if (!supportedDomain(domain)) return res.status(400).json({ error: 'Unsupported domain. Use .com, .dev, .ai, .io or .app.' });
+    if (!supportedDomain(domain)) return res.status(400).json({ error: 'Invalid domain name.' });
     if (!targetValue) return res.status(400).json({ error: 'targetValue is required.' });
     if ([...domains.values()].some((item) => item.domain === domain)) return res.status(409).json({ error: 'Domain already exists.' });
     const id = 'dom-' + Date.now();

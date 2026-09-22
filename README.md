@@ -26,7 +26,7 @@
 
 ## 2. Kiến Trúc Domain Hiện Tại
 
-VelclawHost sử dụng **`velclaw.app`** làm domain triển khai hiện tại và namespace first-party duy nhất cho Velclaw. Các domain `.com`, `.ai`, `.dev`, `.io`, `.app` chỉ là **mục tiêu di trú trong tương lai**, không phải endpoint production hiện tại.
+VelclawHost quản lý namespace first-party của Velclaw với **`velclaw.site`** làm platform chính, **`velclaw.dev`** cho developer và **`velclaw.app`** cho application. `velclaw.ai` đã loại khỏi namespace canonical; `velclaw.cfd` là legacy redirect; `.com` chỉ được dùng sau khi ownership/DNS được xác minh.
 
 ```text
 VELCLAW ECOSYSTEM
@@ -40,7 +40,7 @@ VELCLAW ECOSYSTEM
 
 | Namespace | Trạng thái | Vai trò |
 | :--- | :--- | :--- |
-| **`velclaw.app`** | **CURRENT / CANONICAL** | Production, Control Plane, Docs, API và deployment previews. |
+| **`velclaw.site`** | **PRIMARY PLATFORM** | Platform / Company. `velclaw.dev` là developer surface và `velclaw.app` là application surface. |
 | `.com` / `.ai` / `.dev` / `.io` / `.app` | **FUTURE MIGRATION** | Chỉ giữ làm mục tiêu khi có domain chính thức và kế hoạch migration. |
 
 ## 3. Kiến Trúc VelclawHost Control Plane
@@ -80,7 +80,7 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 ## 4. Các Tính Năng & Phân Hệ Trọng Yếu
 
 ### 🌐 4.1. Quản Lý Tên Miền Tùy Chỉnh (Domain Management Tab)
-- **Cấu hình tên miền độc lập**: Cho phép người dùng kết nối tên miền riêng vào hạ tầng VelclawHost trên namespace first-party hiện tại `velclaw.app` và custom domains.
+- **Cấu hình tên miền độc lập**: Cho phép người dùng kết nối tên miền riêng vào hạ tầng VelclawHost trên namespace first-party hiện tại `velclaw.site`, `velclaw.dev`, `velclaw.app` và custom domains.
 - **Trường nhập liệu & Cấu hình DNS**:
   - *Tên miền (Domain Name)*: Kiểm tra cú pháp thời gian thực, phát hiện và gán huy hiệu nhận diện TLD tức thì (.COM, .DEV, .AI, .IO, .APP).
   - *Loại bản ghi DNS*: Hỗ trợ bản ghi **A** (trỏ tới địa chỉ IPv4 máy chủ edge) và **CNAME** (trỏ tới Ingress Hostname alias).
@@ -93,7 +93,7 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 - **Bảng hướng dẫn ủy quyền DNS (DNS Delegation Guide)**: Hướng dẫn chi tiết giá trị Host, Type, Target Value và TTL cho từng tên miền tại Cloudflare, Namecheap, GoDaddy.
 
 ### 🌐 4.2. Quản Lý DNS Anycast & SSL (Tab DNS & SSL)
-- **Quản lý namespace first-party `velclaw.app`**: Cho phép cấu hình độc lập bảng bản ghi DNS (*A, AAAA, CNAME, TXT, CAA, NS*) cho `velclaw.app` và các custom domains được người dùng cấu hình.
+- **Quản lý namespace first-party `velclaw.site`, `velclaw.dev`, `velclaw.app`**: Cho phép cấu hình độc lập bảng bản ghi DNS (*A, AAAA, CNAME, TXT, CAA, NS*) cho `velclaw.app` và các custom domains được người dùng cấu hình.
 - **Chuyển đổi Proxy Cloudflare Edge**: Bật/tắt chế độ giấu IP gốc (Orange Cloud Proxied vs. Gray Cloud DNS-only) chỉ với 1-click.
 - **Kiểm Tra Phân Giải Toàn Cầu (Global Anycast Propagation)**: Kiểm tra trạng thái phản hồi DNS đồng thời tại 6 khu vực trọng yếu: Tokyo (NRT), Singapore (SIN), Frankfurt (FRA), London (LHR), Ashburn (IAD), Sydney (SYD).
 - **Cấu hình Nginx Ingress & HSTS**: Tự động chuyển hướng HTTP 301 sang HTTPS và thiết lập `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`.
@@ -319,7 +319,7 @@ server {
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name velclaw.com *.velclaw.com velclaw.dev *.velclaw.dev velclaw.ai *.velclaw.ai velclaw.io *.velclaw.io velclaw.app *.velclaw.app;
+    server_name velclaw.site *.velclaw.site velclaw.dev *.velclaw.dev velclaw.app *.velclaw.app;
 
     ssl_certificate /etc/letsencrypt/live/velclaw/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/velclaw/privkey.pem;
@@ -354,7 +354,7 @@ server {
 
 ---
 
-## 9. Giấy Phép & Đóng Góp
+## 9. Tác giả & Giấy Phép\n\n- **Nhà phát triển**: **Huỳnh Thương**.\n- **Bản quyền**: © 2026 Velclaw Cloud Architecture Team.\n\n
 
 - **Bản quyền**: © 2026 Velclaw Cloud Architecture Team.
 - **Tác giả / Quản trị viên**: Huynh Thuong (`huynhthuong.xyz@gmail.com`).
@@ -498,7 +498,7 @@ RUNTIME_CONTAINER_PORT=3000
 RUNTIME_PORT_START=4100
 ```
 
-The provider only starts the explicitly configured `RUNTIME_IMAGE`; it never accepts an arbitrary image from the deployment request. It creates a labelled container with a restart policy and maps the planned host port to the configured container port. Docker supports creating/starting containers, published ports, labels and restart policies through its Engine interface. citeturn0search0turn0search1turn0search5
+The provider only starts the explicitly configured `RUNTIME_IMAGE`; it never accepts an arbitrary image from the deployment request. It creates a labelled container with a restart policy and maps the planned host port to the configured container port. Docker supports creating/starting containers, published ports, labels and restart policies through its Engine interface.
 
 The control plane then performs an HTTP health probe. Only a successful probe changes the deployment to `ready`. A container being started is therefore not treated as proof that the application is healthy.
 
@@ -524,7 +524,7 @@ POST /api/v1/deployments/:id/domain/bind
 { "domainId": "dom-..." }
 ```
 
-The control plane generates a Caddyfile containing one site block per active binding and proxies the hostname to the runtime's allocated loopback port. Caddy's `reverse_proxy` directive supports local upstreams and active health checks; automatic public HTTPS requires the domain to resolve to the proxy and ports 80/443 to be reachable. citeturn0search0turn0search1turn0search4
+The control plane generates a Caddyfile containing one site block per active binding and proxies the hostname to the runtime's allocated loopback port. Caddy's `reverse_proxy` directive supports local upstreams and active health checks; automatic public HTTPS requires the domain to resolve to the proxy and ports 80/443 to be reachable.
 
 By default the control plane only writes the generated configuration. Set `CADDY_AUTO_RELOAD=true` to have it invoke Caddy's reload command. This remains disabled by default so a control-plane API request cannot unexpectedly alter a production proxy.
 
@@ -536,7 +536,7 @@ The control plane supports two state stores:
 - `VELCLAWHOST_STATE_STORE=file` (default): atomic JSON snapshot for local development.
 - `VELCLAWHOST_STATE_STORE=postgres`: PostgreSQL-backed snapshot using `DATABASE_URL` and the `db/migrations/001_control_plane_state.sql` migration.
 
-PostgreSQL is the production-oriented option because the state is stored as `jsonb`, which PostgreSQL can index and query efficiently when needed. citeturn0search0turn0search3
+PostgreSQL is the production-oriented option because the state is stored as `jsonb`, which PostgreSQL can index and query efficiently when needed.
 
 Example:
 
@@ -563,3 +563,68 @@ The control plane now supports a durable PostgreSQL deployment queue when `VELCL
 Set `DEPLOYMENT_EXECUTOR=docker` to enable the build/runtime worker. It validates the GitHub branch, clones the exact commit, builds a Docker image, optionally pushes it when `IMAGE_REGISTRY` + `IMAGE_PUSH=true` are configured, starts the runtime, and performs a health check. Caddy remains responsible for public TLS; its automatic HTTPS requires correct DNS and public reachability of ports 80/443.
 
 Production requires the PostgreSQL migrations in `db/migrations/`, persistent Docker/Caddy state, server-side secrets, and a controlled worker host. The repository does not commit credentials or assume a live production database.
+
+
+## Domain provider architecture
+
+VelclawHost is the **domain + DNS + SSL + hosting control plane** for the Velclaw ecosystem. The registrar layer is adapter-based so the UI and API are not coupled to Vercel.
+
+First-party map:
+
+- `velclaw.site` — Platform / Company
+- `velclaw.dev` — Developer / IDE / Docs / API
+- `velclaw.app` — Application / Services
+
+Legacy `velclaw.cfd` and removed first-party `velclaw.ai` are not canonical endpoints.
+
+### Registrar migration
+
+Vercel exposes a Domains Registrar API for availability, pricing, auth-code retrieval, transfer-in, transfer status and nameserver management. VelclawHost includes a server-side Vercel adapter for the **source-registrar** step.
+
+Configure:
+
+```env
+VELCLAWHOST_REGISTRAR="none"
+VELCLAWHOST_SOURCE_REGISTRAR="vercel"
+VERCEL_REGISTRAR_TOKEN=""
+VERCEL_REGISTRAR_TEAM_ID=""
+VERCEL_REGISTRAR_API_BASE_URL="https://api.vercel.com"
+```
+
+The target registrar remains a separate adapter. VelclawHost does not become an ICANN-accredited registrar merely by running this control plane; a true Velclaw registrar/reseller service requires the appropriate registrar/registry or reseller relationship.
+
+Vercel states that outbound transfer requires a domain to have been registered with Vercel for at least 60 days before an authorization code can be requested. ICANN requires an Auth-Code for gTLD registrar transfers and applies 60-day locks in specified situations.
+
+
+### Target registrar / reseller: ResellerClub
+
+VelclawHost now supports **ResellerClub as the target registrar/reseller adapter** while Vercel remains the migration/source registrar adapter. ResellerClub's official developer platform exposes domain availability, registration, transfer and DNS lifecycle APIs, with separate sandbox and live environments.
+
+Architecture:
+
+```text
+Velclaw
+  │
+  ▼
+VelclawHost Control Plane
+  ├── Source: Vercel
+  │     └── Auth-Code / transfer-out
+  │
+  └── Target: ResellerClub
+        ├── Availability
+        ├── Transfer-in
+        ├── Transfer status
+        ├── Nameservers
+        └── Future: registration / renewal / billing
+```
+
+Safe configuration starts in ResellerClub sandbox:
+
+```env
+VELCLAWHOST_REGISTRAR="resellerclub"
+RESELLERCLUB_TEST_MODE="true"
+RESELLERCLUB_USER_ID=""
+RESELLERCLUB_API_KEY=""
+```
+
+Do not put live reseller credentials in Git. The provider reads them server-side only. ResellerClub's current documentation recommends sandbox testing before live provisioning.
