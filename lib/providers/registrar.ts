@@ -1,4 +1,4 @@
-export type RegistrarName = 'vercel' | 'none';
+export type RegistrarName = 'vercel' | 'resellerclub' | 'none';
 
 export interface DomainAvailability {
   domain: string;
