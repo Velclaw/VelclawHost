@@ -26,7 +26,7 @@
 
 ## 2. Kiến Trúc Domain Hiện Tại
 
-VelclawHost quản lý namespace first-party của Velclaw với **`velclaw.site`** làm platform chính, **`velclaw.dev`** cho developer và **`velclaw.app`** cho application. Các domain `.com`, `.ai`, `.dev`, `.io`, `.app` chỉ là **mục tiêu di trú trong tương lai**, không phải endpoint production hiện tại.
+VelclawHost quản lý namespace first-party của Velclaw với **`velclaw.site`** làm platform chính, **`velclaw.dev`** cho developer và **`velclaw.app`** cho application. `velclaw.ai` đã loại khỏi namespace canonical; `velclaw.cfd` là legacy redirect; `.com` chỉ được dùng sau khi ownership/DNS được xác minh.
 
 ```text
 VELCLAW ECOSYSTEM
@@ -354,7 +354,7 @@ server {
 
 ---
 
-## 9. Giấy Phép & Đóng Góp
+## 9. Tác giả & Giấy Phép\n\n- **Nhà phát triển**: **Huỳnh Thương**.\n- **Bản quyền**: © 2026 Velclaw Cloud Architecture Team.\n\n
 
 - **Bản quyền**: © 2026 Velclaw Cloud Architecture Team.
 - **Tác giả / Quản trị viên**: Huynh Thuong (`huynhthuong.xyz@gmail.com`).
@@ -594,3 +594,37 @@ VERCEL_REGISTRAR_API_BASE_URL="https://api.vercel.com"
 The target registrar remains a separate adapter. VelclawHost does not become an ICANN-accredited registrar merely by running this control plane; a true Velclaw registrar/reseller service requires the appropriate registrar/registry or reseller relationship.
 
 Vercel states that outbound transfer requires a domain to have been registered with Vercel for at least 60 days before an authorization code can be requested. ICANN requires an Auth-Code for gTLD registrar transfers and applies 60-day locks in specified situations. citeturn0search1turn0search5turn0search2
+
+
+### Target registrar / reseller: ResellerClub
+
+VelclawHost now supports **ResellerClub as the target registrar/reseller adapter** while Vercel remains the migration/source registrar adapter. ResellerClub's official developer platform exposes domain availability, registration, transfer and DNS lifecycle APIs, with separate sandbox and live environments. citeturn2search0turn2search1
+
+Architecture:
+
+```text
+Velclaw
+  │
+  ▼
+VelclawHost Control Plane
+  ├── Source: Vercel
+  │     └── Auth-Code / transfer-out
+  │
+  └── Target: ResellerClub
+        ├── Availability
+        ├── Transfer-in
+        ├── Transfer status
+        ├── Nameservers
+        └── Future: registration / renewal / billing
+```
+
+Safe configuration starts in ResellerClub sandbox:
+
+```env
+VELCLAWHOST_REGISTRAR="resellerclub"
+RESELLERCLUB_TEST_MODE="true"
+RESELLERCLUB_USER_ID=""
+RESELLERCLUB_API_KEY=""
+```
+
+Do not put live reseller credentials in Git. The provider reads them server-side only. ResellerClub's current documentation recommends sandbox testing before live provisioning. citeturn2search0
