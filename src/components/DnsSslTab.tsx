@@ -186,7 +186,7 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
             Quản Lý Cụm Tên Miền &amp; Ingress Routing
           </h2>
           <p className="text-xs text-slate-300 mt-1 max-w-2xl">
-            Đã loại bỏ hoàn toàn tên miền <span className="line-through text-rose-400 font-mono">velclaw.cfd</span>. Nền tảng Velclaw hiện quy chuẩn hoạt động trên 5 TLD cao cấp phân cấp theo từng mục tiêu hạ tầng: Thương mại, Lập trình, Trí tuệ nhân tạo, Gateway Ingress và SaaS Console.
+            Đã loại bỏ hoàn toàn tên miền <span className="line-through text-rose-400 font-mono">velclaw.cfd</span>. Velclaw hiện dùng ba miền first-party: .site cho platform, .dev cho developer và .app cho application. DNS/SSL chỉ được đánh dấu active sau khi xác minh thực tế.
           </p>
         </div>
 
