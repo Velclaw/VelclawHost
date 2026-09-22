@@ -278,11 +278,9 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
       case 'dev':
         return 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30';
       case 'app':
-        return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+        return 'bg-rose-500/20 text-rose-400 border-rose-500/30';
       default:
         return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
-      case 'app':
-        return 'bg-rose-500/20 text-rose-400 border-rose-500/30';
     }
   };
 
