@@ -1,27 +1,170 @@
 @import "tailwindcss";
 
+:root {
+  --velclaw-bg: #050816;
+  --velclaw-surface: #0b1120;
+  --velclaw-surface-2: #101827;
+  --velclaw-border: #1d2a44;
+  --velclaw-text: #eef2ff;
+  --velclaw-muted: #8b9ab5;
+  --velclaw-blue: #6366f1;
+  --velclaw-violet: #8b5cf6;
+  --velclaw-cyan: #06b6d4;
+  --velclaw-success: #22c55e;
+}
+
 @layer base {
+  html {
+    background: var(--velclaw-bg);
+    color-scheme: dark;
+  }
+
   body {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    margin: 0;
+    min-width: 320px;
+    font-family: Inter, "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(circle at 15% -10%, rgba(99, 102, 241, 0.16), transparent 34rem),
+      radial-gradient(circle at 92% 8%, rgba(6, 182, 212, 0.10), transparent 28rem),
+      var(--velclaw-bg);
+    color: var(--velclaw-text);
+    -webkit-font-smoothing: antialiased;
   }
-  
+
   code, pre, .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
   }
+
+  button, input, select, textarea {
+    font: inherit;
+  }
+
+  ::selection {
+    background: rgba(99, 102, 241, 0.35);
+    color: #fff;
+  }
+}
+
+/* Velclaw visual system: technical, dark, precise, restrained. */
+#root {
+  min-height: 100vh;
+  background:
+    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+#root > div {
+  background-color: transparent !important;
+}
+
+main {
+  position: relative;
+}
+
+main::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(99,102,241,.45), rgba(6,182,212,.28), transparent);
+  pointer-events: none;
+}
+
+.rounded-2xl {
+  border-radius: 14px !important;
+}
+
+.rounded-xl {
+  border-radius: 11px !important;
+}
+
+.rounded-lg {
+  border-radius: 8px !important;
+}
+
+[class*="border-slate-800"] {
+  border-color: var(--velclaw-border) !important;
+}
+
+[class*="bg-slate-900"] {
+  background-color: rgba(11, 17, 32, 0.88) !important;
+}
+
+[class*="bg-slate-950"] {
+  background-color: rgba(5, 8, 22, 0.94) !important;
+}
+
+button {
+  letter-spacing: -0.005em;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.8);
+  outline-offset: 2px;
+}
+
+.velclaw-brand-mark {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(99, 102, 241, 0.55);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(99,102,241,.24), rgba(6,182,212,.08));
+  box-shadow: 0 0 24px rgba(99,102,241,.18), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.velclaw-brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 25%, rgba(255,255,255,.12), transparent 60%);
+  transform: translateX(-110%);
+  animation: velclaw-sheen 5s ease-in-out infinite;
+}
+
+.velclaw-brand-v {
+  position: relative;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+}
+
+.velclaw-brand-v path {
+  fill: url(#velclaw-v-gradient);
+}
+
+.velclaw-eyebrow {
+  color: #9aa8c2;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+@keyframes velclaw-sheen {
+  0%, 55%, 100% { transform: translateX(-110%); }
+  72% { transform: translateX(110%); }
 }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.25);
-  border-radius: 9999px;
+  background: rgba(100, 116, 139, 0.28);
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.4);
+  background: rgba(129, 140, 248, 0.48);
 }
