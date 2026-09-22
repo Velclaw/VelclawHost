@@ -41,7 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'domains', 
       label: 'Quản lý tên miền', 
       icon: Network, 
-      badge: 'CFD', 
+      badge: 'HOST', 
       badgeColor: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' 
     },
     { id: 'dns-ssl', label: 'DNS & HTTPS / SSL', icon: Globe },
