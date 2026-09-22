@@ -498,7 +498,7 @@ RUNTIME_CONTAINER_PORT=3000
 RUNTIME_PORT_START=4100
 ```
 
-The provider only starts the explicitly configured `RUNTIME_IMAGE`; it never accepts an arbitrary image from the deployment request. It creates a labelled container with a restart policy and maps the planned host port to the configured container port. Docker supports creating/starting containers, published ports, labels and restart policies through its Engine interface. citeturn0search0turn0search1turn0search5
+The provider only starts the explicitly configured `RUNTIME_IMAGE`; it never accepts an arbitrary image from the deployment request. It creates a labelled container with a restart policy and maps the planned host port to the configured container port. Docker supports creating/starting containers, published ports, labels and restart policies through its Engine interface.
 
 The control plane then performs an HTTP health probe. Only a successful probe changes the deployment to `ready`. A container being started is therefore not treated as proof that the application is healthy.
 
@@ -524,7 +524,7 @@ POST /api/v1/deployments/:id/domain/bind
 { "domainId": "dom-..." }
 ```
 
-The control plane generates a Caddyfile containing one site block per active binding and proxies the hostname to the runtime's allocated loopback port. Caddy's `reverse_proxy` directive supports local upstreams and active health checks; automatic public HTTPS requires the domain to resolve to the proxy and ports 80/443 to be reachable. citeturn0search0turn0search1turn0search4
+The control plane generates a Caddyfile containing one site block per active binding and proxies the hostname to the runtime's allocated loopback port. Caddy's `reverse_proxy` directive supports local upstreams and active health checks; automatic public HTTPS requires the domain to resolve to the proxy and ports 80/443 to be reachable.
 
 By default the control plane only writes the generated configuration. Set `CADDY_AUTO_RELOAD=true` to have it invoke Caddy's reload command. This remains disabled by default so a control-plane API request cannot unexpectedly alter a production proxy.
 
@@ -536,7 +536,7 @@ The control plane supports two state stores:
 - `VELCLAWHOST_STATE_STORE=file` (default): atomic JSON snapshot for local development.
 - `VELCLAWHOST_STATE_STORE=postgres`: PostgreSQL-backed snapshot using `DATABASE_URL` and the `db/migrations/001_control_plane_state.sql` migration.
 
-PostgreSQL is the production-oriented option because the state is stored as `jsonb`, which PostgreSQL can index and query efficiently when needed. citeturn0search0turn0search3
+PostgreSQL is the production-oriented option because the state is stored as `jsonb`, which PostgreSQL can index and query efficiently when needed.
 
 Example:
 
@@ -579,7 +579,7 @@ Legacy `velclaw.cfd` and removed first-party `velclaw.ai` are not canonical endp
 
 ### Registrar migration
 
-Vercel exposes a Domains Registrar API for availability, pricing, auth-code retrieval, transfer-in, transfer status and nameserver management. VelclawHost includes a server-side Vercel adapter for the **source-registrar** step. citeturn1search0turn4search0turn5search3
+Vercel exposes a Domains Registrar API for availability, pricing, auth-code retrieval, transfer-in, transfer status and nameserver management. VelclawHost includes a server-side Vercel adapter for the **source-registrar** step.
 
 Configure:
 
@@ -593,12 +593,12 @@ VERCEL_REGISTRAR_API_BASE_URL="https://api.vercel.com"
 
 The target registrar remains a separate adapter. VelclawHost does not become an ICANN-accredited registrar merely by running this control plane; a true Velclaw registrar/reseller service requires the appropriate registrar/registry or reseller relationship.
 
-Vercel states that outbound transfer requires a domain to have been registered with Vercel for at least 60 days before an authorization code can be requested. ICANN requires an Auth-Code for gTLD registrar transfers and applies 60-day locks in specified situations. citeturn0search1turn0search5turn0search2
+Vercel states that outbound transfer requires a domain to have been registered with Vercel for at least 60 days before an authorization code can be requested. ICANN requires an Auth-Code for gTLD registrar transfers and applies 60-day locks in specified situations.
 
 
 ### Target registrar / reseller: ResellerClub
 
-VelclawHost now supports **ResellerClub as the target registrar/reseller adapter** while Vercel remains the migration/source registrar adapter. ResellerClub's official developer platform exposes domain availability, registration, transfer and DNS lifecycle APIs, with separate sandbox and live environments. citeturn2search0turn2search1
+VelclawHost now supports **ResellerClub as the target registrar/reseller adapter** while Vercel remains the migration/source registrar adapter. ResellerClub's official developer platform exposes domain availability, registration, transfer and DNS lifecycle APIs, with separate sandbox and live environments.
 
 Architecture:
 
@@ -627,4 +627,4 @@ RESELLERCLUB_USER_ID=""
 RESELLERCLUB_API_KEY=""
 ```
 
-Do not put live reseller credentials in Git. The provider reads them server-side only. ResellerClub's current documentation recommends sandbox testing before live provisioning. citeturn2search0
+Do not put live reseller credentials in Git. The provider reads them server-side only. ResellerClub's current documentation recommends sandbox testing before live provisioning.
