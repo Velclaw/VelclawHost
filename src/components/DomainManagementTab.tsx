@@ -43,8 +43,8 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
 }) => {
   // Form State
   const [domainInput, setDomainInput] = useState('');
-  const [recordType, setRecordType] = useState<'A' | 'CNAME'>('A');
-  const [targetValue, setTargetValue] = useState('104.21.78.142');
+  const [recordType, setRecordType] = useState<'A' | 'CNAME'>('CNAME');
+  const [targetValue, setTargetValue] = useState('host.velclaw.app');
   const [notesInput, setNotesInput] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
 
@@ -65,22 +65,16 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
 
   // Supported TLDs definition
   const SUPPORTED_TLDS: { tld: VelclawTld; label: string; desc: string; color: string }[] = [
-    { tld: 'com', label: '.com', desc: 'Canonical / Enterprise Web', color: 'emerald' },
-    { tld: 'dev', label: '.dev', desc: 'Developer & Preview Staging', color: 'indigo' },
-    { tld: 'ai', label: '.ai', desc: 'AI Engine & Agents Cluster', color: 'purple' },
-    { tld: 'io', label: '.io', desc: 'High-IOPS Gateway Ingress', color: 'cyan' },
-    { tld: 'app', label: '.app', desc: 'SaaS Console & Web Apps', color: 'rose' },
+    { tld: 'site', label: '.site', desc: 'Primary Platform & Company', color: 'emerald' },
+    { tld: 'dev', label: '.dev', desc: 'Developer / IDE / Docs / API', color: 'indigo' },
+    { tld: 'app', label: '.app', desc: 'Application & Services', color: 'rose' },
   ];
 
   // Helper: detect TLD from domain string
   const detectTld = (val: string): VelclawTld | null => {
-    const clean = val.trim().toLowerCase();
-    if (clean.endsWith('.com')) return 'com';
-    if (clean.endsWith('.dev')) return 'dev';
-    if (clean.endsWith('.ai')) return 'ai';
-    if (clean.endsWith('.io')) return 'io';
-    if (clean.endsWith('.app')) return 'app';
-    return null;
+    const clean = val.trim().toLowerCase().replace(/\\.$/, '');
+    const labels = clean.split('.');
+    return labels.length >= 2 ? labels[labels.length - 1] : null;
   };
 
   const detectedTld = detectTld(domainInput);
@@ -114,10 +108,10 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
       return;
     }
 
-    // Check supported TLD
+    // VelclawHost is provider-agnostic: custom domains may use any syntactically valid TLD.
     const tld = detectTld(clean);
     if (!tld) {
-      setValidationError('Tên miền bắt buộc phải thuộc một trong 5 TLDs được hỗ trợ: .com, .dev, .ai, .io, .app');
+      setValidationError('Không thể xác định TLD của tên miền.');
       return;
     }
 
@@ -279,13 +273,13 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
 
   const getTldBadgeColor = (tld: VelclawTld) => {
     switch (tld) {
-      case 'com':
+      case 'site':
         return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
       case 'dev':
         return 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30';
-      case 'ai':
+      case 'app':
         return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-      case 'io':
+      default:
         return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
       case 'app':
         return 'bg-rose-500/20 text-rose-400 border-rose-500/30';
@@ -301,14 +295,14 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
             <Globe className="w-4 h-4" />
             <span>Quản Lý Tên Miền Tùy Chỉnh (Custom Domain Management)</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-              Quy chuẩn 5 TLDs
+              First-party 3 domains
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white font-mono">
             Cấu Hình &amp; Điều Phối Tên Miền Tùy Chỉnh
           </h2>
           <p className="text-xs text-slate-300 mt-1 max-w-2xl">
-            Gắn kết tên miền riêng của bạn vào cụm hạ tầng Velclaw với các đuôi cao cấp <span className="font-mono text-cyan-400 font-bold">.com</span>, <span className="font-mono text-indigo-400 font-bold">.dev</span>, <span className="font-mono text-purple-400 font-bold">.ai</span>, <span className="font-mono text-cyan-300 font-bold">.io</span>, và <span className="font-mono text-rose-400 font-bold">.app</span>. Tự động kiểm tra cú pháp, xác thực định tuyến Anycast và cấp phát SSL Let&apos;s Encrypt.
+            Gắn kết tên miền riêng của bạn vào cụm hạ tầng Velclaw với first-party <span className="font-mono text-emerald-400 font-bold">.site</span>, <span className="font-mono text-indigo-400 font-bold">.dev</span> và <span className="font-mono text-rose-400 font-bold">.app</span>; custom domains được điều phối qua registrar adapter. DNS/SSL chỉ chuyển sang active sau khi xác minh thực tế.
           </p>
         </div>
 
@@ -453,7 +447,7 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
                 </div>
               ) : (
                 <div className="text-[10px] text-slate-500 mt-1">
-                  TLDs hợp lệ: <span className="text-slate-300 font-mono">.com, .dev, .ai, .io, .app</span>
+                  First-party: <span className="text-slate-300 font-mono">.site, .dev, .app</span> · custom TLD: hỗ trợ theo registrar
                 </div>
               )}
             </div>
@@ -599,7 +593,7 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
           {/* TLD Filter */}
           <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
             <span className="text-[11px] text-slate-500 px-2 font-medium">TLD:</span>
-            {(['ALL', 'com', 'dev', 'ai', 'io', 'app'] as const).map((tld) => (
+            {(['ALL', 'site', 'dev', 'app'] as const).map((tld) => (
               <button
                 key={tld}
                 onClick={() => setSelectedTldFilter(tld)}
@@ -898,13 +892,13 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Layers className="w-4 h-4 text-cyan-400" />
-              <span>Tiêu Chuẩn 5 TLDs Được Tối Ưu Hóa Sẵn Sàng (Ready Ingress)</span>
+              <span>Tiêu Chuẩn 5 First-party Domains & Registrar Routing</span>
             </h3>
-            <p className="text-xs text-slate-400">Hạ tầng VelclawHost tự động cấu hình wildcard routing và TLS cho 5 đuôi tên miền</p>
+            <p className="text-xs text-slate-400">VelclawHost là control plane; registrar/DNS/SSL chỉ được đánh dấu active sau khi provider và DNS xác nhận thành công</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {SUPPORTED_TLDS.map((item) => (
             <div
               key={item.tld}
@@ -916,12 +910,12 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
                 </span>
                 <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
-                  Sẵn sàng
+                  Chờ xác minh
                 </span>
               </div>
               <div className="text-xs font-bold text-white">{item.desc}</div>
               <div className="text-[10px] text-slate-500 font-mono">
-                Wildcard *.{item.tld} auto-routed
+                Wildcard *.{item.tld} theo cấu hình provider
               </div>
             </div>
           ))}
