@@ -30,7 +30,8 @@ function teamQuery() {
 }
 
 async function request(path: string, init?: RequestInit) {
-  const response = await fetch(baseUrl() + path + (path.includes('?') ? '&' : teamQuery() ? teamQuery() : ''), {
+  const query = teamQuery();
+  const response = await fetch(baseUrl() + path + (query ? query : ''), {
     ...init,
     headers: {
       Authorization: 'Bearer ' + requireToken(),
