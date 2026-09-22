@@ -13,6 +13,7 @@ export class ResellerClubRegistrarProvider implements RegistrarProvider {
   private readonly resellerId = process.env.RESELLERCLUB_USER_ID || '';
   private readonly apiKey = process.env.RESELLERCLUB_API_KEY || '';
 
+  /** @throws {RegistrarProviderError} If either ResellerClub credential is missing. */
   private requireCredentials() {
     if (!this.resellerId || !this.apiKey) {
       throw new RegistrarProviderError(
@@ -23,6 +24,10 @@ export class ResellerClubRegistrarProvider implements RegistrarProvider {
     }
   }
 
+  /**
+   * Sends an authenticated ResellerClub request and parses JSON or legacy text responses.
+   * Provider HTTP failures and error payloads are exposed as `RegistrarProviderError`s.
+   */
   private async request(
     path: string,
     method: 'GET' | 'POST',
@@ -83,6 +88,7 @@ export class ResellerClubRegistrarProvider implements RegistrarProvider {
     return data;
   }
 
+  /** Splits at the final dot and queries the resulting name/TLD pair, treating unknown responses as unavailable. */
   async getAvailability(domain: string): Promise<DomainAvailability> {
     const normalized = domain.trim().toLowerCase();
     const dot = normalized.lastIndexOf('.');
@@ -119,6 +125,7 @@ export class ResellerClubRegistrarProvider implements RegistrarProvider {
     };
   }
 
+  /** Retrieves the transfer authorization secret for the domain's ResellerClub order. */
   async getAuthCode(domain: string): Promise<{ domain: string; authCode: string }> {
     const orderId = await this.getOrderId(domain);
     const data = await this.request('domains/details', 'GET', {
@@ -141,6 +148,10 @@ export class ResellerClubRegistrarProvider implements RegistrarProvider {
     return { domain, authCode };
   }
 
+  /**
+   * Submits an inbound transfer using the configured customer and contact IDs.
+   * Privacy protection is always enabled, while automatic renewal defaults to enabled.
+   */
   async transferIn(request: TransferInRequest): Promise<DomainTransferStatus> {
     const customerId = process.env.RESELLERCLUB_CUSTOMER_ID;
     const contactId = process.env.RESELLERCLUB_REG_CONTACT_ID;
@@ -179,6 +190,7 @@ export class ResellerClubRegistrarProvider implements RegistrarProvider {
     };
   }
 
+  /** Retrieves the current action status for the domain's resolved order ID. */
   async getTransferStatus(domain: string): Promise<DomainTransferStatus> {
     const orderId = await this.getOrderId(domain);
     const data = await this.request('actions/status', 'GET', { 'order-id': orderId });
@@ -195,6 +207,10 @@ export class ResellerClubRegistrarProvider implements RegistrarProvider {
     };
   }
 
+  /**
+   * Replaces the domain's nameservers through ResellerClub.
+   * @throws {RegistrarProviderError} If fewer than two or more than thirteen are supplied.
+   */
   async updateNameservers(domain: string, nameservers: string[]): Promise<unknown> {
     if (nameservers.length < 2 || nameservers.length > 13) {
       throw new RegistrarProviderError(
@@ -211,6 +227,7 @@ export class ResellerClubRegistrarProvider implements RegistrarProvider {
     });
   }
 
+  /** Resolves the provider-specific order ID required by domain detail and action endpoints. */
   private async getOrderId(domain: string): Promise<string> {
     const data = await this.request('domains/orderid', 'GET', {
       'domain-name': domain.trim().toLowerCase(),

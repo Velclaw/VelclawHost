@@ -70,7 +70,7 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
     { tld: 'app', label: '.app', desc: 'Application & Services', color: 'rose' },
   ];
 
-  // Helper: detect TLD from domain string
+  /** Extracts the final label from a trimmed, lowercased domain-like value. */
   const detectTld = (val: string): VelclawTld | null => {
     const clean = val.trim().toLowerCase().replace(/\\.$/, '');
     const labels = clean.split('.');
@@ -91,7 +91,7 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
     return regex.test(host.trim()) && host.trim().length >= 3;
   };
 
-  // Real-time domain validation logic
+  /** Updates the domain field and reports syntax errors without restricting custom TLDs. */
   const handleDomainChange = (val: string) => {
     setDomainInput(val);
     const clean = val.trim().toLowerCase();
@@ -161,7 +161,7 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
     setTimeout(() => setCopiedText(null), 2500);
   };
 
-  // Handle Form Submission
+  /** Validates and emits a custom domain, then resets the form after a successful submission. */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanDomain = domainInput.trim().toLowerCase();
@@ -271,6 +271,7 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
   const activeCount = customDomains.filter((d) => d.status === 'active').length;
   const pendingCount = customDomains.filter((d) => d.status === 'pending').length;
 
+  /** Returns first-party badge colors and a fallback color for registrar-defined TLDs. */
   const getTldBadgeColor = (tld: VelclawTld) => {
     switch (tld) {
       case 'site':

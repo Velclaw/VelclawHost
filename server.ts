@@ -29,6 +29,10 @@ function getGeminiClient(): GoogleGenAI | null {
   return aiClient;
 }
 
+/**
+ * Starts the HTTP control plane, background deployment work, reconciliation, and frontend host.
+ * Registrar credentials are read by server-side adapters rather than frontend configuration.
+ */
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
@@ -311,6 +315,10 @@ async function startServer() {
     return persistChain;
   }
 
+  /**
+   * Restores persisted control-plane maps and reserved runtime ports.
+   * Load failures are logged and rethrown only when `VELCLAWHOST_FAIL_ON_STATE_ERROR` is enabled.
+   */
   async function loadState() {
     try {
       const snapshot = await stateStore.load();

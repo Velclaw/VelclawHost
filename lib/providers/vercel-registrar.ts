@@ -8,6 +8,7 @@ import {
 
 const DEFAULT_BASE_URL = 'https://api.vercel.com';
 
+/** @throws {RegistrarProviderError} If the server has no Vercel registrar token. */
 function requireToken() {
   const token = process.env.VERCEL_REGISTRAR_TOKEN?.trim();
   if (!token) {
@@ -29,6 +30,10 @@ function teamQuery() {
   return teamId ? '?teamId=' + encodeURIComponent(teamId) : '';
 }
 
+/**
+ * Sends an authenticated, optionally team-scoped Vercel registrar request.
+ * Non-success responses are converted to `RegistrarProviderError`s.
+ */
 async function request(path: string, init?: RequestInit) {
   const query = teamQuery();
   const response = await fetch(baseUrl() + path + (query ? query : ''), {
@@ -51,6 +56,10 @@ async function request(path: string, init?: RequestInit) {
   return payload;
 }
 
+/**
+ * Canonicalizes a domain for Vercel requests while accepting one trailing root-label dot.
+ * @throws {RegistrarProviderError} If the value does not match the accepted domain syntax.
+ */
 function normalizeDomain(domain: string) {
   const value = domain.trim().toLowerCase().replace(/\.$/, '');
   if (!/^(?:[a-z0-9-]+\.)+[a-z]{2,63}$/.test(value)) {
@@ -62,6 +71,7 @@ function normalizeDomain(domain: string) {
 export class VercelRegistrarProvider implements RegistrarProvider {
   readonly name = 'vercel' as const;
 
+  /** Uses the presence of a purchase price as Vercel's availability signal. */
   async getAvailability(domain: string): Promise<DomainAvailability> {
     const value = normalizeDomain(domain);
     const payload = await request('/v1/registrar/domains/' + encodeURIComponent(value) + '/price');
@@ -76,6 +86,7 @@ export class VercelRegistrarProvider implements RegistrarProvider {
     };
   }
 
+  /** Retrieves Vercel's transfer-out authorization code for a normalized domain. */
   async getAuthCode(domain: string) {
     const value = normalizeDomain(domain);
     const payload = await request('/v1/registrar/domains/' + encodeURIComponent(value) + '/auth-code');
@@ -86,6 +97,7 @@ export class VercelRegistrarProvider implements RegistrarProvider {
     return { domain: value, authCode };
   }
 
+  /** Submits a Vercel transfer request with one year and automatic renewal as defaults. */
   async transferIn(input: TransferInRequest): Promise<DomainTransferStatus> {
     const value = normalizeDomain(input.domain);
     const payload = await request('/v1/registrar/domains/' + encodeURIComponent(value) + '/transfer', {
@@ -107,6 +119,7 @@ export class VercelRegistrarProvider implements RegistrarProvider {
     };
   }
 
+  /** Retrieves Vercel's latest transfer state for a normalized domain. */
   async getTransferStatus(domain: string): Promise<DomainTransferStatus> {
     const value = normalizeDomain(domain);
     const payload = await request('/v1/registrar/domains/' + encodeURIComponent(value) + '/transfer');
@@ -119,6 +132,10 @@ export class VercelRegistrarProvider implements RegistrarProvider {
     };
   }
 
+  /**
+   * Replaces the domain's nameservers after normalizing and removing empty entries.
+   * @throws {RegistrarProviderError} If fewer than two nameservers remain.
+   */
   async updateNameservers(domain: string, nameservers: string[]) {
     const value = normalizeDomain(domain);
     const normalized = nameservers.map((item) => item.trim().toLowerCase()).filter(Boolean);
