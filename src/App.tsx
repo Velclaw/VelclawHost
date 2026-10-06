@@ -78,34 +78,34 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState<boolean>(true);
 
   // DNS & SSL
-  const [dnsRecords, setDnsRecords] = useState<DnsRecord[]>(INITIAL_DNS_RECORDS);
-  const [ssl, setSsl] = useState<SslInfo>(INITIAL_SSL);
+  const [dnsRecords, setDnsRecords] = useState<DnsRecord[]>([]);
+  const [ssl, setSsl] = useState<SslInfo>({ domain: '', issuer: '', type: 'ECDSA', validFrom: 'pending', validTo: 'pending', daysRemaining: 0, tlsVersion: 'TLSv1.3', cipherSuite: 'pending', hstsEnabled: false, httpRedirectEnabled: false, autoRenew: false, fingerprint: 'pending', status: 'warning' });
 
   // Custom Domains
-  const [customDomains, setCustomDomains] = useState<CustomDomain[]>(INITIAL_CUSTOM_DOMAINS);
+  const [customDomains, setCustomDomains] = useState<CustomDomain[]>([]);
 
   // Thresholds & Alerts
   const [thresholds, setThresholds] = useState<AlertThresholds>(INITIAL_THRESHOLDS);
-  const [alerts, setAlerts] = useState<SystemAlert[]>(INITIAL_ALERTS);
+  const [alerts, setAlerts] = useState<SystemAlert[]>([]);
 
   // Database Optimization
-  const [slowQueries, setSlowQueries] = useState<SlowQuery[]>(INITIAL_SLOW_QUERIES);
+  const [slowQueries, setSlowQueries] = useState<SlowQuery[]>([]);
 
   // Event & Audit Logs
-  const [logs, setLogs] = useState<SystemLog[]>(INITIAL_LOGS);
+  const [logs, setLogs] = useState<SystemLog[]>([]);
 
   // API Keys
-  const [apiKeys, setApiKeys] = useState<ApiKeyItem[]>(INITIAL_API_KEYS);
+  const [apiKeys, setApiKeys] = useState<ApiKeyItem[]>([]);
 
   // 2FA / MFA Security State
   const [twoFactor, setTwoFactor] = useState<TwoFactorState>({
-    enabled: true,
-    verified: true,
-    secret: 'VELCLAWSEC2026',
-    qrCodeText: 'otpauth://totp/Velclaw:huynhthuong.xyz@gmail.com?secret=VELCLAWSEC2026&issuer=VelclawPlatform',
+    enabled: false,
+    verified: false,
+    secret: '',
+    qrCodeText: '',
     backupCodes: generateBackupCodes(8),
-    adminEmail: 'huynhthuong.xyz@gmail.com',
-    lastVerifiedAt: new Date().toISOString(),
+    adminEmail: '',
+    lastVerifiedAt: null,
   });
 
   // Modals & Navigation
@@ -160,7 +160,7 @@ export default function App() {
         if (!cancelled && Array.isArray(payload.domains)) setCustomDomains(payload.domains as CustomDomain[]);
       })
       .catch(() => {
-        // Keep the local mock dataset as a safe UI fallback during development.
+        if (!cancelled) setCustomDomains([]);
       });
     return () => { cancelled = true; };
   }, []);
