@@ -76,6 +76,13 @@ export default function App() {
   const [selectedNode, setSelectedNode] = useState<HostNode>(emptyNode);
   const [metrics, setMetrics] = useState<MetricSnapshot[]>([emptyMetric]);
   const [isStreaming, setIsStreaming] = useState<boolean>(true);
+  const [capabilities, setCapabilities] = useState<{
+    mode: string;
+    containerRuntime: boolean;
+    deploymentBuild: boolean;
+    durableState: boolean;
+    dnsManagement: boolean;
+  } | null>(null);
 
   // DNS & SSL
   const [dnsRecords, setDnsRecords] = useState<DnsRecord[]>([]);
@@ -147,6 +154,28 @@ export default function App() {
       localStorage.setItem('velclaw_theme', 'light');
     }
   }, [isDarkMode]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/v1/capabilities', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Capabilities API unavailable');
+        return response.json();
+      })
+      .then((payload) => {
+        if (!cancelled && payload.capabilities) {
+          setCapabilities({
+            mode: String(payload.mode || 'control-plane-only'),
+            containerRuntime: Boolean(payload.capabilities.containerRuntime),
+            deploymentBuild: Boolean(payload.capabilities.deploymentBuild),
+            durableState: Boolean(payload.capabilities.durableState),
+            dnsManagement: Boolean(payload.capabilities.dnsManagement),
+          });
+        }
+      })
+      .catch(() => { if (!cancelled) setCapabilities(null); });
+    return () => { cancelled = true; };
+  }, []);
 
   // Load domains from the VelclawHost Control Plane instead of treating mock data as source of truth.
   useEffect(() => {
@@ -559,6 +588,24 @@ export default function App() {
 
         {/* Main Content Viewport */}
         <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto pb-24 lg:pb-12">
+          {capabilities && (
+            <div className={`mb-6 rounded-2xl border p-4 ${capabilities.mode === 'runtime-enabled' ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-300">VelclawHost Control Plane</div>
+                  <div className="mt-1 text-sm font-semibold text-white">
+                    {capabilities.mode === 'runtime-enabled' ? 'Runtime worker available' : 'Control-plane only — runtime worker chưa kết nối'}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-[10px] font-mono">
+                  <span className="rounded-lg border border-slate-700 px-2 py-1 text-slate-300">Docker {capabilities.containerRuntime ? 'READY' : 'OFF'}</span>
+                  <span className="rounded-lg border border-slate-700 px-2 py-1 text-slate-300">Build {capabilities.deploymentBuild ? 'READY' : 'OFF'}</span>
+                  <span className="rounded-lg border border-slate-700 px-2 py-1 text-slate-300">Postgres {capabilities.durableState ? 'READY' : 'NOT CONNECTED'}</span>
+                  <span className="rounded-lg border border-slate-700 px-2 py-1 text-slate-300">Cloudflare API {capabilities.dnsManagement ? 'READY' : 'NOT CONNECTED'}</span>
+                </div>
+              </div>
+            </div>
+          {capabilities && (
           {activeTab === 'overview' && (
             <OverviewTab
               node={selectedNode}
