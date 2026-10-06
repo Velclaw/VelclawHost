@@ -2,3 +2,7 @@ name = "velclawhost-edge"
 main = "src/index.ts"
 compatibility_date = "2026-10-07"
 workers_dev = true
+
+[[routes]]
+pattern = "velclaw.site/*"
+zone_name = "velclaw.site"
