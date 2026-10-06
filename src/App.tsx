@@ -186,7 +186,7 @@ export default function App() {
     };
     void poll();
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, []);
+  }, [isStreaming]);
 
   // Trigger automated alert
   const triggerThresholdAlert = (
