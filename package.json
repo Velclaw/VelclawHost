@@ -9,7 +9,10 @@
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "worker:build": "node runtime-worker/build.cjs",
+    "worker:dev": "tsx runtime-worker/index.ts",
+    "worker:start": "node dist/runtime-worker.cjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
