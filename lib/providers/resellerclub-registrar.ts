@@ -43,7 +43,7 @@ export class ResellerClubRegistrarProvider implements RegistrarProvider {
       }
     }
 
-    const url = `${this.baseUrl.replace(/\\/$/, '')}/${path.replace(/^\\//, '')}.json`;
+    const url = `${this.baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}.json`;
     const response = await fetch(method === 'GET' ? `${url}?${body.toString()}` : url, {
       method,
       headers: {
