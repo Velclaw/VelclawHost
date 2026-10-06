@@ -605,6 +605,7 @@ export default function App() {
                 </div>
               </div>
             </div>
+          )}
           {activeTab === 'overview' && (
             <OverviewTab
               node={selectedNode}
