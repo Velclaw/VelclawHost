@@ -1,0 +1,28 @@
+name: Deploy VelclawHost Edge Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "edge-worker/**"
+      - ".github/workflows/deploy-edge-worker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Deploy Cloudflare Worker
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: edge-worker
+          command: deploy
