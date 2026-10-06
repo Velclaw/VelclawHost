@@ -151,6 +151,19 @@ async function startServer() {
     const runtimeProvider = String(process.env.RUNTIME_PROVIDER || 'none').trim().toLowerCase();
     const deploymentExecutor = String(process.env.DEPLOYMENT_EXECUTOR || 'none').trim().toLowerCase();
     const remoteWorkerConfigured = Boolean(runtimeWorkerUrl);
+    let remoteWorkerReachable = false;
+    if (remoteWorkerConfigured) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 2500);
+        try {
+          const response = await fetch(runtimeWorkerUrl + '/health', { signal: controller.signal });
+          remoteWorkerReachable = response.ok;
+        } finally {
+          clearTimeout(timer);
+        }
+      } catch {}
+    }
     const stateStore = String(process.env.VELCLAWHOST_STATE_STORE || 'file').trim().toLowerCase();
     let dockerAvailable = false;
     if (runtimeProvider === 'docker' || deploymentExecutor === 'docker') {
@@ -162,15 +175,15 @@ async function startServer() {
     res.json({
       status: 'success',
       service: 'velclawhost-control-plane',
-      mode: (deploymentExecutor === 'remote' && remoteWorkerConfigured) || (dockerAvailable && deploymentExecutor === 'docker') ? 'runtime-enabled' : 'control-plane-only',
+      mode: (deploymentExecutor === 'remote' && remoteWorkerReachable) || (dockerAvailable && deploymentExecutor === 'docker') ? 'runtime-enabled' : 'control-plane-only',
       capabilities: {
         liveMetrics: true,
         dnsResolution: true,
         dnsManagement: Boolean(process.env.CLOUDFLARE_API_TOKEN),
         durableState: stateStore === 'postgres' && Boolean(process.env.DATABASE_URL),
         deploymentQueue: true,
-        deploymentBuild: (deploymentExecutor === 'docker' && dockerAvailable) || (deploymentExecutor === 'remote' && remoteWorkerConfigured),
-        containerRuntime: (runtimeProvider === 'docker' && dockerAvailable) || (runtimeProvider === 'remote' && remoteWorkerConfigured),
+        deploymentBuild: (deploymentExecutor === 'docker' && dockerAvailable) || (deploymentExecutor === 'remote' && remoteWorkerReachable),
+        containerRuntime: (runtimeProvider === 'docker' && dockerAvailable) || (runtimeProvider === 'remote' && remoteWorkerReachable),
         reverseProxy: Boolean(process.env.CADDY_ADMIN_URL),
         registrar: Boolean(process.env.VELCLAWHOST_REGISTRAR && process.env.VELCLAWHOST_REGISTRAR !== 'none'),
       },
@@ -179,15 +192,18 @@ async function startServer() {
         runtimeProvider,
         deploymentExecutor,
         runtimeWorkerConfigured: remoteWorkerConfigured,
+        runtimeWorkerReachable: remoteWorkerReachable,
         imageRegistryConfigured: Boolean(process.env.IMAGE_REGISTRY),
         cloudflareManagementConfigured: Boolean(process.env.CLOUDFLARE_API_TOKEN),
         apiAuthenticationConfigured: Boolean(apiToken),
       },
       worker: {
-        requiredForRuntime: !(runtimeProvider === 'docker' && dockerAvailable) && !(runtimeProvider === 'remote' && remoteWorkerConfigured),
-        message: runtimeProvider === 'remote' && remoteWorkerConfigured
-          ? 'Remote runtime worker is configured.'
-          : dockerAvailable
+        requiredForRuntime: !(runtimeProvider === 'docker' && dockerAvailable) && !(runtimeProvider === 'remote' && remoteWorkerReachable),
+        message: runtimeProvider === 'remote' && remoteWorkerReachable
+          ? 'Remote runtime worker is reachable.'
+          : runtimeProvider === 'remote' && remoteWorkerConfigured
+            ? 'Remote runtime worker is configured but unreachable.'
+            : dockerAvailable
             ? 'Docker runtime is available to this process.'
             : 'No Docker runtime is available to this control-plane process; a separate runtime worker is required for container deployments.',
       },
