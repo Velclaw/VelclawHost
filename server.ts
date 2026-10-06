@@ -106,6 +106,24 @@ async function startServer() {
     return res.status(401).json({ error: 'Unauthorized' });
   };
 
+  const runtimeWorkerUrl = process.env.RUNTIME_WORKER_URL?.trim().replace(/\/$/, '') || '';
+  const runtimeWorkerToken = process.env.RUNTIME_WORKER_TOKEN?.trim() || '';
+
+  async function callRuntimeWorker(pathname: string, init: RequestInit = {}) {
+    if (!runtimeWorkerUrl) throw new Error('RUNTIME_WORKER_URL is not configured.');
+    const headers = new Headers(init.headers);
+    headers.set('Content-Type', 'application/json');
+    if (runtimeWorkerToken) headers.set('Authorization', 'Bearer ' + runtimeWorkerToken);
+    const response = await fetch(runtimeWorkerUrl + pathname, { ...init, headers });
+    const text = await response.text();
+    let body: any = {};
+    try { body = text ? JSON.parse(text) : {}; } catch { body = { error: text }; }
+    if (!response.ok) {
+      throw new Error(String(body?.error || 'Runtime worker returned HTTP ' + response.status) + (body?.details ? ': ' + body.details : ''));
+    }
+    return body;
+  }
+
   type DomainRecord = {
     id: string; domain: string; recordType: 'A' | 'CNAME'; targetValue: string;
     status: 'pending' | 'active' | 'verifying' | 'failed'; sslStatus: 'active' | 'issuing' | 'pending';
@@ -132,6 +150,7 @@ async function startServer() {
   app.get('/api/v1/capabilities', requireApiToken, async (_req, res) => {
     const runtimeProvider = String(process.env.RUNTIME_PROVIDER || 'none').trim().toLowerCase();
     const deploymentExecutor = String(process.env.DEPLOYMENT_EXECUTOR || 'none').trim().toLowerCase();
+    const remoteWorkerConfigured = Boolean(runtimeWorkerUrl);
     const stateStore = String(process.env.VELCLAWHOST_STATE_STORE || 'file').trim().toLowerCase();
     let dockerAvailable = false;
     if (runtimeProvider === 'docker' || deploymentExecutor === 'docker') {
@@ -143,15 +162,15 @@ async function startServer() {
     res.json({
       status: 'success',
       service: 'velclawhost-control-plane',
-      mode: dockerAvailable && deploymentExecutor === 'docker' ? 'runtime-enabled' : 'control-plane-only',
+      mode: (deploymentExecutor === 'remote' && remoteWorkerConfigured) || (dockerAvailable && deploymentExecutor === 'docker') ? 'runtime-enabled' : 'control-plane-only',
       capabilities: {
         liveMetrics: true,
         dnsResolution: true,
         dnsManagement: Boolean(process.env.CLOUDFLARE_API_TOKEN),
         durableState: stateStore === 'postgres' && Boolean(process.env.DATABASE_URL),
         deploymentQueue: true,
-        deploymentBuild: deploymentExecutor === 'docker' && dockerAvailable,
-        containerRuntime: runtimeProvider === 'docker' && dockerAvailable,
+        deploymentBuild: (deploymentExecutor === 'docker' && dockerAvailable) || (deploymentExecutor === 'remote' && remoteWorkerConfigured),
+        containerRuntime: (runtimeProvider === 'docker' && dockerAvailable) || (runtimeProvider === 'remote' && remoteWorkerConfigured),
         reverseProxy: Boolean(process.env.CADDY_ADMIN_URL),
         registrar: Boolean(process.env.VELCLAWHOST_REGISTRAR && process.env.VELCLAWHOST_REGISTRAR !== 'none'),
       },
@@ -159,15 +178,18 @@ async function startServer() {
         stateStore,
         runtimeProvider,
         deploymentExecutor,
+        runtimeWorkerConfigured: remoteWorkerConfigured,
         imageRegistryConfigured: Boolean(process.env.IMAGE_REGISTRY),
         cloudflareManagementConfigured: Boolean(process.env.CLOUDFLARE_API_TOKEN),
         apiAuthenticationConfigured: Boolean(apiToken),
       },
       worker: {
-        requiredForRuntime: !(runtimeProvider === 'docker' && dockerAvailable),
-        message: dockerAvailable
-          ? 'Docker runtime is available to this process.'
-          : 'No Docker runtime is available to this control-plane process; a separate runtime worker is required for container deployments.',
+        requiredForRuntime: !(runtimeProvider === 'docker' && dockerAvailable) && !(runtimeProvider === 'remote' && remoteWorkerConfigured),
+        message: runtimeProvider === 'remote' && remoteWorkerConfigured
+          ? 'Remote runtime worker is configured.'
+          : dockerAvailable
+            ? 'Docker runtime is available to this process.'
+            : 'No Docker runtime is available to this control-plane process; a separate runtime worker is required for container deployments.',
       },
     });
   });
@@ -244,7 +266,52 @@ async function startServer() {
         item.sourceCommit = observedCommit;
         item.sourceValidatedAt = new Date().toISOString();
 
-        if (String(process.env.DEPLOYMENT_EXECUTOR || 'none').toLowerCase() !== 'docker') {
+        const executor = String(process.env.DEPLOYMENT_EXECUTOR || 'none').toLowerCase();
+
+        if (executor === 'remote') {
+          item.status = 'building';
+          await persistState();
+
+          const workerResult = await callRuntimeWorker('/v1/deployments', {
+            method: 'POST',
+            body: JSON.stringify({
+              deploymentId: item.id,
+              projectName: item.projectName,
+              repoUrl: item.repoUrl,
+              branch: item.branch,
+              commitSha: observedCommit,
+            }),
+          });
+
+          const workerRuntime = workerResult?.runtime;
+          if (!workerRuntime?.runtimeId || workerRuntime.state !== 'running') {
+            throw new Error('Runtime worker did not return a running runtime.');
+          }
+
+          item.status = 'health_check';
+          await persistState();
+
+          const now = new Date().toISOString();
+          runtimes.set(item.id, {
+            deploymentId: item.id,
+            runtimeId: String(workerRuntime.runtimeId),
+            state: 'running',
+            port: Number(workerRuntime.hostPort || 0),
+            healthUrl: workerRuntime.publicUrl || null,
+            createdAt: String(workerRuntime.createdAt || now),
+            updatedAt: String(workerRuntime.updatedAt || now),
+          });
+
+          item.status = 'ready';
+          item.completedAt = new Date().toISOString();
+          item.error = undefined;
+          await persistState();
+          await deploymentQueue.complete(job.id);
+          queueMetrics.completed += 1;
+          return;
+        }
+
+        if (executor !== 'docker') {
           item.status = 'source_validating';
           await persistState();
           await deploymentQueue.complete(job.id);
