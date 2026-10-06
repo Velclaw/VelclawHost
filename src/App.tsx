@@ -70,11 +70,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   // Nodes & Selection
-  const [nodes] = useState<HostNode[]>(INITIAL_NODES);
-  const [selectedNode, setSelectedNode] = useState<HostNode>(INITIAL_NODES[0]);
-
-  // Real-time Metrics Stream
-  const [metrics, setMetrics] = useState<MetricSnapshot[]>(() => generateHistoricalMetrics(25));
+  const emptyNode: HostNode = { id: 'control-plane', hostname: 'loading', ipV4: 'container-local', ipV6: 'not-exposed', os: 'loading', kernel: 'loading', region: 'unknown', datacenter: 'unknown', status: 'online', uptimeSeconds: 0 };
+  const emptyMetric: MetricSnapshot = { timestamp: new Date(0).toISOString(), timeLabel: '--:--:--', cpuUsage: 0, cpuCores: [0], ramUsagePercent: 0, ramUsedGb: 0, ramTotalGb: 0, swapUsedGb: 0, swapTotalGb: 0, diskUsagePercent: 0, diskUsedGb: 0, diskTotalGb: 0, diskIops: 0, networkInMbps: 0, networkOutMbps: 0, load1m: 0, load5m: 0, load15m: 0, activeConnections: 0, latencyMs: 0 };
+  const [nodes, setNodes] = useState<HostNode[]>([emptyNode]);
+  const [selectedNode, setSelectedNode] = useState<HostNode>(emptyNode);
+  const [metrics, setMetrics] = useState<MetricSnapshot[]>([emptyMetric]);
   const [isStreaming, setIsStreaming] = useState<boolean>(true);
 
   // DNS & SSL
@@ -165,70 +165,28 @@ export default function App() {
     return () => { cancelled = true; };
   }, []);
 
-  // Real-time metric ticker simulation (every 2.5s)
   useEffect(() => {
-    if (!isStreaming) return;
-
-    const interval = setInterval(() => {
-      setMetrics((prev) => {
-        const last = prev[prev.length - 1];
-        const now = new Date();
-        const hours = now.getHours().toString().padStart(2, '0');
-        const minutes = now.getMinutes().toString().padStart(2, '0');
-        const seconds = now.getSeconds().toString().padStart(2, '0');
-        const timeLabel = `${hours}:${minutes}:${seconds}`;
-
-        // realistic minor variance
-        const deltaCpu = (Math.random() - 0.48) * 3.5;
-        let newCpu = parseFloat(Math.min(98, Math.max(18, last.cpuUsage + deltaCpu)).toFixed(1));
-
-        const deltaRam = (Math.random() - 0.5) * 0.2;
-        let newRamGb = parseFloat(Math.min(15.2, Math.max(7.5, last.ramUsedGb + deltaRam)).toFixed(2));
-        const newRamPct = parseFloat(((newRamGb / last.ramTotalGb) * 100).toFixed(1));
-
-        const newSnapshot: MetricSnapshot = {
-          timestamp: now.toISOString(),
-          timeLabel,
-          cpuUsage: newCpu,
-          cpuCores: [
-            parseFloat((newCpu + (Math.random() * 4 - 2)).toFixed(1)),
-            parseFloat((newCpu + (Math.random() * 5 - 2.5)).toFixed(1)),
-            parseFloat((newCpu + (Math.random() * 4 - 2)).toFixed(1)),
-            parseFloat((newCpu + (Math.random() * 6 - 3)).toFixed(1)),
-          ],
-          ramUsagePercent: newRamPct,
-          ramUsedGb: newRamGb,
-          ramTotalGb: 16.0,
-          swapUsedGb: last.swapUsedGb,
-          swapTotalGb: 8.0,
-          diskUsagePercent: last.diskUsagePercent,
-          diskUsedGb: last.diskUsedGb,
-          diskTotalGb: last.diskTotalGb,
-          diskIops: Math.floor(820 + Math.random() * 450),
-          networkInMbps: parseFloat((145 + Math.random() * 70).toFixed(1)),
-          networkOutMbps: parseFloat((215 + Math.random() * 95).toFixed(1)),
-          load1m: parseFloat((1.20 + (newCpu / 100) * 0.8).toFixed(2)),
-          load5m: last.load5m,
-          load15m: last.load15m,
-          activeConnections: Math.floor(1800 + Math.random() * 300),
-          latencyMs: parseFloat((11.5 + (newCpu > 80 ? 8 : 0) + Math.random() * 3).toFixed(1)),
-        };
-
-        // Check if CPU or RAM crosses thresholds and auto-alert
-        if (thresholds.autoAlertEnabled) {
-          if (newCpu >= thresholds.cpuCritical) {
-            triggerThresholdAlert('CPU_HIGH', 'critical', `Phụ tải CPU đạt ${newCpu}% (Ngưỡng khẩn cấp ${thresholds.cpuCritical}%)`, newCpu, thresholds.cpuCritical);
-          } else if (newRamPct >= thresholds.ramCritical) {
-            triggerThresholdAlert('RAM_HIGH', 'critical', `Bộ nhớ RAM chiếm dụng ${newRamPct}% (Ngưỡng khẩn cấp ${thresholds.ramCritical}%)`, newRamPct, thresholds.ramCritical);
-          }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const poll = async () => {
+      try {
+        const response = await fetch('/api/v1/metrics', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Control Plane metrics unavailable');
+        const payload = await response.json();
+        if (cancelled || !payload.snapshot) return;
+        setMetrics((prev) => [...prev.slice(-24), payload.snapshot as MetricSnapshot]);
+        if (payload.node) {
+          setNodes([payload.node as HostNode]);
+          setSelectedNode(payload.node as HostNode);
         }
-
-        return [...prev.slice(1), newSnapshot];
-      });
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, [isStreaming, thresholds]);
+      } catch {
+      } finally {
+        if (!cancelled) timer = setTimeout(poll, 3000);
+      }
+    };
+    void poll();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, []);
 
   // Trigger automated alert
   const triggerThresholdAlert = (
