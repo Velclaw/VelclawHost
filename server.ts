@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import os from "node:os";
 import fs from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -27,6 +28,55 @@ function getGeminiClient(): GoogleGenAI | null {
     });
   }
   return aiClient;
+}
+
+let previousCpuSample = os.cpus().map((cpu) => ({ ...cpu.times }));
+let previousNetworkSample: { rx: number; tx: number; at: number } | null = null;
+
+function readCpuUsage() {
+  const current = os.cpus();
+  const perCore = current.map((cpu, index) => {
+    const previous = previousCpuSample[index];
+    const total = Object.values(cpu.times).reduce((sum, value) => sum + value, 0);
+    const previousTotal = previous ? Object.values(previous).reduce((sum, value) => sum + value, 0) : total;
+    const idle = cpu.times.idle;
+    const previousIdle = previous?.idle ?? idle;
+    const totalDelta = Math.max(1, total - previousTotal);
+    return Math.max(0, Math.min(100, ((totalDelta - Math.max(0, idle - previousIdle)) / totalDelta) * 100));
+  });
+  previousCpuSample = current.map((cpu) => ({ ...cpu.times }));
+  return { total: perCore.length ? perCore.reduce((a, b) => a + b, 0) / perCore.length : 0, perCore };
+}
+
+async function readNetworkMbps() {
+  try {
+    const raw = await fs.readFile('/proc/net/dev', 'utf8');
+    let rx = 0; let tx = 0;
+    for (const line of raw.split('\\n').slice(2)) {
+      const match = line.match(/^\\s*[^:]+:\\s*(\\d+)\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+(\\d+)/);
+      if (match) { rx += Number(match[1]); tx += Number(match[2]); }
+    }
+    const now = Date.now();
+    const previous = previousNetworkSample;
+    previousNetworkSample = { rx, tx, at: now };
+    if (!previous || now <= previous.at) return { rxMbps: 0, txMbps: 0, available: false };
+    const seconds = (now - previous.at) / 1000;
+    return { rxMbps: ((rx - previous.rx) * 8) / seconds / 1_000_000, txMbps: ((tx - previous.tx) * 8) / seconds / 1_000_000, available: true };
+  } catch {
+    return { rxMbps: 0, txMbps: 0, available: false };
+  }
+}
+
+async function readEstablishedConnections() {
+  try {
+    const files = ['/proc/net/tcp', '/proc/net/tcp6'];
+    let count = 0;
+    for (const file of files) {
+      const raw = await fs.readFile(file, 'utf8').catch(() => '');
+      count += raw.split('\\n').slice(1).filter((line) => line.trim().split(/\\s+/)[3] === '01').length;
+    }
+    return count;
+  } catch { return 0; }
 }
 
 async function startServer() {
@@ -731,9 +781,35 @@ async function startServer() {
     res.status(204).end();
   });
 
-  app.get('/api/v1/metrics', requireApiToken, (_req, res) => {
+  app.get('/api/v1/metrics', requireApiToken, async (_req, res) => {
     const memory = process.memoryUsage();
-    res.json({ status: 'success', timestamp: new Date().toISOString(), service: 'velclawhost-control-plane', deployments: { total: deployments.size, queued: [...deployments.values()].filter((d) => d.status === 'queued').length, building: [...deployments.values()].filter((d) => d.status === 'building').length, source_validating: [...deployments.values()].filter((d) => d.status === 'source_validating').length, runtime_provisioning: [...deployments.values()].filter((d) => d.status === 'runtime_provisioning').length, health_check: [...deployments.values()].filter((d) => d.status === 'health_check').length, failed: [...deployments.values()].filter((d) => d.status === 'retryable_failed' || d.status === 'terminal_failed').length, ready: [...deployments.values()].filter((d) => d.status === 'ready').length }, runtime: { node: process.version, uptime_seconds: Math.round(process.uptime()), heap_used_mb: Math.round(memory.heapUsed / 1024 / 1024), rss_mb: Math.round(memory.rss / 1024 / 1024) }, domains: { total: domains.size, active: [...domains.values()].filter((d) => d.status === 'active').length, pending: [...domains.values()].filter((d) => d.status !== 'active').length } });
+    const cpu = readCpuUsage();
+    const network = await readNetworkMbps();
+    const connections = await readEstablishedConnections();
+    let disk = { usedGb: 0, totalGb: 0, usagePercent: 0 };
+    try {
+      const stat = await fs.statfs(process.cwd());
+      const total = Number(stat.blocks) * Number(stat.bsize);
+      const free = Number(stat.bfree) * Number(stat.bsize);
+      disk = { totalGb: total / 1024 / 1024 / 1024, usedGb: (total - free) / 1024 / 1024 / 1024, usagePercent: total ? ((total - free) / total) * 100 : 0 };
+    } catch {}
+    const loads = os.loadavg();
+    const totalMemory = os.totalmem();
+    const freeMemory = os.freemem();
+    const node = {
+      id: 'control-plane-' + os.hostname(), hostname: os.hostname(), ipV4: 'container-local', ipV6: 'not-exposed',
+      os: os.type(), kernel: os.release(), region: process.env.RENDER_REGION || 'unknown', datacenter: process.env.RENDER_REGION || 'unknown',
+      status: 'online', uptimeSeconds: Math.round(process.uptime()), cpuCores: cpu.perCore.length,
+    };
+    const snapshot = {
+      timestamp: new Date().toISOString(), timeLabel: new Date().toLocaleTimeString('vi-VN'),
+      cpuUsage: Number(cpu.total.toFixed(1)), cpuCores: cpu.perCore.map((v) => Number(v.toFixed(1))),
+      ramUsagePercent: Number((((totalMemory - freeMemory) / totalMemory) * 100).toFixed(1)), ramUsedGb: (totalMemory - freeMemory) / 1024 / 1024 / 1024, ramTotalGb: totalMemory / 1024 / 1024 / 1024,
+      swapUsedGb: 0, swapTotalGb: 0, diskUsagePercent: Number(disk.usagePercent.toFixed(1)), diskUsedGb: disk.usedGb, diskTotalGb: disk.totalGb,
+      diskIops: null, networkInMbps: Number(network.rxMbps.toFixed(2)), networkOutMbps: Number(network.txMbps.toFixed(2)),
+      load1m: Number((loads[0] || 0).toFixed(2)), load5m: Number((loads[1] || 0).toFixed(2)), load15m: Number((loads[2] || 0).toFixed(2)), activeConnections: connections, latencyMs: null,
+    };
+    res.json({ status: 'success', timestamp: new Date().toISOString(), source: 'live-process-and-host', node, snapshot, availability: { cpu: true, memory: true, disk: true, network: network.available, connections: true, iops: false, latency: false }, deployments: { total: deployments.size, queued: [...deployments.values()].filter((d) => d.status === 'queued').length, building: [...deployments.values()].filter((d) => d.status === 'building').length, source_validating: [...deployments.values()].filter((d) => d.status === 'source_validating').length, runtime_provisioning: [...deployments.values()].filter((d) => d.status === 'runtime_provisioning').length, failed: [...deployments.values()].filter((d) => d.status === 'retryable_failed' || d.status === 'terminal_failed').length, ready: [...deployments.values()].filter((d) => d.status === 'ready').length }, runtime: { node: process.version, uptime_seconds: Math.round(process.uptime()), heap_used_mb: Math.round(memory.heapUsed / 1024 / 1024), rss_mb: Math.round(memory.rss / 1024 / 1024) }, domains: { total: domains.size, active: [...domains.values()].filter((d) => d.status === 'active').length, pending: [...domains.values()].filter((d) => d.status !== 'active').length } });
   });
 
   app.get('/api/v1/prometheus', requireApiToken, (_req, res) => {
