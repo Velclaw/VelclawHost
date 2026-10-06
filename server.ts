@@ -129,6 +129,49 @@ async function startServer() {
     res.json({ status: 'HEALTHY', service: 'velclawhost-control-plane', timestamp: new Date().toISOString(), domains: domains.size });
   });
 
+  app.get('/api/v1/capabilities', requireApiToken, async (_req, res) => {
+    const runtimeProvider = String(process.env.RUNTIME_PROVIDER || 'none').trim().toLowerCase();
+    const deploymentExecutor = String(process.env.DEPLOYMENT_EXECUTOR || 'none').trim().toLowerCase();
+    const stateStore = String(process.env.VELCLAWHOST_STATE_STORE || 'file').trim().toLowerCase();
+    let dockerAvailable = false;
+    if (runtimeProvider === 'docker' || deploymentExecutor === 'docker') {
+      try {
+        await execFileAsync('docker', ['version', '--format', '{{.Server.Version}}'], { timeout: 3000, maxBuffer: 1024 * 1024 });
+        dockerAvailable = true;
+      } catch {}
+    }
+    res.json({
+      status: 'success',
+      service: 'velclawhost-control-plane',
+      mode: dockerAvailable && deploymentExecutor === 'docker' ? 'runtime-enabled' : 'control-plane-only',
+      capabilities: {
+        liveMetrics: true,
+        dnsResolution: true,
+        dnsManagement: Boolean(process.env.CLOUDFLARE_API_TOKEN),
+        durableState: stateStore === 'postgres' && Boolean(process.env.DATABASE_URL),
+        deploymentQueue: true,
+        deploymentBuild: deploymentExecutor === 'docker' && dockerAvailable,
+        containerRuntime: runtimeProvider === 'docker' && dockerAvailable,
+        reverseProxy: Boolean(process.env.CADDY_ADMIN_URL),
+        registrar: Boolean(process.env.VELCLAWHOST_REGISTRAR && process.env.VELCLAWHOST_REGISTRAR !== 'none'),
+      },
+      configuration: {
+        stateStore,
+        runtimeProvider,
+        deploymentExecutor,
+        imageRegistryConfigured: Boolean(process.env.IMAGE_REGISTRY),
+        cloudflareManagementConfigured: Boolean(process.env.CLOUDFLARE_API_TOKEN),
+        apiAuthenticationConfigured: Boolean(apiToken),
+      },
+      worker: {
+        requiredForRuntime: !(runtimeProvider === 'docker' && dockerAvailable),
+        message: dockerAvailable
+          ? 'Docker runtime is available to this process.'
+          : 'No Docker runtime is available to this control-plane process; a separate runtime worker is required for container deployments.',
+      },
+    });
+  });
+
   type DeploymentRecord = {
     id: string; projectName: string; repoUrl: string; branch: string; commitSha: string | null;
     customDomain: string | null; status: 'queued' | 'claimed' | 'source_validating' | 'building' | 'runtime_provisioning' | 'health_check' | 'ready' | 'retryable_failed' | 'terminal_failed';
