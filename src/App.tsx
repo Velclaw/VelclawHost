@@ -605,7 +605,6 @@ export default function App() {
                 </div>
               </div>
             </div>
-          {capabilities && (
           {activeTab === 'overview' && (
             <OverviewTab
               node={selectedNode}
