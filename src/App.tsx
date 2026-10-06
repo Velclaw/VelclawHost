@@ -105,7 +105,7 @@ export default function App() {
     qrCodeText: '',
     backupCodes: generateBackupCodes(8),
     adminEmail: '',
-    lastVerifiedAt: null,
+    lastVerifiedAt: undefined,
   });
 
   // Modals & Navigation
