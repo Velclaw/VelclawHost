@@ -22,4 +22,6 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run build
+      - run: bun run worker:build
       - run: docker build --tag velclawhost:ci .
+      - run: docker build --file runtime-worker/Dockerfile --tag velclawhost-runtime-worker:ci .
