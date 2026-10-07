@@ -600,6 +600,23 @@ export default function App() {
 
         {/* Main Content Viewport */}
         <main className="vc-main vc-next-content flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-12">
+          <div className="vc-page-header">
+            <div className="min-w-0">
+              <div className="vc-breadcrumb"><span>VelclawHost</span><span>/</span><span>Production</span><span>/</span><strong>{({
+                overview:'Overview', deployments:'Deployments', domains:'Domains', 'dns-ssl':'DNS & SSL',
+                'metrics-charts':'Analytics', alerts:'Alerts', logs:'Logs', 'db-optimizer':'Storage & Database',
+                'security-2fa':'Security', 'api-integration':'Integrations', reports:'Usage & Reports'
+              } as Record<TabType,string>)[activeTab]}</strong></div>
+              <h1 className="vc-page-title">{({
+                overview:'Overview', deployments:'Deployments', domains:'Domains', 'dns-ssl':'DNS & SSL',
+                'metrics-charts':'Analytics', alerts:'Alerts', logs:'Logs', 'db-optimizer':'Storage & Database',
+                'security-2fa':'Security', 'api-integration':'Integrations', reports:'Usage & Reports'
+              } as Record<TabType,string>)[activeTab]}</h1>
+            </div>
+            <div className="vc-page-actions">
+              <span className="vc-live-pill"><i/> Production</span>
+            </div>
+          </div>
           {capabilities && (
             <div className={`mb-6 rounded-2xl border p-4 ${capabilities.mode === 'runtime-enabled' ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
