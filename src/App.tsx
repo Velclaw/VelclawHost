@@ -43,6 +43,7 @@ import { ApiIntegrationTab } from './components/ApiIntegrationTab';
 import { ReportsModal } from './components/ReportsModal';
 import { FcmNotificationModal } from './components/FcmNotificationModal';
 import { VoiceAssistantModal } from './components/VoiceAssistantModal';
+import { DeploymentsTab } from './components/DeploymentsTab';
 
 import { 
   LayoutDashboard, 
@@ -606,6 +607,8 @@ export default function App() {
               </div>
             </div>
           )}
+          {activeTab === 'deployments' && <DeploymentsTab />}
+
           {activeTab === 'overview' && (
             <OverviewTab
               node={selectedNode}
