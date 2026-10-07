@@ -37,6 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const menuItems: { id: TabType; label: string; icon: React.ComponentType<{ className?: string }>; badge?: string | number; badgeColor?: string }[] = [
     { id: 'overview', label: 'Tổng quan máy chủ', icon: LayoutDashboard },
+    { id: 'deployments', label: 'Deployments', icon: Rocket, badge: 'PIPELINE', badgeColor: 'bg-violet-500/10 text-violet-300 border border-violet-500/20' },
     { 
       id: 'domains', 
       label: 'Quản lý tên miền', 
