@@ -6,7 +6,7 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
-RUN corepack enable && pnpm install --no-frozen-lockfile
+RUN corepack enable && pnpm install --no-frozen-lockfile --allow-build=esbuild --allow-build='@google/genai' --allow-build=core-js --allow-build=protobufjs
 COPY . .
 RUN pnpm run worker:build
 
