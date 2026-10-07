@@ -687,3 +687,26 @@ header button{border-radius:6px!important}
   .vc-platform-sidebar{width:224px!important;min-width:224px!important}
   .vc-main{padding:0 20px 56px!important}
 }
+
+/* Vercel-style page chrome: persistent shell, compact breadcrumb, restrained surfaces. */
+.vc-topbar{height:64px!important;background:rgba(0,0,0,.86)!important;border-color:#242426!important;backdrop-filter:blur(18px)!important}
+.vc-topbar>div{height:64px!important;max-width:none!important}
+.vc-topbar a{text-decoration:none}
+.vc-workspace-switcher{display:flex;align-items:center;gap:9px;width:100%;min-height:40px;padding:6px 7px;border:1px solid #242426;border-radius:7px;background:#09090b}
+.vc-workspace-switcher:hover{border-color:#34343a}
+.vc-sidebar-collapse{transition:background .15s,border-color .15s}
+.vc-page-header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;min-height:92px;padding:26px 0 22px;border-bottom:1px solid #242426;margin-bottom:22px}
+.vc-breadcrumb{display:flex;align-items:center;gap:7px;color:#52525b;font-size:10px;line-height:1.2;margin-bottom:8px}
+.vc-breadcrumb strong{color:#a1a1aa;font-weight:500}
+.vc-page-title{margin:0!important;color:#f4f4f5;font-size:25px!important;font-weight:650!important;letter-spacing:-.04em!important;line-height:1.15!important}
+.vc-page-actions{display:flex;align-items:center;gap:8px}
+.vc-live-pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 9px;border:1px solid #24352b;border-radius:999px;background:#0a110d;color:#86efac;font-size:10px;font-weight:600}
+.vc-live-pill i{width:5px;height:5px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.5)}
+.vc-main>.vc-next-container:before{display:none!important}
+.vc-main{padding-top:0!important}
+@media(max-width:640px){
+  .vc-page-header{min-height:78px;padding:18px 0 16px;margin-bottom:16px}
+  .vc-page-title{font-size:21px!important}
+  .vc-breadcrumb{font-size:9px}
+  .vc-page-actions{display:none}
+}
