@@ -90,6 +90,39 @@ async function startServer() {
   const deploymentQueue = createDeploymentQueue(process.env.VELCLAWHOST_STATE_STORE === 'postgres' ? process.env.DATABASE_URL : undefined);
   const workerId = process.env.VELCLAWHOST_WORKER_ID?.trim() || 'worker-' + process.pid;
 
+  // Self-hosted Velclaw OAuth landing page.
+  app.get(['/auth', '/auth/'], (_req, res) => {
+    res.status(200).type('html').send(velclawAuthPage());
+  });
+
+  app.get('/auth/google', (_req, res) => res.redirect('/'));
+  app.get('/auth/github', (_req, res) => res.redirect('/'));
+  app.get('/auth/velclaw', (_req, res) => res.redirect('/'));
+
+  function velclawAuthPage() {
+    return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · VelclawHost</title><meta name="description" content="Secure authentication for VelclawHost">
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#050816;color:#f8fafc}
+body{display:grid;place-items:center;overflow-x:hidden;background:radial-gradient(circle at 15% 0%,rgba(99,102,241,.24),transparent 35%),radial-gradient(circle at 90% 10%,rgba(6,182,212,.16),transparent 30%),#050816}
+body:before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+.shell{position:relative;width:min(430px,calc(100% - 32px));margin:32px 0}.card{border:1px solid rgba(148,163,184,.18);border-radius:24px;padding:34px;background:rgba(8,13,28,.88);backdrop-filter:blur(24px);box-shadow:0 30px 90px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.06)}
+.brand{display:flex;align-items:center;gap:13px;margin-bottom:30px}.logo{width:48px;height:48px;border-radius:14px;box-shadow:0 0 32px rgba(99,102,241,.25)}.eyebrow{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#94a3b8;font-weight:800}.title{font-size:27px;line-height:1.12;font-weight:800;margin:4px 0}.sub{font-size:13px;color:#94a3b8;margin:8px 0 28px;line-height:1.55}
+.buttons{display:grid;gap:11px}.btn{height:52px;border-radius:13px;border:1px solid rgba(148,163,184,.2);background:#0d1426;color:#f8fafc;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:11px;font-size:14px;font-weight:700;transition:.18s}.btn:hover{transform:translateY(-1px);border-color:rgba(129,140,248,.55);background:#121b32}.btn.primary{background:linear-gradient(135deg,#6366f1,#7c3aed);border-color:rgba(165,180,252,.35);box-shadow:0 10px 28px rgba(99,102,241,.22)}.icon{width:20px;height:20px;display:grid;place-items:center}.divider{display:flex;align-items:center;gap:12px;color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:.14em;margin:23px 0}.divider:before,.divider:after{content:"";height:1px;background:rgba(148,163,184,.15);flex:1}.footer{margin-top:24px;text-align:center;color:#64748b;font-size:11px;line-height:1.6}.footer a{color:#94a3b8;text-decoration:none}.status{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:15px;font-size:10px;color:#64748b}.dot{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px #22c55e}
+</style></head><body><main class="shell"><section class="card">
+<div class="brand"><img class="logo" src="/assets/velclawhost-logo.svg" alt="VelclawHost"><div><div class="eyebrow">Velclaw infrastructure</div><div class="title">VelclawHost</div></div></div>
+<div class="sub">Sign in to your secure hosting workspace. Authentication is handled through your selected identity provider.</div>
+<div class="buttons">
+<a class="btn primary" href="/auth/google"><span class="icon">G</span><span>Continue with Google</span></a>
+<a class="btn" href="/auth/github"><span class="icon">⌘</span><span>Continue with GitHub</span></a>
+<a class="btn" href="/auth/velclaw"><span class="icon">V</span><span>Continue with Velclaw</span></a>
+</div><div class="divider">secure sign-in</div>
+<div class="footer">By continuing, you agree to use VelclawHost only for authorized infrastructure.<br><a href="/">Return to VelclawHost</a></div>
+<div class="status"><span class="dot"></span> Velclaw identity layer online</div>
+</section></main></body></html>`;
+  }
+
   // API Health Endpoint
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", service: "Velclaw Hosting Platform Server", timestamp: new Date().toISOString() });
