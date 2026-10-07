@@ -658,3 +658,32 @@ header button{border-radius:6px!important}
   .vc-main{padding:0 14px 48px!important}
   .vc-main>.vc-next-container{padding-top:18px!important}
 }
+
+
+/* Workspace polish: Next.js/Vercel-inspired platform geometry without copying branding. */
+.vc-main{padding-top:0!important}
+.vc-main>.vc-next-container{padding:0 0 64px!important}
+.vc-main>.vc-next-container:before{
+  content:"";
+  display:block;
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--vh-border),transparent);
+  margin-bottom:24px;
+}
+.vc-platform-sidebar{width:224px!important;min-width:224px!important}
+.vc-platform-sidebar .text-\[9px\]{letter-spacing:.08em!important}
+.vc-platform-sidebar nav{padding:8px!important}
+.vc-platform-sidebar nav>div{margin-bottom:12px!important}
+.vc-platform-sidebar nav>div>div{padding:9px 8px 5px!important}
+.vc-platform-sidebar button{min-height:34px!important;padding:7px 9px!important}
+.vc-platform-sidebar button svg{width:15px!important;height:15px!important}
+.vc-main .vc-next-container>.space-y-6>div:first-child,
+.vc-main .vc-next-container>.space-y-5>div:first-child{margin-top:0}
+.vc-main .rounded-2xl.border,.vc-main .rounded-xl.border,.vc-main .rounded-lg.border{
+  box-shadow:0 1px 2px rgba(0,0,0,.22)!important;
+}
+.vc-main [class*="bg-gradient-to-r"]{filter:saturate(.9)}
+@media(max-width:1023px){
+  .vc-platform-sidebar{width:224px!important;min-width:224px!important}
+  .vc-main{padding:0 20px 56px!important}
+}
