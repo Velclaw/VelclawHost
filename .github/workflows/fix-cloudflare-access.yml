@@ -71,16 +71,6 @@ jobs:
               "session_duration": "24h",
           })
 
-          api("PUT", f"/accounts/{ACCOUNT}/access/organizations", {
-              "login_design": {
-                  "header_text": "Sign in to VelclawHost",
-                  "footer_text": "VelclawHost • Secure infrastructure workspace",
-                  "background_color": "#070B16",
-                  "text_color": "#F8FAFC",
-                  "logo_path": "https://raw.githubusercontent.com/Velclaw/VelclawHost/main/assets/velclawhost-logo.svg",
-              }
-          })
-
           idps = api("GET", f"/accounts/{ACCOUNT}/access/identity_providers?per_page=100").get("result", [])
           by_type = {x.get("type"): x for x in idps}
 
