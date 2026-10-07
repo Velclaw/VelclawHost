@@ -535,7 +535,7 @@ export default function App() {
   const unreadAlertsCount = alerts.filter((a) => !a.resolved).length;
 
   return (
-    <div className={`min-h-screen transition-colors duration-200 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'}`}>
+    <div className={`vc-app-shell min-h-screen transition-colors duration-200 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'}`}>
       {/* Toast Notification Banner (Floating) */}
       {toastNotification && (
         <div className="fixed top-20 right-4 z-50 max-w-md p-4 rounded-2xl bg-slate-900/95 border border-rose-500/50 shadow-2xl text-white flex items-start gap-3 animate-fade-in backdrop-blur-md">
@@ -575,7 +575,7 @@ export default function App() {
       />
 
       {/* Application Body */}
-      <div className="flex">
+      <div className="vc-app-body flex">
         {/* Left Sidebar */}
         <Sidebar
           activeTab={activeTab}
@@ -587,7 +587,7 @@ export default function App() {
         />
 
         {/* Main Content Viewport */}
-        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto pb-24 lg:pb-12">
+        <main className="vc-main flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-12">
           {capabilities && (
             <div className={`mb-6 rounded-2xl border p-4 ${capabilities.mode === 'runtime-enabled' ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
