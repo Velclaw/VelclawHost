@@ -19,6 +19,10 @@ jobs:
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GITHUB_OAUTH_CLIENT_ID: ${{ secrets.GITHUB_OAUTH_CLIENT_ID }}
+          GITHUB_OAUTH_CLIENT_SECRET: ${{ secrets.GITHUB_OAUTH_CLIENT_SECRET }}
         run: |
           set -euo pipefail
 
@@ -111,5 +115,43 @@ jobs:
           curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100" |
             jq -r '.result[]? | "- \(.name) [\(.type)]"'
 
+          # Present the Cloudflare IdP as the product-branded Velclaw option when mutable.
+          cf_idp="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100" |
+            jq -r '.result[]? | select(.type == "cloudflare") | .id' | head -n1)
+          if [[ -n "$cf_idp" ]]; then
+            cf_idp_info="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers/${cf_idp}")"
+            if [[ "$(jq -r '.result.read_only // false' <<<"$cf_idp_info")" != "true" ]]; then
+              curl -fsS -X PUT "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers/${cf_idp}" \
+                --data '{"name":"Velclaw","type":"cloudflare","config":{}}' >/tmp/cf-idp-update.json
+              if [[ "$(jq -r '.success' /tmp/cf-idp-update.json)" != "true" ]]; then
+                cat /tmp/cf-idp-update.json | jq .
+                exit 1
+              fi
+            fi
+          fi
+
+          # Configure Google/GitHub when OAuth client credentials are supplied as repository secrets.
+          # Missing credentials are skipped rather than inventing or exposing credentials.
+          configure_social_idp() {
+            local type="$1" name="$2" client_id="$3" client_secret="$4"
+            [[ -z "$client_id" || -z "$client_secret" ]] && return 0
+            local existing id payload result
+            existing="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100")"
+            id="$(jq -r --arg t "$type" '.result[]? | select(.type == $t) | .id' <<<"$existing" | head -n1)
+            payload="$(jq -n --arg n "$name" --arg t "$type" --arg cid "$client_id" --arg cs "$client_secret" '{name:$n,type:$t,config:{client_id:$cid,client_secret:$cs}}')"
+            if [[ -n "$id" ]]; then
+              result="$(curl -fsS -X PUT "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers/${id}" --data "$payload")"
+            else
+              result="$(curl -fsS -X POST "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers" --data "$payload")"
+            fi
+            if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then
+              echo "$result" | jq .
+              exit 1
+            fi
+            echo "Configured $name identity provider."
+          }
+
+          configure_social_idp "google" "Google" "${GOOGLE_OAUTH_CLIENT_ID:-}" "${GOOGLE_OAUTH_CLIENT_SECRET:-}"
+          configure_social_idp "github" "GitHub" "${GITHUB_OAUTH_CLIENT_ID:-}" "${GITHUB_OAUTH_CLIENT_SECRET:-}"
           echo "Authenticated Cloudflare Access login is active for velclaw.site."
           echo "Policy: $(jq -r '.result.name' <<<"$result")"
