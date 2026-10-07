@@ -99,7 +99,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <VelclawMark />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-base font-extrabold tracking-[-0.03em] text-white sm:text-lg">VELCLAW</span>
+                <span className="text-[15px] font-semibold tracking-[-0.03em] text-white sm:text-base">Velclaw</span>
                 <span className="hidden border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-indigo-300 sm:inline-block">
                   HOST
                 </span>
@@ -116,10 +116,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="hostname-selector-dropdown-btn"
               onClick={() => setIsNodeDropdownOpen(!isNodeDropdownOpen)}
-              className="flex items-center gap-2 border border-slate-700/90 bg-slate-900/80 px-3 py-1.5 text-xs font-medium text-slate-200 transition-all hover:border-indigo-500/60 hover:bg-slate-800"
+              className="flex items-center gap-2 rounded-md border border-slate-700/90 bg-slate-900/80 px-3 py-1.5 text-xs font-medium text-slate-200 transition-all hover:border-indigo-500/60 hover:bg-slate-800"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(34,197,94,.75)]" />
-              <span className="max-w-[180px] truncate font-mono font-semibold text-indigo-300 lg:max-w-[240px]">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="max-w-[180px] truncate font-medium text-slate-200 lg:max-w-[240px]">
                 {selectedNode.hostname}
               </span>
               <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
