@@ -1,4 +1,4 @@
-name: Make velclaw.site public
+name: Secure velclaw.site authentication
 
 on:
   push:
@@ -11,11 +11,11 @@ permissions:
   contents: read
 
 jobs:
-  bypass-access:
+  secure-access:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Make velclaw.site public in Cloudflare Access
+      - name: Configure real Cloudflare login for velclaw.site
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -30,8 +30,6 @@ jobs:
             exit 1
           fi
 
-          # Prefer the repository secret, but resolve the account from the velclaw.site zone
-          # when the account secret is absent.
           if [[ -z "${CF_ACCOUNT_ID:-}" ]]; then
             zone="$(curl -fsS "${auth[@]}" "${api}/zones?name=velclaw.site&per_page=1")"
             CF_ACCOUNT_ID="$(jq -r '.result[0].account.id // empty' <<<"$zone")"
@@ -42,90 +40,61 @@ jobs:
             exit 1
           fi
 
-          echo "Cloudflare account resolved."
-
           apps="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?domain=velclaw.site&per_page=1000")"
           if [[ "$(jq -r '.success' <<<"$apps")" != "true" ]]; then
             echo "$apps" | jq .
             exit 1
           fi
 
-          found=0
+          app_id="$(jq -r '.result[]? | select((.domain // "") == "velclaw.site") | .id' <<<"$apps" | head -n1)"
 
-          while IFS=$'\\t' read -r app_id app_domain; do
-            [[ -z "$app_id" ]] && continue
+          if [[ -z "$app_id" ]]; then
+            echo "No velclaw.site Access application exists."
+            exit 1
+          fi
 
-            normalized="${app_domain#https://}"
-            normalized="${normalized#http://}"
-            normalized="${normalized%/}"
+          echo "Securing Access application $app_id."
 
-            if [[ "$normalized" != "velclaw.site" && "$normalized" != "velclaw.site/*" ]]; then
-              continue
+          policies="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps/${app_id}/policies?per_page=1000")"
+          if [[ "$(jq -r '.success' <<<"$policies")" != "true" ]]; then
+            echo "$policies" | jq .
+            exit 1
+          fi
+
+          # Remove the temporary public Everyone/Bypass policy created during initial deployment.
+          while IFS=$'\\t' read -r policy_id decision; do
+            [[ -z "$policy_id" ]] && continue
+            if [[ "$decision" == "bypass" ]]; then
+              echo "Removing public bypass policy $policy_id."
+              result="$(curl -fsS -X DELETE "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps/${app_id}/policies/${policy_id}")"
+              if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then
+                echo "$result" | jq .
+                exit 1
+              fi
             fi
+          done < <(jq -r '.result[]? | [.id, (.decision // "")] | @tsv' <<<"$policies")
 
-            found=1
-            echo "Matched Access application: $app_id ($app_domain)"
-
-            policies="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps/${app_id}/policies?per_page=1000")"
-            if [[ "$(jq -r '.success' <<<"$policies")" != "true" ]]; then
-              echo "$policies" | jq .
-              exit 1
-            fi
-
-            if jq -e '.result[]? | select(.decision == "bypass") | .include[]? | has("everyone")' <<<"$policies" >/dev/null; then
-              echo "Public Everyone/Bypass policy already exists."
-              exit 0
-            fi
-
-            min_precedence="$(jq -r '[.result[]?.precedence // 0] | if length == 0 then 0 else min end' <<<"$policies")"
-            precedence="$((min_precedence - 1))"
-
-            body="$(jq -n \
-              --arg name "Public VelclawHost" \
-              --argjson precedence "$precedence" \
-              '{name: $name, decision: "bypass", include: [{everyone: {}}], precedence: $precedence}')"
-
-            result="$(curl -fsS -X POST "${auth[@]}" \
-              "${api}/accounts/${CF_ACCOUNT_ID}/access/apps/${app_id}/policies" \
-              --data "$body")"
-
-            if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then
-              echo "$result" | jq .
-              exit 1
-            fi
-
-            echo "Created public bypass policy: $(jq -r '.result.id' <<<"$result")"
-            exit 0
-          done < <(jq -r '.result[]? | [.id, (.domain // "")] | @tsv' <<<"$apps")
-
-          if [[ "$found" -eq 0 ]]; then
-            echo "No exact velclaw.site Access application exists; creating a public bypass application."
-
-            body="$(jq -n \
-              '{
-                name: "VelclawHost Public",
-                domain: "velclaw.site",
-                type: "self_hosted",
-                session_duration: "24h",
-                policies: [
-                  {
-                    name: "Public VelclawHost",
-                    decision: "bypass",
-                    include: [{everyone: {}}],
-                    precedence: 1
-                  }
-                ]
-              }')"
-
-            result="$(curl -fsS -X POST "${auth[@]}" \
-              "${api}/accounts/${CF_ACCOUNT_ID}/access/apps" \
-              --data "$body")"
-
-            if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then
-              echo "$result" | jq .
-              exit 1
-            fi
-
-            echo "Created public Access application: $(jq -r '.result.id' <<<"$result")"
+          # Allow only members of this Cloudflare account. Authentication is performed by
+          # Cloudflare Access, producing a real authenticated session/JWT rather than a public bypass.
+          current="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps/${app_id}/policies?per_page=1000")"
+          if jq -e '.result[]? | select(.decision == "allow") | .include[]? | .cloudflare_account_member? != null' <<<"$current" >/dev/null; then
+            echo "Cloudflare account-member login policy already exists."
             exit 0
           fi
+
+          body="$(jq -n --arg account "$CF_ACCOUNT_ID" '{
+            name: "VelclawHost Account Members",
+            decision: "allow",
+            include: [{cloudflare_account_member: {account_id: $account}}],
+            precedence: 1,
+            session_duration: "24h"
+          }')"
+
+          result="$(curl -fsS -X POST "${auth[@]}"             "${api}/accounts/${CF_ACCOUNT_ID}/access/apps/${app_id}/policies"             --data "$body")"
+
+          if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then
+            echo "$result" | jq .
+            exit 1
+          fi
+
+          echo "Real authenticated login policy created: $(jq -r '.result.id' <<<"$result")"
