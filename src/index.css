@@ -598,3 +598,63 @@ header [class*="bg-slate-900"]{
 @media(max-width:420px){
   .vc-auth-header{padding:0 16px}.vc-auth-grid{padding:18px 10px}.vc-auth-panel{padding:24px 18px}.vc-auth-heading{font-size:22px}
 }
+
+
+/* ========================================================================
+   VelclawHost — unified platform shell
+   Vercel/Next.js-inspired information architecture, with Velclaw identity.
+   ======================================================================== */
+:root{
+  --vh-bg:#000;
+  --vh-header:rgba(0,0,0,.86);
+  --vh-sidebar:#050505;
+  --vh-content:#070707;
+  --vh-panel:#0a0a0a;
+  --vh-panel-raised:#0d0d0f;
+  --vh-border:#242426;
+  --vh-border-hover:#3a3a3f;
+  --vh-text:#ededed;
+  --vh-muted:#8b8b93;
+  --vh-accent:#8b5cf6;
+}
+.vc-app-shell{background:var(--vh-bg)!important;color:var(--vh-text)!important}
+.vc-app-body{display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;min-height:calc(100vh - 64px)!important;background:var(--vh-content)!important}
+.vc-platform-sidebar{width:248px!important;min-width:248px!important;background:var(--vh-sidebar)!important;border-right:1px solid var(--vh-border)!important}
+.vc-platform-sidebar>div{background:transparent!important}
+.vc-platform-sidebar nav{scrollbar-width:thin}
+.vc-platform-sidebar button{font-size:12px!important;min-height:36px!important;border-radius:6px!important}
+.vc-platform-sidebar button:hover{background:#111!important;border-color:#222!important}
+.vc-platform-sidebar button[class*="bg-zinc-900"]{background:#151517!important;border-color:#303034!important;box-shadow:inset 2px 0 0 var(--vh-accent)!important}
+.vc-platform-sidebar button[class*="bg-zinc-900"] svg{color:#b794f6!important}
+.vc-platform-sidebar .border-b,.vc-platform-sidebar .border-t{border-color:var(--vh-border)!important}
+.vc-main{background:var(--vh-content)!important;padding:0 32px 64px!important;max-width:none!important}
+.vc-main>.vc-next-container{max-width:1400px!important;margin:0 auto!important;padding-top:28px!important}
+.vc-main>div:first-child{max-width:1400px;margin:0 auto}
+header.sticky{height:64px!important;background:var(--vh-header)!important;border-color:var(--vh-border)!important}
+header.sticky>div{height:64px!important;max-width:none!important;padding-left:20px!important;padding-right:20px!important}
+header .velclaw-brand-mark{width:30px!important;height:30px!important;border-radius:7px!important;background:#111!important}
+header .velclaw-brand-mark svg{width:19px!important;height:19px!important}
+header button{border-radius:6px!important}
+.vc-main .rounded-2xl.border,.vc-main .rounded-xl.border,.vc-main .rounded-lg.border{background:var(--vh-panel)!important;border-color:var(--vh-border)!important;border-radius:8px!important}
+.vc-main .rounded-2xl.border:hover,.vc-main .rounded-xl.border:hover{border-color:var(--vh-border-hover)!important}
+.vc-main [class*="bg-slate-900"],.vc-main [class*="bg-slate-950"]{background:var(--vh-panel)!important}
+.vc-main [class*="bg-slate-800"]{background:var(--vh-panel-raised)!important}
+.vc-main [class*="border-slate-800"]{border-color:var(--vh-border)!important}
+.vc-main h1{font-size:24px!important;font-weight:650!important;letter-spacing:-.04em!important}
+.vc-main h2{font-size:18px!important;font-weight:600!important;letter-spacing:-.025em!important}
+.vc-main h3{font-size:14px!important;font-weight:600!important}
+.vc-main .vc-next-kicker,.vc-main .velclaw-eyebrow{color:#71717a!important}
+.vc-main input,.vc-main select,.vc-main textarea{border-radius:6px!important;background:#090909!important;border-color:#2a2a2d!important}
+.vc-main button{border-radius:6px}
+.vc-main table th{background:#090909!important}
+@media(max-width:1023px){
+  .vc-app-body{display:block!important}
+  .vc-platform-sidebar{position:fixed!important;top:64px!important;bottom:0!important;z-index:70!important}
+  .vc-main{padding:0 20px 64px!important}
+}
+@media(max-width:640px){
+  header.sticky,header.sticky>div{height:60px!important}
+  .vc-platform-sidebar{top:60px!important}
+  .vc-main{padding:0 14px 48px!important}
+  .vc-main>.vc-next-container{padding-top:18px!important}
+}
