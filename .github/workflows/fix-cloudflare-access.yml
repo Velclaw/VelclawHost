@@ -159,7 +159,7 @@ jobs:
             local apps body result
             apps="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?domain=velclaw.site/auth*&per_page=1000")"
             if [[ "$(jq -r '.success' <<<"$apps")" != "true" ]]; then echo "$apps" | jq .; exit 1; fi
-            if [[ -n "$(jq -r '.result[]? | select(.domain == "velclaw.site/auth*") | .id' <<<"$apps" | head -n1)" ]]; then return 0; fi
+            if [[ -n "$(jq -r --arg d "$domain" '.result[]? | select(.domain == $d) | .id' <<<"$apps" | head -n1)" ]]; then return 0; fi
             body="$(jq -n '{name:"VelclawHost OAuth Selector",type:"self_hosted",domain:"velclaw.site/auth*",session_duration:"24h",policies:[{decision:"bypass",name:"Public OAuth selector",precedence:1,include:[{everyone:{}}]}]}')"
             result="$(curl -fsS -X POST "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps" --data "$body")"
             if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then echo "$result" | jq .; exit 1; fi
