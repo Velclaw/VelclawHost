@@ -884,3 +884,144 @@ body{font-family:"Plus Jakarta Sans",Inter,ui-sans-serif,system-ui,-apple-system
   .vc-page-title{font-size:21px!important}
   .vc-page-actions{display:none!important}
 }
+
+
+/* ========================================================================
+   VelclawHost — final Next.js App Router frame
+   Structural pass: header / nested layout / sidebar / content / surfaces.
+   ======================================================================== */
+.vc-next-frame{
+  min-height:100svh!important;
+  background:#000!important;
+  color:#ededed!important;
+}
+.vc-next-frame .vc-topbar,
+.vc-next-header{
+  height:56px!important;
+  min-height:56px!important;
+  background:rgba(0,0,0,.86)!important;
+  border-bottom:1px solid #242426!important;
+  backdrop-filter:blur(18px) saturate(140%)!important;
+  box-shadow:0 1px 0 rgba(255,255,255,.02)!important;
+}
+.vc-next-frame .vc-topbar>div{
+  height:56px!important;
+  max-width:none!important;
+  padding:0 16px!important;
+}
+.vc-next-layout{
+  display:grid!important;
+  grid-template-columns:240px minmax(0,1fr)!important;
+  min-height:calc(100svh - 56px)!important;
+  background:#070707!important;
+}
+.vc-next-layout .vc-platform-sidebar{
+  position:sticky!important;
+  top:56px!important;
+  width:240px!important;
+  min-width:240px!important;
+  height:calc(100svh - 56px)!important;
+  background:#050505!important;
+  border-right:1px solid #242426!important;
+  border-bottom:0!important;
+  box-shadow:none!important;
+}
+.vc-next-content{
+  min-width:0!important;
+  background:#070707!important;
+  overflow:hidden!important;
+}
+.vc-next-container{
+  width:100%!important;
+  max-width:1280px!important;
+  margin:0 auto!important;
+  padding:0 32px 72px!important;
+}
+.vc-page-header{
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:space-between!important;
+  gap:24px!important;
+  min-height:112px!important;
+  margin:0 0 24px!important;
+  padding:28px 0 20px!important;
+  border-bottom:1px solid #242426!important;
+}
+.vc-breadcrumb{
+  display:flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  margin-bottom:9px!important;
+  color:#52525b!important;
+  font-size:11px!important;
+  line-height:1!important;
+}
+.vc-breadcrumb strong{color:#a1a1aa!important;font-weight:500!important}
+.vc-page-title{
+  margin:0!important;
+  color:#fafafa!important;
+  font-size:28px!important;
+  line-height:1.12!important;
+  font-weight:650!important;
+  letter-spacing:-.045em!important;
+}
+.vc-page-actions{display:flex!important;align-items:center!important;gap:8px!important}
+.vc-live-pill{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  height:28px!important;
+  padding:0 10px!important;
+  border:1px solid #24412e!important;
+  border-radius:999px!important;
+  background:#09100c!important;
+  color:#86efac!important;
+  font-size:10px!important;
+  font-weight:600!important;
+}
+.vc-live-pill i{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.5)}
+.vc-next-container .rounded-2xl.border,
+.vc-next-container .rounded-xl.border,
+.vc-next-container .rounded-lg.border{
+  background:#0a0a0c!important;
+  border:1px solid #242426!important;
+  box-shadow:0 1px 2px rgba(0,0,0,.3)!important;
+}
+.vc-next-container .rounded-2xl.border:hover,
+.vc-next-container .rounded-xl.border:hover{
+  border-color:#34343a!important;
+}
+.vc-next-container table{background:#0a0a0c!important}
+.vc-next-container table th{
+  background:#0d0d0f!important;
+  color:#71717a!important;
+  border-color:#242426!important;
+}
+.vc-next-container table td{border-color:#242426!important}
+.vc-next-container input,
+.vc-next-container select,
+.vc-next-container textarea{
+  background:#08080a!important;
+  border-color:#29292d!important;
+  border-radius:7px!important;
+}
+@media(max-width:1023px){
+  .vc-next-layout{display:block!important}
+  .vc-next-layout .vc-platform-sidebar{
+    position:fixed!important;
+    top:56px!important;
+    left:0!important;
+    z-index:70!important;
+    height:calc(100svh - 56px)!important;
+  }
+  .vc-next-container{max-width:none!important;padding:0 20px 56px!important}
+}
+@media(max-width:640px){
+  .vc-next-frame .vc-topbar,
+  .vc-next-frame .vc-topbar>div{height:56px!important;min-height:56px!important}
+  .vc-next-layout .vc-platform-sidebar{top:56px!important;height:calc(100svh - 56px)!important}
+  .vc-next-container{padding:0 14px 44px!important}
+  .vc-page-header{min-height:92px!important;padding:20px 0 16px!important;margin-bottom:18px!important}
+  .vc-page-title{font-size:22px!important}
+  .vc-page-actions{display:none!important}
+}
