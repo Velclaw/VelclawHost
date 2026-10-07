@@ -710,3 +710,177 @@ header button{border-radius:6px!important}
   .vc-breadcrumb{font-size:9px}
   .vc-page-actions{display:none}
 }
+
+/* ========================================================================
+   VelclawHost Platform UI — production dashboard layer
+   Inspired by modern Next.js/Vercel information architecture.
+   No Vercel assets, trademarks, or proprietary UI code are used.
+   ======================================================================== */
+:root{
+  --vh-black:#000;
+  --vh-bg:#050505;
+  --vh-panel:#0a0a0a;
+  --vh-panel-2:#0f0f10;
+  --vh-line:#232326;
+  --vh-line-2:#303035;
+  --vh-text:#ededed;
+  --vh-muted:#8b8b93;
+  --vh-subtle:#52525b;
+  --vh-brand:#8b5cf6;
+}
+html,body,#root{min-height:100%;background:var(--vh-black)}
+body{font-family:"Plus Jakarta Sans",Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.vc-app-shell{background:var(--vh-bg)!important;color:var(--vh-text)!important}
+.vc-topbar{
+  height:56px!important;
+  background:rgba(0,0,0,.88)!important;
+  border-bottom:1px solid var(--vh-line)!important;
+  box-shadow:0 1px 0 rgba(255,255,255,.015)!important;
+}
+.vc-topbar>div{height:56px!important;padding:0 16px!important}
+.vc-topbar .velclaw-brand-mark{
+  width:28px!important;height:28px!important;border-radius:7px!important;
+  background:#0e0e10!important;border:1px solid #2b2b30!important;
+}
+.vc-topbar a{color:inherit}
+.vc-topbar button{
+  border-radius:6px!important;
+  border-color:#242427!important;
+  background:#09090b!important;
+}
+.vc-topbar button:hover{background:#111113!important;border-color:#3a3a3f!important}
+.vc-app-body{
+  display:grid!important;
+  grid-template-columns:224px minmax(0,1fr)!important;
+  min-height:calc(100vh - 56px)!important;
+  background:#050505!important;
+}
+.vc-platform-sidebar{
+  position:sticky!important;
+  top:56px!important;
+  width:224px!important;
+  min-width:224px!important;
+  height:calc(100vh - 56px)!important;
+  background:#050505!important;
+  border-right:1px solid var(--vh-line)!important;
+}
+.vc-platform-sidebar .vc-workspace-switcher{
+  min-height:42px!important;
+  background:#09090b!important;
+  border-color:#242427!important;
+  border-radius:7px!important;
+}
+.vc-platform-sidebar nav{padding:10px 8px!important}
+.vc-platform-sidebar nav>div{margin-bottom:14px!important}
+.vc-platform-sidebar button{
+  min-height:34px!important;
+  border-radius:6px!important;
+  padding:7px 9px!important;
+  font-size:11px!important;
+}
+.vc-platform-sidebar button:hover{
+  background:#111113!important;
+  border-color:#222225!important;
+}
+.vc-platform-sidebar button[class*="bg-zinc-900"]{
+  background:#151517!important;
+  border-color:#303035!important;
+  box-shadow:inset 2px 0 0 var(--vh-brand)!important;
+}
+.vc-main{
+  min-width:0!important;
+  width:100%!important;
+  max-width:none!important;
+  padding:0 32px 72px!important;
+  background:#050505!important;
+}
+.vc-main>.vc-next-container{
+  width:100%!important;
+  max-width:1400px!important;
+  margin:0 auto!important;
+  padding:0 0 64px!important;
+}
+.vc-page-header{
+  min-height:88px!important;
+  padding:24px 0 20px!important;
+  margin:0 0 24px!important;
+  border-bottom:1px solid var(--vh-line)!important;
+}
+.vc-breadcrumb{color:#52525b!important;font-size:10px!important}
+.vc-breadcrumb strong{color:#a1a1aa!important}
+.vc-page-title{
+  color:#f4f4f5!important;
+  font-size:24px!important;
+  line-height:1.2!important;
+  font-weight:650!important;
+  letter-spacing:-.045em!important;
+}
+.vc-live-pill{
+  height:26px!important;
+  border-radius:999px!important;
+  background:#08110c!important;
+  border-color:#1d3a29!important;
+  color:#86efac!important;
+  font-size:10px!important;
+}
+.vc-main .rounded-2xl.border,
+.vc-main .rounded-xl.border,
+.vc-main .rounded-lg.border{
+  background:#0a0a0a!important;
+  border-color:var(--vh-line)!important;
+  border-radius:8px!important;
+  box-shadow:0 1px 2px rgba(0,0,0,.25)!important;
+}
+.vc-main .rounded-2xl.border:hover,
+.vc-main .rounded-xl.border:hover{
+  border-color:var(--vh-line-2)!important;
+}
+.vc-main h1,.vc-main h2,.vc-main h3{
+  font-family:"Plus Jakarta Sans",Inter,ui-sans-serif,system-ui,sans-serif!important;
+}
+.vc-main h1{font-size:24px!important;font-weight:650!important;letter-spacing:-.04em!important}
+.vc-main h2{font-size:18px!important;font-weight:600!important;letter-spacing:-.025em!important}
+.vc-main h3{font-size:14px!important;font-weight:600!important}
+.vc-main input,.vc-main select,.vc-main textarea{
+  min-height:36px!important;
+  background:#09090b!important;
+  border:1px solid #29292d!important;
+  border-radius:6px!important;
+  color:#f4f4f5!important;
+  box-shadow:none!important;
+}
+.vc-main input:focus,.vc-main select:focus,.vc-main textarea:focus{
+  outline:none!important;border-color:#52525b!important;
+  box-shadow:0 0 0 2px rgba(139,92,246,.12)!important;
+}
+.vc-main button{border-radius:6px}
+.vc-main table th{
+  background:#09090b!important;
+  color:#71717a!important;
+  border-bottom:1px solid var(--vh-line)!important;
+  font-size:10px!important;
+  font-weight:600!important;
+  letter-spacing:.08em!important;
+  text-transform:uppercase!important;
+}
+.vc-main table td{border-bottom:1px solid var(--vh-line)!important}
+.vc-status-card{border-radius:8px!important}
+@media(max-width:1023px){
+  .vc-app-body{display:block!important;min-height:calc(100vh - 56px)!important}
+  .vc-platform-sidebar{
+    position:fixed!important;
+    top:56px!important;
+    height:calc(100vh - 56px)!important;
+    z-index:70!important;
+    box-shadow:20px 0 60px rgba(0,0,0,.45)!important;
+  }
+  .vc-main{padding:0 20px 64px!important}
+}
+@media(max-width:640px){
+  .vc-topbar,.vc-topbar>div{height:56px!important}
+  .vc-platform-sidebar{top:56px!important;height:calc(100vh - 56px)!important}
+  .vc-main{padding:0 14px 52px!important}
+  .vc-page-header{min-height:78px!important;padding:18px 0 16px!important;margin-bottom:16px!important}
+  .vc-page-title{font-size:21px!important}
+  .vc-page-actions{display:none!important}
+}
