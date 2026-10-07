@@ -12,6 +12,8 @@ import {
   ChevronDown,
   Activity,
   Mic,
+  Rocket,
+  ChevronRight,
 } from 'lucide-react';
 import { HostNode, SystemAlert } from '../types';
 
@@ -28,6 +30,7 @@ interface NavbarProps {
   alerts: SystemAlert[];
   isMobileMenuOpen: boolean;
   onToggleMobileMenu: () => void;
+  onOpenDeployments?: () => void;
 }
 
 const VelclawMark = () => (
@@ -58,6 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   alerts,
   isMobileMenuOpen,
   onToggleMobileMenu,
+  onOpenDeployments,
 }) => {
   const [isNodeDropdownOpen, setIsNodeDropdownOpen] = useState(false);
   const [timeString, setTimeString] = useState('');
@@ -152,6 +156,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
 
+          {onOpenDeployments && <button onClick={onOpenDeployments} className="inline-flex items-center gap-1.5 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-[10px] font-semibold text-indigo-300 hover:border-indigo-400/50 hover:bg-indigo-500/15">
+            <Rocket className="h-3 w-3"/><span>New deployment</span>
+          </button>}
           <div className="flex items-center gap-1.5 border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-[10px] font-semibold text-emerald-400">
             <Lock className="h-3 w-3" />
             <span>TLS 1.3</span>
