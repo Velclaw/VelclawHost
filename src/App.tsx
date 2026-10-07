@@ -631,7 +631,7 @@ export default function App() {
               alerts={alerts}
               onSimulateSpike={handleSimulateCpuSpike}
               onOpenReports={() => setIsReportsModalOpen(true)}
-              onOpenSecurity={() => setActiveTab('security-2fa')}
+              onOpenSecurity={() => navigateTab('security-2fa')}
               onNavigateToCharts={() => navigateTab('metrics-charts')}
               isTwoFactorActive={twoFactor.enabled && twoFactor.verified}
             />
