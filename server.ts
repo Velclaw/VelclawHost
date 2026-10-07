@@ -284,7 +284,7 @@ body{min-height:100svh}
     let parsed:URL;
     try{parsed=new URL(url)}catch{return res.status(400).json({error:'Invalid repository URL.'})}
     if(!['github.com','gitlab.com'].includes(parsed.hostname.toLowerCase()) || parsed.protocol!=='https:') return res.status(400).json({error:'Only HTTPS GitHub/GitLab repositories are supported.'});
-    const repoName=parsed.pathname.replace(/^\\/+|\\/+$/g,'').replace(/\\.git$/,'');
+    const repoName=parsed.pathname.replace(/^\/+|\/+$/g,'').replace(/\.git$/,'');
     if(!repoName || repoName.split('/').length!==2) return res.status(400).json({error:'Repository URL must point to an organization/user repository.'});
     const id=repoName.replace(/[^a-zA-Z0-9._-]/g,'-')+'-'+Date.now().toString(36);
     const workspacePath=path.join(developerWorkspaceRoot,id);
