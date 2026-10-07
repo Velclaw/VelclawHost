@@ -263,3 +263,13 @@ main h3 {
 ::-webkit-scrollbar-thumb:hover {
   background: #3f3f46;
 }
+
+/* VelclawHost application frame — Next.js dashboard-inspired layering. */
+.vc-app-shell{min-height:100vh;background:#000}
+.vc-app-body{min-height:calc(100vh - 64px)}
+.vc-main{width:100%;max-width:1440px;margin:0 auto}
+.vc-status-card{background:rgba(9,9,11,.96)!important;border-color:#27272a!important;box-shadow:0 1px 2px rgba(0,0,0,.35),inset 0 1px rgba(255,255,255,.025)}
+.vc-main section,.vc-main article{isolation:isolate}
+.vc-main .bg-slate-900,.vc-main .bg-slate-950{background-color:#09090b}
+.vc-main [class*="border"]{border-color:#27272a}
+.vc-main [class*="shadow-2xl"],.vc-main [class*="shadow-xl"]{box-shadow:0 1px 3px rgba(0,0,0,.4)}
