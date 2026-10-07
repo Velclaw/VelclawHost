@@ -31,7 +31,7 @@ jobs:
           fi
 
           # Prefer the repository secret, but resolve the account from the velclaw.site zone
-          # when the account secret is absent. This avoids constructing /accounts//... URLs.
+          # when the account secret is absent.
           if [[ -z "${CF_ACCOUNT_ID:-}" ]]; then
             zone="$(curl -fsS "${auth[@]}" "${api}/zones?name=velclaw.site&per_page=1")"
             CF_ACCOUNT_ID="$(jq -r '.result[0].account.id // empty' <<<"$zone")"
@@ -99,7 +99,33 @@ jobs:
           done < <(jq -r '.result[]? | [.id, (.domain // "")] | @tsv' <<<"$apps")
 
           if [[ "$found" -eq 0 ]]; then
-            echo "No exact velclaw.site Access application was found."
-            echo "$apps" | jq -r '.result[]? | [.id, (.domain // ""), (.name // "")] | @tsv'
-            exit 1
+            echo "No exact velclaw.site Access application exists; creating a public bypass application."
+
+            body="$(jq -n \
+              '{
+                name: "VelclawHost Public",
+                domain: "velclaw.site",
+                type: "self_hosted",
+                session_duration: "24h",
+                policies: [
+                  {
+                    name: "Public VelclawHost",
+                    decision: "bypass",
+                    include: [{everyone: {}}],
+                    precedence: 1
+                  }
+                ]
+              }')"
+
+            result="$(curl -fsS -X POST "${auth[@]}" \
+              "${api}/accounts/${CF_ACCOUNT_ID}/access/apps" \
+              --data "$body")"
+
+            if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then
+              echo "$result" | jq .
+              exit 1
+            fi
+
+            echo "Created public Access application: $(jq -r '.result.id' <<<"$result")"
+            exit 0
           fi
