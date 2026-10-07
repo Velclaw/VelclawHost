@@ -4,6 +4,7 @@ import {
   Globe, 
   LineChart, 
   BellRing, 
+  Rocket,
   Database, 
   FileText, 
   ShieldCheck, 
