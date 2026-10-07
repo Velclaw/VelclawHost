@@ -492,8 +492,14 @@ async function startServer() {
       const snapshot = await stateStore.load();
       if (!snapshot) return;
       if (snapshot.version !== 1 && snapshot.version !== 2) throw new Error('Unsupported control-plane state version.');
-      for (const item of snapshot.domains || []) domains.set(item.id, item as DomainRecord);
-      for (const item of snapshot.deployments || []) deployments.set(item.id, item as DeploymentRecord);
+      for (const item of snapshot.domains || []) {
+        const record = item as unknown as DomainRecord;
+        domains.set(record.id, record);
+      }
+      for (const item of snapshot.deployments || []) {
+        const record = item as unknown as DeploymentRecord;
+        deployments.set(record.id, record);
+      }
       for (const item of snapshot.runtimes || []) {
         const runtime = item as RuntimeRecord;
         runtimes.set(runtime.deploymentId, runtime);
