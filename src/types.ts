@@ -1,4 +1,5 @@
 export type TabType = 
+  | 'deployments'
   | 'overview'
   | 'domains'
   | 'dns-ssl'
