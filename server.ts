@@ -250,6 +250,74 @@ body{min-height:100svh}
 
 
 
+  const developerWorkspaceRoot = process.env.VELCLAWHOST_WORKSPACE_ROOT || path.join(process.cwd(), '.velclaw-workspaces');
+  const connectedRepositories = new Map<string, { id:string; url:string; branch:string; name:string; path:string; connectedAt:string }>();
+  const developerPlugins = [
+    { id:'github', name:'GitHub', description:'Import repository, branches, commits and deployment source.', category:'Source Control', connected:true, capability:'repo' },
+    { id:'gitlab', name:'GitLab', description:'Connect GitLab projects and deploy from branches.', category:'Source Control', connected:false, capability:'repo' },
+    { id:'playwright', name:'Playwright', description:'Browser automation and smoke-test tooling.', category:'Testing', connected:false, capability:'browser' },
+    { id:'postgres', name:'PostgreSQL', description:'Database inspection and migration tooling.', category:'Data', connected:false, capability:'database' },
+    { id:'context7', name:'Context7', description:'Documentation context for development tools and SDKs.', category:'AI / MCP', connected:false, capability:'mcp' },
+    { id:'filesystem', name:'Filesystem', description:'Project workspace file operations through the runtime worker.', category:'Developer', connected:false, capability:'filesystem' },
+  ];
+  const developerTools = [
+    { id:'repo-import', name:'Repository Importer', description:'Clone a public Git repository into an isolated project workspace.', dangerous:false, available:true },
+    { id:'project-shell', name:'Project Shell', description:'Run an allowlisted bash command inside the selected project workspace.', dangerous:true, available:String(process.env.VELCLAWHOST_CODE_SHELL_ENABLED || '').toLowerCase() === 'true' },
+    { id:'build', name:'Build', description:'Run the detected project build command in the runtime workspace.', dangerous:false, available:Boolean(runtimeWorkerUrl) },
+    { id:'test', name:'Test', description:'Run the detected test command in the runtime workspace.', dangerous:false, available:Boolean(runtimeWorkerUrl) },
+    { id:'logs', name:'Runtime Logs', description:'Inspect deployment and runtime logs.', dangerous:false, available:true },
+    { id:'mcp', name:'MCP Tools', description:'Expose approved MCP integrations to a project runtime.', dangerous:true, available:Boolean(runtimeWorkerUrl) },
+  ];
+
+  app.get('/api/v1/developer/plugins', requireApiToken, (_req, res) => {
+    res.json({
+      status:'success', plugins:developerPlugins, tools:developerTools,
+      repositories:[...connectedRepositories.values()].map(({path:_path,...repo})=>repo),
+      runtime:{reachable:Boolean(runtimeWorkerUrl),docker:String(process.env.RUNTIME_PROVIDER || '').toLowerCase()==='docker',build:Boolean(runtimeWorkerUrl),workspace:true},
+    });
+  });
+
+  app.post('/api/v1/developer/repositories', requireApiToken, async (req,res) => {
+    const user=(req as any).velclawAuth;
+    if(!roleAtLeast(user.role,'member')) return res.status(403).json({error:'Repository import requires member role.'});
+    const url=String(req.body?.url || '').trim(), branch=String(req.body?.branch || 'main').trim();
+    let parsed:URL;
+    try{parsed=new URL(url)}catch{return res.status(400).json({error:'Invalid repository URL.'})}
+    if(!['github.com','gitlab.com'].includes(parsed.hostname.toLowerCase()) || parsed.protocol!=='https:') return res.status(400).json({error:'Only HTTPS GitHub/GitLab repositories are supported.'});
+    const repoName=parsed.pathname.replace(/^\\/+|\\/+$/g,'').replace(/\\.git$/,'');
+    if(!repoName || repoName.split('/').length!==2) return res.status(400).json({error:'Repository URL must point to an organization/user repository.'});
+    const id=repoName.replace(/[^a-zA-Z0-9._-]/g,'-')+'-'+Date.now().toString(36);
+    const workspacePath=path.join(developerWorkspaceRoot,id);
+    try{
+      await fs.mkdir(developerWorkspaceRoot,{recursive:true});
+      await execFileAsync('git',['clone','--depth','1','--branch',branch,url,workspacePath],{timeout:120000,maxBuffer:4*1024*1024});
+      const repository={id,url,branch,name:repoName,path:workspacePath,connectedAt:new Date().toISOString()};
+      connectedRepositories.set(id,repository);
+      const {path:_path,...publicRepo}=repository;
+      return res.status(201).json({status:'success',repository:publicRepo});
+    }catch(error){
+      try{await fs.rm(workspacePath,{recursive:true,force:true})}catch{}
+      return res.status(502).json({error:'Repository clone failed. Private repositories require server-side Git credentials.',details:error instanceof Error?error.message:String(error)});
+    }
+  });
+
+  app.post('/api/v1/developer/shell', requireApiToken, async (req,res) => {
+    const user=(req as any).velclawAuth;
+    if(!roleAtLeast(user.role,'admin')) return res.status(403).json({error:'Project shell requires admin role.'});
+    if(String(process.env.VELCLAWHOST_CODE_SHELL_ENABLED || '').toLowerCase()!=='true') return res.status(503).json({error:'Project shell is disabled until an isolated runtime workspace is configured.'});
+    const repositoryId=String(req.body?.cwd || ''), command=String(req.body?.command || '').trim(), repository=connectedRepositories.get(repositoryId);
+    if(!repository) return res.status(404).json({error:'Repository workspace not found.'});
+    if(!command || command.length>1000) return res.status(400).json({error:'Command is empty or too long.'});
+    const safeCommand=/^(pwd|ls(?:\\s+-[A-Za-z-]+)?(?:\\s+[^;&|$]+)?|git\\s+(status|branch|log|diff|show)(?:\\s+[^;&|$]+)?|npm\\s+(run\\s+[A-Za-z0-9:_-]+|test|build|--version)|pnpm\\s+(run\\s+[A-Za-z0-9:_-]+|test|build|--version)|bun\\s+(run\\s+[A-Za-z0-9:_-]+|test|build|--version)|node\\s+--version|cat\\s+[^;&|$]+)$/i.test(command);
+    if(!safeCommand) return res.status(400).json({error:'Command blocked by VelclawHost shell policy. Allowed: pwd, ls, git status/branch/log/diff/show, npm/pnpm/bun test/build/run, node --version, cat.'});
+    try{
+      const result=await execFileAsync('bash',['-lc',command],{cwd:repository.path,timeout:60000,maxBuffer:2*1024*1024,env:{...process.env,HOME:'/tmp/velclawhost-home'}});
+      return res.json({status:'success',output:[result.stdout,result.stderr].filter(Boolean).join('\\n'),command,repositoryId});
+    }catch(error:any){
+      return res.status(400).json({error:'Command failed.',output:[error?.stdout,error?.stderr].filter(Boolean).join('\\n'),details:error?.message || String(error)});
+    }
+  });
+
   app.get('/api/v1/capabilities', requireApiToken, async (_req, res) => {
     const runtimeProvider = String(process.env.RUNTIME_PROVIDER || 'none').trim().toLowerCase();
     const deploymentExecutor = String(process.env.DEPLOYMENT_EXECUTOR || 'none').trim().toLowerCase();
