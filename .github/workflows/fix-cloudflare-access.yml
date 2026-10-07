@@ -1,4 +1,4 @@
-name: Secure velclaw.site authentication
+name: Secure velclaw.site authentication # VelclawHost branded OAuth
 
 on:
   push:
