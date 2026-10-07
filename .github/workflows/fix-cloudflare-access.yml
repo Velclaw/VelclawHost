@@ -101,15 +101,16 @@ jobs:
           configure_social("google", "Google", "GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET")
           configure_social("github", "GitHub", "GITHUB_OAUTH_CLIENT_ID", "GITHUB_OAUTH_CLIENT_SECRET")
 
-          apps = api("GET", f"/accounts/{ACCOUNT}/access/apps?domain=velclaw.site&per_page=1000").get("result", [])
+          apps = api("GET", f"/accounts/{ACCOUNT}/access/apps?per_page=1000").get("result", [])
 
           def ensure_app(domain, name, idp_id=None, public=False):
               existing = next((x for x in apps if x.get("domain") == domain), None)
-              if existing:
-                  return existing
               if public:
                   payload = {
-                      "name": name, "type": "self_hosted", "domain": domain,
+                      "name": name,
+                      "type": "self_hosted",
+                      "domain": domain,
+                      "destinations": [{"type": "public", "uri": domain}],
                       "session_duration": "24h",
                       "policies": [{
                           "decision": "bypass", "name": "Public OAuth selector",
@@ -118,7 +119,10 @@ jobs:
                   }
               else:
                   payload = {
-                      "name": name, "type": "self_hosted", "domain": domain,
+                      "name": name,
+                      "type": "self_hosted",
+                      "domain": domain,
+                      "destinations": [{"type": "public", "uri": domain}],
                       "allowed_idps": [idp_id],
                       "auto_redirect_to_identity": True,
                       "session_duration": "24h",
@@ -128,6 +132,12 @@ jobs:
                           "include": [{"email": {"email": "huynhthuong.xyz@gmail.com"}}],
                       }],
                   }
+              if existing:
+                  try:
+                      api("PUT", f"/accounts/{ACCOUNT}/access/apps/{existing['id']}", payload)
+                      return existing
+                  except Exception:
+                      return existing
               created = api("POST", f"/accounts/{ACCOUNT}/access/apps", payload).get("result", {})
               apps.append(created)
               return created
