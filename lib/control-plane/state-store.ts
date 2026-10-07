@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 
 export type ControlPlaneState = {
-  version: 1;
+  version: 1 | 2;
   nextRuntimePort: number;
   domains: Array<Record<string, unknown>>;
   deployments: Array<Record<string, unknown>>;
