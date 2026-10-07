@@ -9,6 +9,7 @@ export type TabType =
   | 'db-optimizer'
   | 'security-2fa'
   | 'api-integration'
+  | 'plugins-tools'
   | 'reports';
 
 export interface HostNode {
