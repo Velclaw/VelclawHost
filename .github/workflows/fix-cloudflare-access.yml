@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Find velclaw.site Access application and add public bypass
+      - name: Make velclaw.site public in Cloudflare Access
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -24,6 +24,25 @@ jobs:
 
           api="https://api.cloudflare.com/client/v4"
           auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+
+          if [[ -z "${CF_API_TOKEN:-}" ]]; then
+            echo "CLOUDFLARE_API_TOKEN is missing."
+            exit 1
+          fi
+
+          # Prefer the repository secret, but resolve the account from the velclaw.site zone
+          # when the account secret is absent. This avoids constructing /accounts//... URLs.
+          if [[ -z "${CF_ACCOUNT_ID:-}" ]]; then
+            zone="$(curl -fsS "${auth[@]}" "${api}/zones?name=velclaw.site&per_page=1")"
+            CF_ACCOUNT_ID="$(jq -r '.result[0].account.id // empty' <<<"$zone")"
+          fi
+
+          if [[ -z "${CF_ACCOUNT_ID:-}" ]]; then
+            echo "Could not resolve the Cloudflare account for velclaw.site."
+            exit 1
+          fi
+
+          echo "Cloudflare account resolved."
 
           apps="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?domain=velclaw.site&per_page=1000")"
           if [[ "$(jq -r '.success' <<<"$apps")" != "true" ]]; then
@@ -35,6 +54,7 @@ jobs:
 
           while IFS=$'\\t' read -r app_id app_domain; do
             [[ -z "$app_id" ]] && continue
+
             normalized="${app_domain#https://}"
             normalized="${normalized#http://}"
             normalized="${normalized%/}"
@@ -53,7 +73,7 @@ jobs:
             fi
 
             if jq -e '.result[]? | select(.decision == "bypass") | .include[]? | has("everyone")' <<<"$policies" >/dev/null; then
-              echo "A public Everyone/Bypass policy already exists; nothing to change."
+              echo "Public Everyone/Bypass policy already exists."
               exit 0
             fi
 
