@@ -547,7 +547,7 @@ export default function App() {
   const unreadAlertsCount = alerts.filter((a) => !a.resolved).length;
 
   return (
-    <div className={`vc-app-shell min-h-screen transition-colors duration-200 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'}`}>
+    <div className={`vc-next-frame vc-app-shell min-h-screen transition-colors duration-200 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'}`}>
       {/* Toast Notification Banner (Floating) */}
       {toastNotification && (
         <div className="fixed top-20 right-4 z-50 max-w-md p-4 rounded-2xl bg-slate-900/95 border border-rose-500/50 shadow-2xl text-white flex items-start gap-3 animate-fade-in backdrop-blur-md">
@@ -588,7 +588,7 @@ export default function App() {
       />
 
       {/* Application Body */}
-      <div className="vc-app-body flex">
+      <div className="vc-next-layout vc-app-body">
         {/* Left Sidebar */}
         <Sidebar
           activeTab={activeTab}
@@ -600,7 +600,7 @@ export default function App() {
         />
 
         {/* Main Content Viewport */}
-        <main className="vc-main vc-next-content flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-12">
+        <main className="vc-next-content vc-main min-w-0">
           <div className="vc-page-header">
             <div className="min-w-0">
               <div className="vc-breadcrumb"><span>VelclawHost</span><span>/</span><span>Production</span><span>/</span><strong>{({
@@ -636,7 +636,7 @@ export default function App() {
               </div>
             </div>
           )}
-          <div className="vc-next-container max-w-none p-0 lg:p-0">
+          <div className="vc-next-container">
           {activeTab === 'deployments' && <DeploymentsTab />}
 
           {activeTab === 'overview' && (
