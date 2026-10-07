@@ -1,0 +1,85 @@
+name: Make velclaw.site public
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fix-cloudflare-access.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bypass-access:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Find velclaw.site Access application and add public bypass
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+
+          apps="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?domain=velclaw.site&per_page=1000")"
+          if [[ "$(jq -r '.success' <<<"$apps")" != "true" ]]; then
+            echo "$apps" | jq .
+            exit 1
+          fi
+
+          found=0
+
+          while IFS=$'\\t' read -r app_id app_domain; do
+            [[ -z "$app_id" ]] && continue
+            normalized="${app_domain#https://}"
+            normalized="${normalized#http://}"
+            normalized="${normalized%/}"
+
+            if [[ "$normalized" != "velclaw.site" && "$normalized" != "velclaw.site/*" ]]; then
+              continue
+            fi
+
+            found=1
+            echo "Matched Access application: $app_id ($app_domain)"
+
+            policies="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps/${app_id}/policies?per_page=1000")"
+            if [[ "$(jq -r '.success' <<<"$policies")" != "true" ]]; then
+              echo "$policies" | jq .
+              exit 1
+            fi
+
+            if jq -e '.result[]? | select(.decision == "bypass") | .include[]? | has("everyone")' <<<"$policies" >/dev/null; then
+              echo "A public Everyone/Bypass policy already exists; nothing to change."
+              exit 0
+            fi
+
+            min_precedence="$(jq -r '[.result[]?.precedence // 0] | if length == 0 then 0 else min end' <<<"$policies")"
+            precedence="$((min_precedence - 1))"
+
+            body="$(jq -n \
+              --arg name "Public VelclawHost" \
+              --argjson precedence "$precedence" \
+              '{name: $name, decision: "bypass", include: [{everyone: {}}], precedence: $precedence}')"
+
+            result="$(curl -fsS -X POST "${auth[@]}" \
+              "${api}/accounts/${CF_ACCOUNT_ID}/access/apps/${app_id}/policies" \
+              --data "$body")"
+
+            if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then
+              echo "$result" | jq .
+              exit 1
+            fi
+
+            echo "Created public bypass policy: $(jq -r '.result.id' <<<"$result")"
+            exit 0
+          done < <(jq -r '.result[]? | [.id, (.domain // "")] | @tsv' <<<"$apps")
+
+          if [[ "$found" -eq 0 ]]; then
+            echo "No exact velclaw.site Access application was found."
+            echo "$apps" | jq -r '.result[]? | [.id, (.domain // ""), (.name // "")] | @tsv'
+            exit 1
+          fi
