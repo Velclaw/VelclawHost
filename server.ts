@@ -97,13 +97,26 @@ async function startServer() {
 
   // VelclawHost Control Plane API
   const apiToken = process.env.VELCLAWHOST_API_TOKEN?.trim() || '';
+  const { authenticateVelclawRequest, clearVelclawSession, roleAtLeast } = await import('./lib/auth/cloudflare-access');
   const getConfiguredRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_REGISTRAR || 'none');
   const getSourceRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_SOURCE_REGISTRAR || 'none');
-  const requireApiToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    if (!apiToken) return next();
+  const requireApiToken = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const auth = req.header('authorization') || '';
-    if (auth === 'Bearer ' + apiToken) return next();
-    return res.status(401).json({ error: 'Unauthorized' });
+    if (apiToken && auth === 'Bearer ' + apiToken) {
+      (req as any).velclawAuth = { id: 'service-token', email: 'service', role: 'owner', provider: 'service' };
+      return next();
+    }
+    try {
+      const user = await authenticateVelclawRequest(req, res);
+      (req as any).velclawAuth = user;
+      return next();
+    } catch (error) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        code: 'ACCESS_AUTH_REQUIRED',
+        message: error instanceof Error ? error.message : 'Cloudflare Access authentication is required.',
+      });
+    }
   };
 
   const runtimeWorkerUrl = process.env.RUNTIME_WORKER_URL?.trim().replace(/\/$/, '') || '';
@@ -145,7 +158,31 @@ async function startServer() {
 
   app.get('/api/v1/health', (_req, res) => {
     res.json({ status: 'HEALTHY', service: 'velclawhost-control-plane', timestamp: new Date().toISOString(), domains: domains.size });
+  });\n\n  app.get('/api/v1/auth/me', requireApiToken, (req, res) => {
+    res.json({ status: 'success', user: (req as any).velclawAuth });
   });
+
+  app.get('/api/v1/auth/logout', (_req, res) => {
+    clearVelclawSession(res);
+    res.redirect('/cdn-cgi/access/logout');
+  });
+
+  app.get('/api/v1/auth/roles', requireApiToken, (req, res) => {
+    const user = (req as any).velclawAuth;
+    res.json({
+      status: 'success',
+      user: { id: user.id, email: user.email, role: user.role },
+      roles: ['owner', 'admin', 'member', 'viewer'],
+      permissions: {
+        read: roleAtLeast(user.role, 'viewer'),
+        deploy: roleAtLeast(user.role, 'member'),
+        manage: roleAtLeast(user.role, 'admin'),
+        owner: roleAtLeast(user.role, 'owner'),
+      },
+    });
+  });
+
+
 
   app.get('/api/v1/capabilities', requireApiToken, async (_req, res) => {
     const runtimeProvider = String(process.env.RUNTIME_PROVIDER || 'none').trim().toLowerCase();
