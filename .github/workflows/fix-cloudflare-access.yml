@@ -153,5 +153,45 @@ jobs:
 
           configure_social_idp "google" "Google" "${GOOGLE_OAUTH_CLIENT_ID:-}" "${GOOGLE_OAUTH_CLIENT_SECRET:-}"
           configure_social_idp "github" "GitHub" "${GITHUB_OAUTH_CLIENT_ID:-}" "${GITHUB_OAUTH_CLIENT_SECRET:-}"
+          # Public branded selector; provider-specific paths below are more specific and protected.
+          ensure_selector_app() {
+            local domain="velclaw.site/auth*"
+            local apps body result
+            apps="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?domain=velclaw.site/auth*&per_page=1000")"
+            if [[ "$(jq -r '.success' <<<"$apps")" != "true" ]]; then echo "$apps" | jq .; exit 1; fi
+            if [[ -n "$(jq -r '.result[]? | select(.domain == "velclaw.site/auth*") | .id' <<<"$apps" | head -n1)" ]]; then return 0; fi
+            body="$(jq -n '{name:"VelclawHost OAuth Selector",type:"self_hosted",domain:"velclaw.site/auth*",session_duration:"24h",policies:[{decision:"bypass",name:"Public OAuth selector",precedence:1,include:[{everyone:{}}]}]}')"
+            result="$(curl -fsS -X POST "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps" --data "$body")"
+            if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then echo "$result" | jq .; exit 1; fi
+          }
+          ensure_selector_app
+
+          ensure_provider_app() {
+            local provider="$1" name="$2" idp="$3"
+            [[ -z "$idp" ]] && return 0
+            local domain="velclaw.site/auth/$provider"
+            local apps body result
+            apps="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?domain=$domain&per_page=1000")"
+            if [[ "$(jq -r '.success' <<<"$apps")" != "true" ]]; then echo "$apps" | jq .; exit 1; fi
+            if [[ -n "$(jq -r --arg d "$domain" '.result[]? | select(.domain == $d) | .id' <<<"$apps" | head -n1)" ]]; then return 0; fi
+            body="$(jq -n --arg n "$name" --arg d "$domain" --arg idp "$idp" '{
+              name:$n,type:"self_hosted",domain:$d,allowed_idps:[$idp],auto_redirect_to_identity:true,session_duration:"24h",
+              policies:[{decision:"allow",name:"Velclaw owner",precedence:1,include:[{email:{email:"huynhthuong.xyz@gmail.com"}}]}]
+            }')"
+            result="$(curl -fsS -X POST "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps" --data "$body")"
+            if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then echo "$result" | jq .; exit 1; fi
+          }
+
+          cloudflare_idp="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100" |
+            jq -r '.result[]? | select(.type == "cloudflare") | .id' | head -n1)"
+          google_idp="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100" |
+            jq -r '.result[]? | select(.type == "google") | .id' | head -n1)"
+          github_idp="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100" |
+            jq -r '.result[]? | select(.type == "github") | .id' | head -n1)"
+
+          ensure_provider_app "velclaw" "VelclawHost • Velclaw" "$cloudflare_idp"
+          ensure_provider_app "google" "VelclawHost • Google" "$google_idp"
+          ensure_provider_app "github" "VelclawHost • GitHub" "$github_idp"
+
           echo "Authenticated Cloudflare Access login is active for velclaw.site."
           echo "Policy: $(jq -r '.result.name' <<<"$result")"
