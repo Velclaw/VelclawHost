@@ -87,5 +87,29 @@ jobs:
             exit 1
           fi
 
+          # Brand the Cloudflare Access login screen as VelclawHost.
+          login_design="$(jq -n '{
+            header_text: "Sign in to VelclawHost",
+            footer_text: "VelclawHost • Secure infrastructure workspace",
+            background_color: "#070B16",
+            text_color: "#F8FAFC",
+            logo_path: "https://raw.githubusercontent.com/Velclaw/VelclawHost/main/assets/velclawhost-logo.svg"
+          }')"
+
+          org="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/organizations")"
+          if [[ "$(jq -r '.success' <<<"$org")" == "true" ]]; then
+            current_org="$(jq -n --argjson design "$login_design" '{login_design:$design}')"
+            curl -fsS -X PUT "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/organizations" --data "$current_org" >/tmp/org-update.json
+            if [[ "$(jq -r '.success' /tmp/org-update.json")" != "true" ]]; then
+              cat /tmp/org-update.json | jq .
+              exit 1
+            fi
+          fi
+
+          echo "Configured VelclawHost branding."
+          echo "Identity providers currently configured:"
+          curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100" |
+            jq -r '.result[]? | "- \(.name) [\(.type)]"'
+
           echo "Authenticated Cloudflare Access login is active for velclaw.site."
           echo "Policy: $(jq -r '.result.name' <<<"$result")"
