@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="VelclawHost">
+  <defs>
+    <linearGradient id="g" x1="70" y1="40" x2="430" y2="470" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B5CF6"/><stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0B1020"/>
+  <path d="M112 108l80 0 64 188 64-188h80L302 404h-76L112 108z" fill="url(#g)"/>
+  <path d="M164 108h62l30 88-34 98-58-186z" fill="#fff" opacity=".96"/>
+</svg>
