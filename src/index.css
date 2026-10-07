@@ -273,3 +273,262 @@ main h3 {
 .vc-main .bg-slate-900,.vc-main .bg-slate-950{background-color:#09090b}
 .vc-main [class*="border"]{border-color:#27272a}
 .vc-main [class*="shadow-2xl"],.vc-main [class*="shadow-xl"]{box-shadow:0 1px 3px rgba(0,0,0,.4)}
+
+
+/* ========================================================================
+   VelclawHost — Next.js-style dashboard frame v2
+   Shared shell: top bar / side navigation / content viewport / surfaces.
+   ======================================================================== */
+:root{
+  --vc-shell-bg:#020203;
+  --vc-header-bg:rgba(2,2,3,.82);
+  --vc-sidebar-bg:#050506;
+  --vc-content-bg:#070708;
+  --vc-surface:#0b0b0d;
+  --vc-surface-2:#101012;
+  --vc-surface-hover:#141416;
+  --vc-line:#222225;
+  --vc-line-strong:#303035;
+  --vc-radius:8px;
+  --vc-radius-lg:12px;
+  --vc-content-max:1440px;
+}
+
+html,body,#root{background:var(--vc-shell-bg)!important}
+body{overflow-x:hidden}
+
+.vc-app-shell{
+  min-height:100vh!important;
+  background:
+    linear-gradient(to bottom,rgba(255,255,255,.012),transparent 180px),
+    var(--vc-shell-bg)!important;
+}
+
+.vc-app-body{
+  min-height:calc(100vh - 64px)!important;
+  background:var(--vc-content-bg)!important;
+}
+
+header.sticky{
+  position:sticky!important;
+  top:0!important;
+  height:64px!important;
+  z-index:50!important;
+  background:var(--vc-header-bg)!important;
+  border-bottom:1px solid var(--vc-line)!important;
+  box-shadow:0 1px 0 rgba(255,255,255,.018),0 8px 28px rgba(0,0,0,.16)!important;
+  backdrop-filter:blur(18px)!important;
+}
+
+header.sticky>div{
+  height:64px!important;
+  max-width:1600px;
+  margin:0 auto;
+}
+
+aside{
+  position:sticky!important;
+  top:64px!important;
+  width:240px!important;
+  min-width:240px!important;
+  height:calc(100vh - 64px)!important;
+  background:var(--vc-sidebar-bg)!important;
+  border-right:1px solid var(--vc-line)!important;
+  box-shadow:none!important;
+}
+
+aside>div:first-child{
+  padding:14px 10px!important;
+}
+
+aside button{
+  min-height:38px!important;
+  border-radius:7px!important;
+  border:1px solid transparent!important;
+  padding:8px 10px!important;
+  letter-spacing:-.005em;
+}
+
+aside button:hover{
+  background:var(--vc-surface-hover)!important;
+  border-color:#1e1e21!important;
+}
+
+aside button[class*="bg-cyan-500\/15"]{
+  background:#121216!important;
+  border-color:#303035!important;
+  color:#f4f4f5!important;
+  box-shadow:inset 2px 0 0 #8b5cf6!important;
+}
+
+aside button[class*="bg-cyan-500\/15"] svg{
+  color:#a78bfa!important;
+}
+
+.vc-main{
+  width:100%!important;
+  max-width:var(--vc-content-max)!important;
+  min-width:0!important;
+  margin:0 auto!important;
+  padding:28px 32px 64px!important;
+  background:var(--vc-content-bg)!important;
+}
+
+.vc-main>div:first-child{
+  border-radius:var(--vc-radius-lg)!important;
+}
+
+.vc-main h1{
+  font-size:24px!important;
+  line-height:1.2!important;
+  font-weight:650!important;
+  letter-spacing:-.035em!important;
+}
+
+.vc-main h2{
+  font-size:18px!important;
+  line-height:1.3!important;
+  font-weight:600!important;
+  letter-spacing:-.025em!important;
+}
+
+.vc-main h3{
+  font-size:14px!important;
+  line-height:1.35!important;
+  font-weight:600!important;
+}
+
+.vc-main .rounded-2xl.border,
+.vc-main .rounded-xl.border,
+.vc-main .rounded-lg.border,
+.vc-main [class*="rounded-2xl"][class*="border"],
+.vc-main [class*="rounded-xl"][class*="border"]{
+  border-radius:var(--vc-radius-lg)!important;
+  background:var(--vc-surface)!important;
+  border-color:var(--vc-line)!important;
+  box-shadow:0 1px 2px rgba(0,0,0,.28)!important;
+}
+
+.vc-main .rounded-2xl.border:hover,
+.vc-main .rounded-xl.border:hover{
+  border-color:var(--vc-line-strong)!important;
+}
+
+.vc-main [class*="bg-slate-900"],
+.vc-main [class*="bg-slate-950"]{
+  background-color:var(--vc-surface)!important;
+}
+
+.vc-main [class*="bg-slate-800"]{
+  background-color:var(--vc-surface-2)!important;
+}
+
+.vc-main [class*="border-slate-800"]{
+  border-color:var(--vc-line)!important;
+}
+
+.vc-main [class*="border-slate-700"]{
+  border-color:var(--vc-line-strong)!important;
+}
+
+.vc-main input,
+.vc-main select,
+.vc-main textarea{
+  border-radius:7px!important;
+  background:#09090b!important;
+  border-color:var(--vc-line)!important;
+}
+
+.vc-main button{
+  border-radius:7px;
+}
+
+.vc-main table{
+  border-collapse:separate;
+  border-spacing:0;
+}
+
+.vc-main table th{
+  background:#09090b;
+  color:#71717a;
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.vc-main table td,.vc-main table th{
+  border-bottom:1px solid var(--vc-line);
+}
+
+.vc-main .grid{
+  min-width:0;
+}
+
+.vc-main .shadow-2xl,
+.vc-main .shadow-xl,
+.vc-main .shadow-lg{
+  box-shadow:0 10px 30px rgba(0,0,0,.24)!important;
+}
+
+header .velclaw-brand-mark{
+  width:34px!important;
+  height:34px!important;
+  border-radius:8px!important;
+  background:#101014!important;
+  border:1px solid #2b2b30!important;
+}
+
+header button{
+  border-radius:7px!important;
+}
+
+header [class*="bg-slate-900"]{
+  background:#0b0b0d!important;
+}
+
+.vc-status-card{
+  border-radius:var(--vc-radius-lg)!important;
+  background:var(--vc-surface)!important;
+  border:1px solid var(--vc-line)!important;
+}
+
+@media (max-width:1023px){
+  aside{
+    position:fixed!important;
+    top:64px!important;
+    left:0!important;
+    height:calc(100vh - 64px)!important;
+    z-index:40!important;
+  }
+  .vc-main{
+    max-width:none!important;
+    padding:22px 20px 56px!important;
+  }
+}
+
+@media (max-width:640px){
+  header.sticky,
+  header.sticky>div{
+    height:60px!important;
+  }
+  aside{
+    top:60px!important;
+    height:calc(100vh - 60px)!important;
+  }
+  .vc-app-body{
+    min-height:calc(100vh - 60px)!important;
+  }
+  .vc-main{
+    padding:16px 14px 42px!important;
+  }
+  .vc-main h1{
+    font-size:21px!important;
+  }
+  .vc-main h2{
+    font-size:17px!important;
+  }
+}
+
+/* Keep dialogs/toasts above the shell without changing their content. */
+.fixed.z-50{z-index:100!important}
