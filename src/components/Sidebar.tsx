@@ -40,19 +40,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       label: 'Infrastructure',
       items: [
-        { id:'dns-ssl', label:'Domains & DNS', icon:Globe },
-        { id:'metrics-charts', label:'Observability', icon:LineChart },
+        { id:'dns-ssl', label:'DNS & SSL', icon:Globe },
+        { id:'metrics-charts', label:'Analytics', icon:LineChart },
         { id:'alerts', label:'Alerts', icon:BellRing, badge:unreadAlertCount || undefined, tone:'text-rose-300 bg-rose-500/10 border-rose-500/20' },
         { id:'logs', label:'Logs', icon:FileText },
-        { id:'db-optimizer', label:'Database', icon:Database },
+        { id:'db-optimizer', label:'Storage & Database', icon:Database },
       ]
     },
     {
       label: 'Developer',
       items: [
-        { id:'api-integration', label:'API & Integrations', icon:Webhook },
+        { id:'api-integration', label:'Integrations', icon:Webhook },
         { id:'security-2fa', label:'Security', icon:ShieldCheck },
-        { id:'reports', label:'Reports', icon:Download },
+        { id:'reports', label:'Usage & Reports', icon:Download },
       ]
     }
   ];
@@ -64,14 +64,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className={[
       'vc-platform-sidebar fixed lg:sticky top-[64px] left-0 z-40 h-[calc(100vh-64px)] flex-shrink-0',
       'border-r border-zinc-800/90 bg-[#050506] transition-[width,transform] duration-200 shadow-none',
-      collapsed ? 'w-16' : 'w-60',
+      collapsed ? 'w-16' : 'w-56',
       isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
     ].join(' ')}>
       <div className="flex h-full flex-col">
-        <div className="border-b border-zinc-800/80 p-2">
-          <button onClick={()=>setCollapsed(v=>!v)} className="flex w-full items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-2 text-left hover:border-zinc-700" title={collapsed?'Expand sidebar':'Collapse sidebar'}>
+        <div className="border-b border-zinc-800/80 p-2.5">
+          <button onClick={()=>setCollapsed(v=>!v)} className="flex w-full items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 py-2.5 text-left hover:border-zinc-700" title={collapsed?'Expand sidebar':'Collapse sidebar'}>
             <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md border border-zinc-700 bg-zinc-950"><img src="/assets/velclawhost-logo.svg" alt="" className="h-full w-full object-cover" /></div>
-            {!collapsed && <div className="min-w-0 flex-1"><div className="truncate text-xs font-semibold text-zinc-100">VelclawHost</div><div className="truncate text-[9px] text-zinc-500">Production</div></div>}
+            {!collapsed && <div className="min-w-0 flex-1"><div className="truncate text-[12px] font-semibold tracking-[-0.01em] text-zinc-100">VelclawHost</div><div className="mt-0.5 truncate text-[9px] text-zinc-500">Production · Singapore</div></div>}
             {!collapsed && <ChevronLeft className="h-3.5 w-3.5 text-zinc-500"/>}
           </button>
         </div>
