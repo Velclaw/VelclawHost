@@ -68,7 +68,17 @@ export default function App() {
   });
 
   // Active navigation tab
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    if (typeof window === 'undefined') return 'overview';
+    const hash = window.location.hash.replace('#/','');
+    const valid: TabType[] = ['overview','deployments','domains','dns-ssl','metrics-charts','alerts','db-optimizer','logs','security-2fa','api-integration','reports'];
+    return valid.includes(hash as TabType) ? hash as TabType : 'overview';
+  });
+
+  const navigateTab = (tab: TabType) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') window.history.replaceState(null, '', `#/${tab}`);
+  };
 
   // Nodes & Selection
   const emptyNode: HostNode = { id: 'control-plane', hostname: 'loading', ipV4: 'container-local', ipV6: 'not-exposed', os: 'loading', kernel: 'loading', region: 'unknown', datacenter: 'unknown', status: 'online', uptimeSeconds: 0 };
@@ -567,12 +577,13 @@ export default function App() {
         isDarkMode={isDarkMode}
         onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         isTwoFactorActive={twoFactor.enabled && twoFactor.verified}
-        onOpenSecurityModal={() => setActiveTab('security-2fa')}
+        onOpenSecurityModal={() => navigateTab('security-2fa')}
         onOpenFcmModal={() => setIsFcmModalOpen(true)}
         onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
         alerts={alerts}
         isMobileMenuOpen={isMobileMenuOpen}
         onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        onOpenDeployments={() => navigateTab('deployments')}
       />
 
       {/* Application Body */}
@@ -580,7 +591,7 @@ export default function App() {
         {/* Left Sidebar */}
         <Sidebar
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={navigateTab}
           isMobileMenuOpen={isMobileMenuOpen}
           onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
           unreadAlertCount={unreadAlertsCount}
@@ -588,7 +599,7 @@ export default function App() {
         />
 
         {/* Main Content Viewport */}
-        <main className="vc-main flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-12">
+        <main className="vc-main vc-next-content flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-12">
           {capabilities && (
             <div className={`mb-6 rounded-2xl border p-4 ${capabilities.mode === 'runtime-enabled' ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -607,6 +618,7 @@ export default function App() {
               </div>
             </div>
           )}
+          <div className="vc-next-container max-w-none p-0 lg:p-0">
           {activeTab === 'deployments' && <DeploymentsTab />}
 
           {activeTab === 'overview' && (
@@ -620,7 +632,7 @@ export default function App() {
               onSimulateSpike={handleSimulateCpuSpike}
               onOpenReports={() => setIsReportsModalOpen(true)}
               onOpenSecurity={() => setActiveTab('security-2fa')}
-              onNavigateToCharts={() => setActiveTab('metrics-charts')}
+              onNavigateToCharts={() => navigateTab('metrics-charts')}
               isTwoFactorActive={twoFactor.enabled && twoFactor.verified}
             />
           )}
@@ -731,7 +743,7 @@ export default function App() {
               {/* Directly embedded modal view */}
               <ReportsModal
                 isOpen={true}
-                onClose={() => setActiveTab('overview')}
+                onClose={() => navigateTab('overview')}
                 node={selectedNode}
                 metrics={metrics}
                 ssl={ssl}
@@ -742,13 +754,14 @@ export default function App() {
               />
             </div>
           )}
+          </div>
         </main>
       </div>
 
       {/* Mobile Bottom Quick Navigation Bar */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 h-16 border-t border-slate-800 bg-slate-950/95 backdrop-blur-md px-2 flex items-center justify-around">
         <button
-          onClick={() => setActiveTab('overview')}
+          onClick={() => navigateTab('overview')}
           className={`flex flex-col items-center gap-1 text-[10px] ${activeTab === 'overview' ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}
         >
           <LayoutDashboard className="w-5 h-5" />
@@ -756,7 +769,7 @@ export default function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('dns-ssl')}
+          onClick={() => navigateTab('dns-ssl')}
           className={`flex flex-col items-center gap-1 text-[10px] ${activeTab === 'dns-ssl' ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}
         >
           <Globe className="w-5 h-5" />
@@ -764,7 +777,7 @@ export default function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('metrics-charts')}
+          onClick={() => navigateTab('metrics-charts')}
           className={`flex flex-col items-center gap-1 text-[10px] ${activeTab === 'metrics-charts' ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}
         >
           <LineChart className="w-5 h-5" />
@@ -772,7 +785,7 @@ export default function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('alerts')}
+          onClick={() => navigateTab('alerts')}
           className={`relative flex flex-col items-center gap-1 text-[10px] ${activeTab === 'alerts' ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}
         >
           <BellRing className="w-5 h-5" />
@@ -785,7 +798,7 @@ export default function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('security-2fa')}
+          onClick={() => navigateTab('security-2fa')}
           className={`flex flex-col items-center gap-1 text-[10px] ${activeTab === 'security-2fa' ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}
         >
           <ShieldCheck className="w-5 h-5" />
@@ -838,7 +851,7 @@ export default function App() {
           currentMetric={currentMetric}
           alerts={alerts}
           isTwoFactorActive={twoFactor.enabled && twoFactor.verified}
-          onNavigateTab={(tab) => setActiveTab(tab)}
+          onNavigateTab={(tab) => navigateTab(tab)}
           onSimulateCpuSpike={handleSimulateCpuSpike}
           onOpenReports={() => setIsReportsModalOpen(true)}
         />
