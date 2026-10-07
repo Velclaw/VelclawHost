@@ -44,6 +44,7 @@ import { ReportsModal } from './components/ReportsModal';
 import { FcmNotificationModal } from './components/FcmNotificationModal';
 import { VoiceAssistantModal } from './components/VoiceAssistantModal';
 import { DeploymentsTab } from './components/DeploymentsTab';
+import { DeveloperToolsTab } from './components/DeveloperToolsTab';
 
 import { 
   LayoutDashboard, 
@@ -71,7 +72,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (typeof window === 'undefined') return 'overview';
     const hash = window.location.hash.replace('#/','');
-    const valid: TabType[] = ['overview','deployments','domains','dns-ssl','metrics-charts','alerts','db-optimizer','logs','security-2fa','api-integration','reports'];
+    const valid: TabType[] = ['overview','deployments','domains','dns-ssl','metrics-charts','alerts','db-optimizer','logs','security-2fa','api-integration','plugins-tools','reports'];
     return valid.includes(hash as TabType) ? hash as TabType : 'overview';
   });
 
@@ -605,7 +606,7 @@ export default function App() {
               <div className="vc-breadcrumb"><span>VelclawHost</span><span>/</span><span>Production</span><span>/</span><strong>{({
                 overview:'Overview', deployments:'Deployments', domains:'Domains', 'dns-ssl':'DNS & SSL',
                 'metrics-charts':'Analytics', alerts:'Alerts', logs:'Logs', 'db-optimizer':'Storage & Database',
-                'security-2fa':'Security', 'api-integration':'Integrations', reports:'Usage & Reports'
+                'security-2fa':'Security', 'api-integration':'Integrations', 'plugins-tools':'Plugins & Tools', reports:'Usage & Reports'
               } as Record<TabType,string>)[activeTab]}</strong></div>
               <h1 className="vc-page-title">{({
                 overview:'Overview', deployments:'Deployments', domains:'Domains', 'dns-ssl':'DNS & SSL',
@@ -741,6 +742,8 @@ export default function App() {
               onRevokeApiKey={handleRevokeApiKey}
             />
           )}
+
+          {activeTab === 'plugins-tools' && <DeveloperToolsTab />}
 
           {activeTab === 'reports' && (
             <div className="space-y-6">
