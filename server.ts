@@ -158,7 +158,9 @@ async function startServer() {
 
   app.get('/api/v1/health', (_req, res) => {
     res.json({ status: 'HEALTHY', service: 'velclawhost-control-plane', timestamp: new Date().toISOString(), domains: domains.size });
-  });\n\n  app.get('/api/v1/auth/me', requireApiToken, (req, res) => {
+  });
+
+  app.get('/api/v1/auth/me', requireApiToken, (req, res) => {
     res.json({ status: 'success', user: (req as any).velclawAuth });
   });
 
