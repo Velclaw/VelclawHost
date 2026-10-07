@@ -117,7 +117,7 @@ jobs:
 
           # Present the Cloudflare IdP as the product-branded Velclaw option when mutable.
           cf_idp="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100" |
-            jq -r '.result[]? | select(.type == "cloudflare") | .id' | head -n1)
+            jq -r '.result[]? | select(.type == "cloudflare") | .id' | head -n1)"
           if [[ -n "$cf_idp" ]]; then
             cf_idp_info="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers/${cf_idp}")"
             if [[ "$(jq -r '.result.read_only // false' <<<"$cf_idp_info")" != "true" ]]; then
