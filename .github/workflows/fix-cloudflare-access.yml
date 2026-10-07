@@ -24,178 +24,135 @@ jobs:
           GITHUB_OAUTH_CLIENT_ID: ${{ secrets.GITHUB_OAUTH_CLIENT_ID }}
           GITHUB_OAUTH_CLIENT_SECRET: ${{ secrets.GITHUB_OAUTH_CLIENT_SECRET }}
         run: |
-          set -euo pipefail
+          python3 <<'PY'
+          import json, os, urllib.parse, urllib.request
 
-          api="https://api.cloudflare.com/client/v4"
-          auth=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+          TOKEN = os.environ.get("CF_API_TOKEN", "").strip()
+          ACCOUNT = os.environ.get("CF_ACCOUNT_ID", "").strip()
+          BASE = "https://api.cloudflare.com/client/v4"
+          if not TOKEN:
+              raise SystemExit("CLOUDFLARE_API_TOKEN is missing.")
 
-          if [[ -z "${CF_API_TOKEN:-}" ]]; then
-            echo "CLOUDFLARE_API_TOKEN is missing."
-            exit 1
-          fi
+          def api(method, path, payload=None):
+              data = None if payload is None else json.dumps(payload).encode()
+              req = urllib.request.Request(BASE + path, data=data, method=method)
+              req.add_header("Authorization", "Bearer " + TOKEN)
+              req.add_header("Content-Type", "application/json")
+              req.add_header("Accept", "application/json")
+              with urllib.request.urlopen(req, timeout=20) as r:
+                  body = json.load(r)
+              if not body.get("success"):
+                  raise RuntimeError(json.dumps(body))
+              return body
 
-          if [[ -z "${CF_ACCOUNT_ID:-}" ]]; then
-            zone="$(curl -fsS "${auth[@]}" "${api}/zones?name=velclaw.site&per_page=1")"
-            CF_ACCOUNT_ID="$(jq -r '.result[0].account.id // empty' <<<"$zone")"
-          fi
+          if not ACCOUNT:
+              zones = api("GET", "/zones?name=velclaw.site&per_page=1")
+              ACCOUNT = ((zones.get("result") or [{}])[0].get("account") or {}).get("id", "")
+          if not ACCOUNT:
+              raise SystemExit("Could not resolve the Cloudflare account for velclaw.site.")
 
-          if [[ -z "${CF_ACCOUNT_ID:-}" ]]; then
-            echo "Could not resolve the Cloudflare account for velclaw.site."
-            exit 1
-          fi
+          apps = api("GET", f"/accounts/{ACCOUNT}/access/apps?domain=velclaw.site&per_page=1000").get("result", [])
+          base_app = next((x for x in apps if x.get("domain") == "velclaw.site"), None)
+          if not base_app:
+              raise SystemExit("No velclaw.site Access application exists.")
 
-          apps="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?domain=velclaw.site&per_page=1000")"
-          if [[ "$(jq -r '.success' <<<"$apps")" != "true" ]]; then
-            echo "$apps" | jq .
-            exit 1
-          fi
+          policies = api("GET", f"/accounts/{ACCOUNT}/access/apps/{base_app['id']}/policies?per_page=1000").get("result", [])
+          policy = next((x for x in policies if x.get("decision") == "bypass"), None)
+          if not policy:
+              policy = next((x for x in policies if x.get("name") == "VelclawHost Account Members"), None)
+          if not policy:
+              raise SystemExit("No existing policy found to secure.")
 
-          app_id="$(jq -r '.result[]? | select((.domain // "") == "velclaw.site") | .id' <<<"$apps" | head -n1)"
-          if [[ -z "$app_id" ]]; then
-            echo "No velclaw.site Access application exists."
-            exit 1
-          fi
+          api("PUT", f"/accounts/{ACCOUNT}/access/apps/{base_app['id']}/policies/{policy['id']}", {
+              "name": "VelclawHost Account Members",
+              "decision": "allow",
+              "include": [{"cloudflare_account_member": {"account_id": ACCOUNT}}],
+              "precedence": 1,
+              "session_duration": "24h",
+          })
 
-          policies="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps/${app_id}/policies?per_page=1000")"
-          if [[ "$(jq -r '.success' <<<"$policies")" != "true" ]]; then
-            echo "$policies" | jq .
-            exit 1
-          fi
+          api("PUT", f"/accounts/{ACCOUNT}/access/organizations", {
+              "login_design": {
+                  "header_text": "Sign in to VelclawHost",
+                  "footer_text": "VelclawHost • Secure infrastructure workspace",
+                  "background_color": "#070B16",
+                  "text_color": "#F8FAFC",
+                  "logo_path": "https://raw.githubusercontent.com/Velclaw/VelclawHost/main/assets/velclawhost-logo.svg",
+              }
+          })
 
-          # Convert the temporary public bypass policy into a real authenticated
-          # Cloudflare-account-member policy. PUT is used so the existing policy
-          # is transformed in place instead of briefly exposing the hostname.
-          policy_id="$(jq -r '.result[]? | select(.decision == "bypass") | .id' <<<"$policies" | head -n1)"
+          idps = api("GET", f"/accounts/{ACCOUNT}/access/identity_providers?per_page=100").get("result", [])
+          by_type = {x.get("type"): x for x in idps}
 
-          if [[ -z "$policy_id" ]]; then
-            policy_id="$(jq -r '.result[]? | select(.name == "VelclawHost Account Members") | .id' <<<"$policies" | head -n1)"
-          fi
+          # Cloudflare is the built-in Velclaw identity option.
+          cf = by_type.get("cloudflare")
+          if cf and not cf.get("read_only"):
+              try:
+                  api("PUT", f"/accounts/{ACCOUNT}/access/identity_providers/{cf['id']}", {
+                      "name": "Velclaw", "type": "cloudflare", "config": {}
+                  })
+                  cf["name"] = "Velclaw"
+              except Exception:
+                  pass
 
-          if [[ -z "$policy_id" ]]; then
-            echo "No existing policy found to secure."
-            exit 1
-          fi
+          def configure_social(kind, name, client_env, secret_env):
+              cid, secret = os.environ.get(client_env, "").strip(), os.environ.get(secret_env, "").strip()
+              if not cid or not secret:
+                  return
+              existing = by_type.get(kind)
+              payload = {"name": name, "type": kind, "config": {"client_id": cid, "client_secret": secret}}
+              if existing:
+                  api("PUT", f"/accounts/{ACCOUNT}/access/identity_providers/{existing['id']}", payload)
+              else:
+                  created = api("POST", f"/accounts/{ACCOUNT}/access/identity_providers", payload).get("result", {})
+                  by_type[kind] = created
+              print("Configured", name)
 
-          body="$(jq -n --arg account "$CF_ACCOUNT_ID" '{
-            name: "VelclawHost Account Members",
-            decision: "allow",
-            include: [{cloudflare_account_member: {account_id: $account}}],
-            precedence: 1,
-            session_duration: "24h"
-          }')"
+          configure_social("google", "Google", "GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET")
+          configure_social("github", "GitHub", "GITHUB_OAUTH_CLIENT_ID", "GITHUB_OAUTH_CLIENT_SECRET")
 
-          result="$(curl -fsS -X PUT "${auth[@]}"             "${api}/accounts/${CF_ACCOUNT_ID}/access/apps/${app_id}/policies/${policy_id}"             --data "$body")"
+          apps = api("GET", f"/accounts/{ACCOUNT}/access/apps?domain=velclaw.site&per_page=1000").get("result", [])
 
-          if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then
-            echo "$result" | jq .
-            exit 1
-          fi
+          def ensure_app(domain, name, idp_id=None, public=False):
+              existing = next((x for x in apps if x.get("domain") == domain), None)
+              if existing:
+                  return existing
+              if public:
+                  payload = {
+                      "name": name, "type": "self_hosted", "domain": domain,
+                      "session_duration": "24h",
+                      "policies": [{
+                          "decision": "bypass", "name": "Public OAuth selector",
+                          "precedence": 1, "include": [{"everyone": {}}],
+                      }],
+                  }
+              else:
+                  payload = {
+                      "name": name, "type": "self_hosted", "domain": domain,
+                      "allowed_idps": [idp_id],
+                      "auto_redirect_to_identity": True,
+                      "session_duration": "24h",
+                      "policies": [{
+                          "decision": "allow", "name": "Velclaw owner",
+                          "precedence": 1,
+                          "include": [{"email": {"email": "huynhthuong.xyz@gmail.com"}}],
+                      }],
+                  }
+              created = api("POST", f"/accounts/{ACCOUNT}/access/apps", payload).get("result", {})
+              apps.append(created)
+              return created
 
-          # Brand the Cloudflare Access login screen as VelclawHost.
-          login_design="$(jq -n '{
-            header_text: "Sign in to VelclawHost",
-            footer_text: "VelclawHost • Secure infrastructure workspace",
-            background_color: "#070B16",
-            text_color: "#F8FAFC",
-            logo_path: "https://raw.githubusercontent.com/Velclaw/VelclawHost/main/assets/velclawhost-logo.svg"
-          }')"
+          ensure_app("velclaw.site/auth*", "VelclawHost OAuth Selector", public=True)
 
-          org="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/organizations")"
-          if [[ "$(jq -r '.success' <<<"$org")" == "true" ]]; then
-            current_org="$(jq -n --argjson design "$login_design" '{login_design:$design}')"
-            curl -fsS -X PUT "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/organizations" --data "$current_org" >/tmp/org-update.json
-            if [[ "$(jq -r '.success' /tmp/org-update.json")" != "true" ]]; then
-              cat /tmp/org-update.json | jq .
-              exit 1
-            fi
-          fi
+          for slug, label, kind in [
+              ("velclaw", "VelclawHost • Velclaw", "cloudflare"),
+              ("google", "VelclawHost • Google", "google"),
+              ("github", "VelclawHost • GitHub", "github"),
+          ]:
+              provider = by_type.get(kind)
+              if provider and provider.get("id"):
+                  ensure_app(f"velclaw.site/auth/{slug}", label, provider["id"])
 
-          echo "Configured VelclawHost branding."
-          echo "Identity providers currently configured:"
-          curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100" |
-            jq -r '.result[]? | "- \(.name) [\(.type)]"'
-
-          # Present the Cloudflare IdP as the product-branded Velclaw option when mutable.
-          cf_idp="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100" |
-            jq -r '.result[]? | select(.type == "cloudflare") | .id' | head -n1)"
-          if [[ -n "$cf_idp" ]]; then
-            cf_idp_info="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers/${cf_idp}")"
-            if [[ "$(jq -r '.result.read_only // false' <<<"$cf_idp_info")" != "true" ]]; then
-              curl -fsS -X PUT "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers/${cf_idp}" \
-                --data '{"name":"Velclaw","type":"cloudflare","config":{}}' >/tmp/cf-idp-update.json
-              if [[ "$(jq -r '.success' /tmp/cf-idp-update.json)" != "true" ]]; then
-                cat /tmp/cf-idp-update.json | jq .
-                exit 1
-              fi
-            fi
-          fi
-
-          # Configure Google/GitHub when OAuth client credentials are supplied as repository secrets.
-          # Missing credentials are skipped rather than inventing or exposing credentials.
-          configure_social_idp() {
-            local type="$1" name="$2" client_id="$3" client_secret="$4"
-            [[ -z "$client_id" || -z "$client_secret" ]] && return 0
-            local existing id payload result
-            existing="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100")"
-            id="$(jq -r --arg t "$type" '.result[]? | select(.type == $t) | .id' <<<"$existing" | head -n1)
-            payload="$(jq -n --arg n "$name" --arg t "$type" --arg cid "$client_id" --arg cs "$client_secret" '{name:$n,type:$t,config:{client_id:$cid,client_secret:$cs}}')"
-            if [[ -n "$id" ]]; then
-              result="$(curl -fsS -X PUT "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers/${id}" --data "$payload")"
-            else
-              result="$(curl -fsS -X POST "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers" --data "$payload")"
-            fi
-            if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then
-              echo "$result" | jq .
-              exit 1
-            fi
-            echo "Configured $name identity provider."
-          }
-
-          configure_social_idp "google" "Google" "${GOOGLE_OAUTH_CLIENT_ID:-}" "${GOOGLE_OAUTH_CLIENT_SECRET:-}"
-          configure_social_idp "github" "GitHub" "${GITHUB_OAUTH_CLIENT_ID:-}" "${GITHUB_OAUTH_CLIENT_SECRET:-}"
-          # Public branded selector; provider-specific paths below are more specific and protected.
-          ensure_selector_app() {
-            local domain="velclaw.site/auth*"
-            local apps body result
-            apps="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?domain=velclaw.site/auth*&per_page=1000")"
-            if [[ "$(jq -r '.success' <<<"$apps")" != "true" ]]; then echo "$apps" | jq .; exit 1; fi
-            local selector_id
-            selector_id="$(jq -r --arg d "$domain" '.result[]? | select(.domain == $d) | .id' <<<"$apps" | head -n1)"
-            if [[ -n "$selector_id" ]]; then return 0; fi
-            body="$(jq -n '{name:"VelclawHost OAuth Selector",type:"self_hosted",domain:"velclaw.site/auth*",session_duration:"24h",policies:[{decision:"bypass",name:"Public OAuth selector",precedence:1,include:[{everyone:{}}]}]}')"
-            result="$(curl -fsS -X POST "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps" --data "$body")"
-            if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then echo "$result" | jq .; exit 1; fi
-          }
-          ensure_selector_app
-
-          ensure_provider_app() {
-            local provider="$1" name="$2" idp="$3"
-            [[ -z "$idp" ]] && return 0
-            local domain="velclaw.site/auth/$provider"
-            local apps body result
-            apps="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps?domain=$domain&per_page=1000")"
-            if [[ "$(jq -r '.success' <<<"$apps")" != "true" ]]; then echo "$apps" | jq .; exit 1; fi
-            local provider_id
-            provider_id="$(jq -r --arg d "$domain" '.result[]? | select(.domain == $d) | .id' <<<"$apps" | head -n1)"
-            if [[ -n "$provider_id" ]]; then return 0; fi
-            body="$(jq -n --arg n "$name" --arg d "$domain" --arg idp "$idp" '{
-              name:$n,type:"self_hosted",domain:$d,allowed_idps:[$idp],auto_redirect_to_identity:true,session_duration:"24h",
-              policies:[{decision:"allow",name:"Velclaw owner",precedence:1,include:[{email:{email:"huynhthuong.xyz@gmail.com"}}]}]
-            }')"
-            result="$(curl -fsS -X POST "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/apps" --data "$body")"
-            if [[ "$(jq -r '.success' <<<"$result")" != "true" ]]; then echo "$result" | jq .; exit 1; fi
-          }
-
-          cloudflare_idp="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100" |
-            jq -r '.result[]? | select(.type == "cloudflare") | .id' | head -n1)"
-          google_idp="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100" |
-            jq -r '.result[]? | select(.type == "google") | .id' | head -n1)"
-          github_idp="$(curl -fsS "${auth[@]}" "${api}/accounts/${CF_ACCOUNT_ID}/access/identity_providers?per_page=100" |
-            jq -r '.result[]? | select(.type == "github") | .id' | head -n1)"
-
-          ensure_provider_app "velclaw" "VelclawHost • Velclaw" "$cloudflare_idp"
-          ensure_provider_app "google" "VelclawHost • Google" "$google_idp"
-          ensure_provider_app "github" "VelclawHost • GitHub" "$github_idp"
-
-          echo "Authenticated Cloudflare Access login is active for velclaw.site."
-          echo "Policy: $(jq -r '.result.name' <<<"$result")"
+          print("VelclawHost self-hosted OAuth routing is configured.")
+          print("Providers:", ", ".join(sorted(k for k,v in by_type.items() if v)))
+          PY
