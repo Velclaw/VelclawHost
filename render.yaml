@@ -7,5 +7,5 @@ services:
     branch: main
     buildCommand: npm install && npm run build
     startCommand: npm start
-    healthCheckPath: /api/health
-    autoDeploy: true
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: commit
