@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: velclawhost
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
