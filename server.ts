@@ -91,8 +91,17 @@ async function startServer() {
   const deploymentQueue = createDeploymentQueue(process.env.VELCLAWHOST_STATE_STORE === 'postgres' ? process.env.DATABASE_URL : undefined);
   const workerId = process.env.VELCLAWHOST_WORKER_ID?.trim() || 'worker-' + process.pid;
 
-  // Self-hosted Velclaw OAuth landing page.
+  // VelclawHost-branded native login page. Prevent old Cloudflare/provider login HTML
+  // from being reused by browser or intermediary caches after a deployment.
   app.get(['/auth', '/auth/'], (_req, res) => {
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+    });
     res.status(200).type('html').send(velclawAuthPage());
   });
 
