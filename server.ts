@@ -253,7 +253,7 @@ const params=new URLSearchParams(location.search);let mode=params.get('mode')===
     if (jwtSecret.length < 32) return res.status(503).send('Authentication is not configured: VELCLAWHOST_JWT_SECRET must be at least 32 characters.');
     const state = Buffer.from(randomBytes(32)).toString('base64url');
     res.setHeader('Set-Cookie', oauthCookie('velclawhost_oauth_state', state, 600));
-    const redirectUri = (process.env.VELCLAWHOST_PUBLIC_URL || (req.protocol + '://' + req.get('host'))).replace(/\\/$/, '') + '/api/v1/auth/oauth/' + provider + '/callback';
+    const redirectUri = (process.env.VELCLAWHOST_PUBLIC_URL || (req.protocol + '://' + req.get('host'))).replace(/\/$/, '') + '/api/v1/auth/oauth/' + provider + '/callback';
     const params = new URLSearchParams({ client_id: provider === 'github' ? process.env.GITHUB_OAUTH_CLIENT_ID!.trim() : process.env.GOOGLE_OAUTH_CLIENT_ID!.trim(), redirect_uri: redirectUri, state });
     if (provider === 'github') { params.set('scope', 'read:user user:email'); return res.redirect(302, 'https://github.com/login/oauth/authorize?' + params.toString()); }
     params.set('response_type', 'code'); params.set('scope', 'openid email profile'); params.set('prompt', 'select_account');
