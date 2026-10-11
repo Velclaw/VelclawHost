@@ -272,7 +272,7 @@ const params=new URLSearchParams(location.search);let mode=params.get('mode')===
     if (!state || !expectedState || state !== expectedState) return fail(400, 'State không hợp lệ hoặc đã hết hạn. Hãy thử đăng nhập lại.');
     if (req.query.error || !req.query.code) return fail(400, 'Nhà cung cấp đã hủy hoặc từ chối đăng nhập.');
     try {
-      const redirectUri = (process.env.VELCLAWHOST_PUBLIC_URL || (req.protocol + '://' + req.get('host'))).replace(/\\/$/, '') + '/api/v1/auth/oauth/' + provider + '/callback';
+      const redirectUri = (process.env.VELCLAWHOST_PUBLIC_URL || (req.protocol + '://' + req.get('host'))).replace(/\/$/, '') + '/api/v1/auth/oauth/' + provider + '/callback';
       const clientId = provider === 'github' ? process.env.GITHUB_OAUTH_CLIENT_ID!.trim() : process.env.GOOGLE_OAUTH_CLIENT_ID!.trim();
       const clientSecret = provider === 'github' ? process.env.GITHUB_OAUTH_CLIENT_SECRET!.trim() : process.env.GOOGLE_OAUTH_CLIENT_SECRET!.trim();
       const tokenResponse = await fetch(provider === 'github' ? 'https://github.com/login/oauth/access_token' : 'https://oauth2.googleapis.com/token', {
@@ -1061,7 +1061,7 @@ const params=new URLSearchParams(location.search);let mode=params.get('mode')===
   const cloudflareDnsConfig = () => ({
     token: process.env.CLOUDFLARE_API_TOKEN?.trim() || '',
     zoneId: process.env.CLOUDFLARE_ZONE_ID?.trim() || '',
-    zoneName: (process.env.CLOUDFLARE_ZONE_NAME || '').trim().toLowerCase().replace(/\\.$/, ''),
+    zoneName: (process.env.CLOUDFLARE_ZONE_NAME || '').trim().toLowerCase().replace(/\.$/, ''),
   });
   async function cloudflareDnsRequest(pathname: string, init: RequestInit = {}) {
     const cfg = cloudflareDnsConfig();
@@ -1079,7 +1079,7 @@ const params=new URLSearchParams(location.search);let mode=params.get('mode')===
   }
   const dnsTypes = new Set(['A','AAAA','CNAME','TXT','MX','CAA','SRV','NS']);
   function normalizeDnsName(value: unknown) {
-    return String(value || '').trim().toLowerCase().replace(/\\.$/, '');
+    return String(value || '').trim().toLowerCase().replace(/\.$/, '');
   }
   function validateDnsRecordInput(body: any) {
     const type = String(body?.type || '').toUpperCase();
