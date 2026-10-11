@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Globe, 
   Plus, 
@@ -32,6 +32,80 @@ interface DomainManagementTabProps {
   onAddDomain: (domain: Omit<CustomDomain, 'id' | 'createdAt'>) => void;
   onDeleteDomain: (id: string) => void;
   onVerifyDomain: (id: string) => Promise<boolean>;
+}
+
+
+type CloudflareDnsRecord = { id: string; type: string; name: string; content: string; ttl: number; proxied?: boolean; priority?: number };
+function CloudflareDnsManager() {
+  const [configured, setConfigured] = useState<boolean | null>(null);
+  const [zone, setZone] = useState<any>(null);
+  const [records, setRecords] = useState<CloudflareDnsRecord[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [type, setType] = useState('A');
+  const [name, setName] = useState('');
+  const [content, setContent] = useState('');
+  const [proxied, setProxied] = useState(false);
+  const [filter, setFilter] = useState('');
+  const load = async () => {
+    setBusy(true);
+    try {
+      const statusRes = await fetch('/api/v1/dns/status', { credentials: 'include', cache: 'no-store' });
+      const status = await statusRes.json();
+      setConfigured(Boolean(status.configured));
+      if (!statusRes.ok) { setZone(null); setNotice(status.message || status.error || 'DNS API chưa cấu hình hoặc cần đăng nhập.'); return; }
+      setZone(status.zone);
+      const listRes = await fetch('/api/v1/dns/records', { credentials: 'include', cache: 'no-store' });
+      const list = await listRes.json();
+      if (!listRes.ok) throw new Error(list.error || 'Không tải được bản ghi DNS.');
+      setRecords(Array.isArray(list.records) ? list.records : []);
+      setNotice('');
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Không kết nối được DNS API.'); }
+    finally { setBusy(false); }
+  };
+  useEffect(() => { void load(); }, []);
+  const add = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true); setNotice('');
+    try {
+      const response = await fetch('/api/v1/dns/records', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, name, content, ttl: 300, proxied: ['A','AAAA','CNAME'].includes(type) && proxied }) });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Không thể tạo bản ghi.');
+      setName(''); setContent(''); setNotice('Đã tạo bản ghi DNS.'); await load();
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Tạo bản ghi thất bại.'); }
+    finally { setBusy(false); }
+  };
+  const remove = async (record: CloudflareDnsRecord) => {
+    if (!window.confirm('Xóa bản ghi ' + record.type + ' ' + record.name + ' ?')) return;
+    setBusy(true); setNotice('');
+    try {
+      const response = await fetch('/api/v1/dns/records/' + encodeURIComponent(record.id), { method: 'DELETE', credentials: 'include' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Không thể xóa bản ghi.');
+      setNotice('Đã xóa bản ghi DNS.'); await load();
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Xóa bản ghi thất bại.'); }
+    finally { setBusy(false); }
+  };
+  const visible = records.filter(record => (record.name + ' ' + record.type + ' ' + record.content).toLowerCase().includes(filter.toLowerCase()));
+  return <section className="rounded-2xl border border-cyan-900/60 bg-slate-950/80 p-4 sm:p-5 space-y-4">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div><div className="flex items-center gap-2 text-cyan-300 text-xs font-bold uppercase tracking-wider"><Server className="w-4 h-4"/> DNS Manager · Cloudflare</div><h3 className="mt-1 text-lg font-bold text-white">Bản ghi DNS trực tiếp</h3><p className="text-xs text-slate-400 mt-1">Quản lý DNS trong VelclawHost. Nameserver và đăng ký tên miền vẫn giữ nguyên.</p></div>
+      <button type="button" onClick={() => void load()} disabled={busy} className="px-3 py-2 rounded-lg border border-slate-700 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-50"><RefreshCw className={'inline w-3.5 h-3.5 mr-2 '+(busy?'animate-spin':'')}/>Làm mới</button>
+    </div>
+    {zone && <div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full border border-emerald-800 bg-emerald-950/60 px-3 py-1 text-emerald-300">Zone: {zone.name}</span><span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">Trạng thái: {zone.status}</span></div>}
+    {notice && <div className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200">{notice}</div>}
+    {configured === false && <p className="text-xs text-amber-300">Chưa cấu hình DNS API. Cần CLOUDFLARE_API_TOKEN có quyền DNS Edit, CLOUDFLARE_ZONE_ID và CLOUDFLARE_ZONE_NAME trên Render.</p>}
+    <form onSubmit={add} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+      <select value={type} onChange={e=>setType(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">{['A','AAAA','CNAME','TXT','MX','CAA','SRV','NS'].map(v=><option key={v}>{v}</option>)}</select>
+      <input value={name} onChange={e=>setName(e.target.value)} required placeholder="api.velclaw.tech hoặc @" className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"/>
+      <input value={content} onChange={e=>setContent(e.target.value)} required placeholder="Giá trị / target" className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white sm:col-span-2 lg:col-span-1"/>
+      <label className="flex items-center gap-2 px-2 text-xs text-slate-300"><input type="checkbox" checked={proxied} disabled={!['A','AAAA','CNAME'].includes(type)} onChange={e=>setProxied(e.target.checked)}/> Cloudflare proxy</label>
+      <button disabled={busy || configured===false} className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">Thêm bản ghi</button>
+    </form>
+    <div className="flex items-center justify-between gap-3"><input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Tìm bản ghi..." className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"/><span className="whitespace-nowrap text-xs text-slate-400">{visible.length} bản ghi</span></div>
+    <div className="overflow-x-auto rounded-xl border border-slate-800"><table className="w-full min-w-[650px] text-left text-xs"><thead className="bg-slate-900 text-slate-400"><tr><th className="p-3">Loại</th><th className="p-3">Tên</th><th className="p-3">Giá trị</th><th className="p-3">TTL</th><th className="p-3">Proxy</th><th className="p-3">Thao tác</th></tr></thead><tbody>{visible.map(record=><tr key={record.id} className="border-t border-slate-800 text-slate-200"><td className="p-3 font-mono">{record.type}</td><td className="p-3 break-all">{record.name}</td><td className="p-3 max-w-[260px] break-all">{record.content}</td><td className="p-3">{record.ttl===1?'Auto':record.ttl+'s'}</td><td className="p-3">{record.proxied?'Bật':'Tắt'}</td><td className="p-3"><button type="button" onClick={()=>void remove(record)} disabled={busy} className="text-rose-300 hover:text-rose-200 disabled:opacity-50"><Trash2 className="inline w-4 h-4 mr-1"/>Xóa</button></td></tr>)}{visible.length===0&&<tr><td colSpan={6} className="p-5 text-center text-slate-500">Không có bản ghi hoặc cần đăng nhập.</td></tr>}</tbody></table></div>
+    <p className="text-[11px] leading-5 text-slate-500">Lưu ý: thao tác tạo/xóa sẽ tác động DNS đang hoạt động. Không sửa hoặc xóa bản ghi đang dùng cho website, email, xác minh domain hay SSL nếu chưa biết mục đích.</p>
+  </section>;
 }
 
 export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
@@ -286,6 +360,7 @@ export const DomainManagementTab: React.FC<DomainManagementTabProps> = ({
 
   return (
     <div className="space-y-6">
+      <CloudflareDnsManager />
       {/* Header Banner */}
       <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-indigo-950/40 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
