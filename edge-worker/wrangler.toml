@@ -3,6 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2026-10-06"
 workers_dev = true
 
+# Existing first-party edge route.
 [[routes]]
 pattern = "velclaw.site/*"
+zone_name = "velclaw.site"
+
+# Route API traffic through the same Worker to the Render origin.
+[[routes]]
+pattern = "api.velclaw.site/*"
 zone_name = "velclaw.site"
