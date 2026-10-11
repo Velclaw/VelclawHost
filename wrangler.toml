@@ -3,6 +3,13 @@ main = "edge-worker/src/index.ts"
 compatibility_date = "2026-10-06"
 workers_dev = true
 
+# Keep the existing first-party edge route.
 [[routes]]
 pattern = "velclaw.site/*"
+zone_name = "velclaw.site"
+
+# API subdomain is routed through the same Cloudflare Worker and proxied to Render.
+# This does not consume another Render custom-domain slot.
+[[routes]]
+pattern = "api.velclaw.site/*"
 zone_name = "velclaw.site"
