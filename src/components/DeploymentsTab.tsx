@@ -24,7 +24,28 @@ export const DeploymentsTab:React.FC=()=>{
  const load=async()=>{try{const r=await fetch('/api/v1/deployments',{cache:'no-store'}),p=await r.json();if(!r.ok)throw new Error(p.error||'Không thể tải deployments');setDeployments(Array.isArray(p.deployments)?[...p.deployments].reverse():[]);setError('')}catch(e){setError(e instanceof Error?e.message:'Không thể tải deployments')}finally{setLoading(false)}};
  useEffect(()=>{void load();const t=setInterval(()=>void load(),5000);return()=>clearInterval(t)},[]);
  const counts=useMemo(()=>({total:deployments.length,ready:deployments.filter(x=>x.status==='ready').length,active:deployments.filter(x=>['queued','source_validating','building','runtime_provisioning','health_check'].includes(x.status)).length,failed:deployments.filter(x=>x.status.includes('failed')).length}),[deployments]);
- const deploy=async()=>{setCreating(true);setError('');try{const r=await fetch('/api/v1/deployments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectName,repoUrl,branch})}),p=await r.json();if(!r.ok)throw new Error(p.error||'Deploy failed');await load()}catch(e){setError(e instanceof Error?e.message:'Deploy failed')}finally{setCreating(false)}};
+ const deploy=async()=>{
+  setCreating(true);setError('');
+  try {
+   const name=projectName.trim();
+   const branchName=branch.trim()||'main';
+   const rawRepo=repoUrl.trim().replace(/\\/+$/,'').replace(/\\.git$/i,'');
+   let parsed:URL;
+   try { parsed=new URL(rawRepo); } catch { throw new Error('URL GitHub không hợp lệ. Dùng https://github.com/owner/repo.'); }
+   const parts=parsed.pathname.split('/').filter(Boolean);
+   if(parsed.protocol!=='https:'||parsed.hostname.toLowerCase()!=='github.com'||parts.length!==2) {
+    throw new Error('Nhập URL repository dạng https://github.com/owner/repo, không phải link file, issue hoặc trang dự án.');
+   }
+   if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/.test(name)) throw new Error('Tên project chỉ được chứa chữ, số, dấu chấm, gạch dưới hoặc gạch ngang.');
+   if(!/^[A-Za-z0-9._/-]{1,120}$/.test(branchName)) throw new Error('Tên branch không hợp lệ.');
+   const normalizedRepo=`https://github.com/${parts[0]}/${parts[1]}`;
+   const r=await fetch('/api/v1/deployments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectName:name,repoUrl:normalizedRepo,branch:branchName})});
+   const p=await r.json().catch(()=>({error:'Máy chủ trả về phản hồi không hợp lệ.'}));
+   if(!r.ok) throw new Error(p.error||`Deploy thất bại (HTTP ${r.status}).`);
+   await load();
+  } catch(e) { setError(e instanceof Error?e.message:'Không thể tạo deployment.'); }
+  finally { setCreating(false); }
+ };
  const retry=async(id:string)=>{const r=await fetch(`/api/v1/deployments/${encodeURIComponent(id)}/execute`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(!r.ok){const p=await r.json().catch(()=>({}));setError(p.error||'Retry failed');return}await load()};
  return <section className="space-y-6">
   <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><div className="vc-next-kicker">Deployment platform</div><h1 className="vc-next-title mt-2">Deployments</h1><p className="mt-2 text-sm text-zinc-500">Git → validate → build → runtime → health check, theo mô hình Vercel/Render.</p></div><div className="flex items-center gap-2 text-[11px] text-zinc-500"><span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"/> Live control plane</div></div>
