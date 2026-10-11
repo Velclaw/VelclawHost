@@ -29,7 +29,7 @@ export const DeploymentsTab:React.FC=()=>{
   try {
    const name=projectName.trim();
    const branchName=branch.trim()||'main';
-   const rawRepo=repoUrl.trim().replace(/\\/+$/,'').replace(/\\.git$/i,'');
+   const rawRepo=repoUrl.trim().replace(/\/+$/,'').replace(/\.git$/i,'');
    let parsed:URL;
    try { parsed=new URL(rawRepo); } catch { throw new Error('URL GitHub không hợp lệ. Dùng https://github.com/owner/repo.'); }
    const parts=parsed.pathname.split('/').filter(Boolean);
