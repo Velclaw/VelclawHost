@@ -971,9 +971,109 @@ const params=new URLSearchParams(location.search);let mode=params.get('mode')===
       return res.status(502).json({ status: 'unhealthy', deployment: item, runtime });
     }
   });
+
   app.get('/api/v1/domains', requireApiToken, (_req, res) => {
     res.json({ status: 'success', domains: [...domains.values()] });
   });
+
+  // DNS management proxy. Credentials remain server-side; this never changes registrar nameservers.
+  const cloudflareDnsConfig = () => ({
+    token: process.env.CLOUDFLARE_API_TOKEN?.trim() || '',
+    zoneId: process.env.CLOUDFLARE_ZONE_ID?.trim() || '',
+    zoneName: (process.env.CLOUDFLARE_ZONE_NAME || '').trim().toLowerCase().replace(/\\.$/, ''),
+  });
+  async function cloudflareDnsRequest(pathname: string, init: RequestInit = {}) {
+    const cfg = cloudflareDnsConfig();
+    if (!cfg.token || !cfg.zoneId) throw Object.assign(new Error('DNS management is not configured. Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ZONE_ID in Render environment.'), { status: 503 });
+    const response = await fetch('https://api.cloudflare.com/client/v4' + pathname, {
+      ...init,
+      headers: { Authorization: 'Bearer ' + cfg.token, 'Content-Type': 'application/json', ...(init.headers || {}) },
+    });
+    const payload: any = await response.json().catch(() => ({}));
+    if (!response.ok || payload.success === false) {
+      const message = payload?.errors?.map((item: any) => item.message).filter(Boolean).join('; ') || 'Cloudflare API returned HTTP ' + response.status;
+      throw Object.assign(new Error(message), { status: response.status >= 400 && response.status < 500 ? response.status : 502 });
+    }
+    return payload.result;
+  }
+  const dnsTypes = new Set(['A','AAAA','CNAME','TXT','MX','CAA','SRV','NS']);
+  function normalizeDnsName(value: unknown) {
+    return String(value || '').trim().toLowerCase().replace(/\\.$/, '');
+  }
+  function validateDnsRecordInput(body: any) {
+    const type = String(body?.type || '').toUpperCase();
+    const name = normalizeDnsName(body?.name);
+    const content = String(body?.content ?? '').trim();
+    if (!dnsTypes.has(type)) throw Object.assign(new Error('Unsupported DNS record type.'), { status: 400 });
+    if (!name || name.length > 253 || !/^(?:\\*\\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*$/.test(name)) {
+      throw Object.assign(new Error('Invalid DNS record name.'), { status: 400 });
+    }
+    if (!content || content.length > 2048) throw Object.assign(new Error('DNS record content is required and must be at most 2048 characters.'), { status: 400 });
+    const cfg = cloudflareDnsConfig();
+    const apex = cfg.zoneName;
+    if (!apex) throw Object.assign(new Error('Set CLOUDFLARE_ZONE_NAME to the DNS zone name.'), { status: 503 });
+    if (name !== apex && !name.endsWith('.' + apex) && name !== '@') throw Object.assign(new Error('Record name must be inside the configured zone ' + apex + '.'), { status: 400 });
+    return { type, name: name === '@' ? apex : name, content, ttl: Math.max(60, Math.min(86400, Number(body?.ttl) || 300)), proxied: ['A','AAAA','CNAME'].includes(type) && body?.proxied === true, priority: body?.priority == null ? undefined : Math.max(0, Math.min(65535, Number(body.priority))) };
+  }
+  app.get('/api/v1/dns/status', requireApiToken, async (_req, res) => {
+    const cfg = cloudflareDnsConfig();
+    if (!cfg.token || !cfg.zoneId || !cfg.zoneName) return res.status(503).json({ status: 'not_configured', configured: false, message: 'Set CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID and CLOUDFLARE_ZONE_NAME in Render environment.' });
+    try {
+      const zone: any = await cloudflareDnsRequest('/zones/' + encodeURIComponent(cfg.zoneId));
+      return res.json({ status: 'success', configured: true, zone: { id: zone.id, name: zone.name, status: zone.status, nameServers: zone.name_servers, paused: zone.paused }, nameserverChanges: 'disabled' });
+    } catch (error) {
+      return res.status((error as any)?.status || 502).json({ status: 'error', configured: true, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+  app.get('/api/v1/dns/records', requireApiToken, async (req, res) => {
+    try {
+      const cfg = cloudflareDnsConfig();
+      const query = new URLSearchParams({ per_page: '100', page: String(Math.max(1, Number(req.query.page) || 1)) });
+      if (req.query.type && dnsTypes.has(String(req.query.type).toUpperCase())) query.set('type', String(req.query.type).toUpperCase());
+      if (req.query.name) query.set('name', normalizeDnsName(req.query.name));
+      const records = await cloudflareDnsRequest('/zones/' + encodeURIComponent(cfg.zoneId) + '/dns_records?' + query.toString());
+      return res.json({ status: 'success', records, nameserverChanges: 'disabled' });
+    } catch (error) {
+      return res.status((error as any)?.status || 502).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+  app.post('/api/v1/dns/records', requireApiToken, async (req, res) => {
+    const user = (req as any).velclawAuth;
+    if (!roleAtLeast(user.role, 'admin')) return res.status(403).json({ error: 'DNS changes require admin role.' });
+    try {
+      const record = validateDnsRecordInput(req.body);
+      const created = await cloudflareDnsRequest('/zones/' + encodeURIComponent(cloudflareDnsConfig().zoneId) + '/dns_records', { method: 'POST', body: JSON.stringify(record) });
+      return res.status(201).json({ status: 'success', record: created });
+    } catch (error) {
+      return res.status((error as any)?.status || 502).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+  app.patch('/api/v1/dns/records/:id', requireApiToken, async (req, res) => {
+    const user = (req as any).velclawAuth;
+    if (!roleAtLeast(user.role, 'admin')) return res.status(403).json({ error: 'DNS changes require admin role.' });
+    try {
+      const id = String(req.params.id || '');
+      if (!/^[a-f0-9-]{16,64}$/i.test(id)) return res.status(400).json({ error: 'Invalid DNS record ID.' });
+      const record = validateDnsRecordInput(req.body);
+      const updated = await cloudflareDnsRequest('/zones/' + encodeURIComponent(cloudflareDnsConfig().zoneId) + '/dns_records/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(record) });
+      return res.json({ status: 'success', record: updated });
+    } catch (error) {
+      return res.status((error as any)?.status || 502).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+  app.delete('/api/v1/dns/records/:id', requireApiToken, async (req, res) => {
+    const user = (req as any).velclawAuth;
+    if (!roleAtLeast(user.role, 'admin')) return res.status(403).json({ error: 'DNS changes require admin role.' });
+    try {
+      const id = String(req.params.id || '');
+      if (!/^[a-f0-9-]{16,64}$/i.test(id)) return res.status(400).json({ error: 'Invalid DNS record ID.' });
+      const deleted = await cloudflareDnsRequest('/zones/' + encodeURIComponent(cloudflareDnsConfig().zoneId) + '/dns_records/' + encodeURIComponent(id), { method: 'DELETE' });
+      return res.json({ status: 'success', deleted: deleted?.id || id });
+    } catch (error) {
+      return res.status((error as any)?.status || 502).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
 
   // Registrar control-plane boundary. VelclawHost owns the workflow/UI;
   // registrar credentials stay server-side and are never exposed to the browser.
