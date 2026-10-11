@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Globe, 
   Lock, 
@@ -173,6 +173,7 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
 
   return (
     <div className="space-y-6">
+      <LiveDnsManager />
       <LiveDnsManager />
       {/* Top Banner: Domain Strategy & Anti-CFD Notice */}
       <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-cyan-950/40 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
