@@ -653,3 +653,26 @@ The DNS proxy endpoints require VelclawHost authentication:
 - `DELETE /api/v1/dns/records/:id` — delete a record.
 
 DNS mutations require the authenticated account to have the admin role. Names are restricted to the configured zone. **These endpoints do not change nameservers, registrar settings, DNSSEC, proxy mode for unrelated records, or any existing record unless explicitly requested.** Keep Cloudflare authoritative DNS enabled while validating the new control plane. Do not set `CLOUDFLARE_API_TOKEN` in source code or commit it to Git.
+
+
+## GitHub and Google OAuth sign-in
+
+The native `/auth` page supports GitHub and Google OAuth. Configure these **server-side** environment variables on the Render `velclawhost` service (never commit secrets):
+
+- `VELCLAWHOST_PUBLIC_URL=https://velclawhost.onrender.com` (use the actual public origin if a different custom domain is active)
+- `VELCLAWHOST_JWT_SECRET`: random secret of at least 32 characters
+- `VELCLAWHOST_ADMIN_EMAIL`: email that receives the `owner` role after OAuth
+- `VELCLAWHOST_OAUTH_ALLOWED_EMAILS`: comma-separated list of allowed verified emails; defaults to the admin email for safety
+- `GITHUB_OAUTH_CLIENT_ID` and `GITHUB_OAUTH_CLIENT_SECRET`
+- `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
+
+OAuth callback URLs to register in each provider:
+
+- GitHub: `https://velclawhost.onrender.com/api/v1/auth/oauth/github/callback`
+- Google: `https://velclawhost.onrender.com/api/v1/auth/oauth/google/callback`
+
+GitHub OAuth App: https://github.com/settings/developers
+
+Google OAuth clients: https://console.cloud.google.com/apis/credentials
+
+Check provider readiness at `GET /api/v1/auth/providers`. A provider button is enabled only when its client ID and secret are present. OAuth uses a short-lived HttpOnly state cookie, verified provider email, server-side code exchange, and an HttpOnly session cookie. Accounts not in the allowlist are rejected; the configured admin email receives owner role, other permitted users receive member role. This OAuth implementation establishes a signed session but does not itself create a persistent user directory; do not treat the in-memory domain map as persistent account storage.
