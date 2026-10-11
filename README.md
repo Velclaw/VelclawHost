@@ -32,21 +32,21 @@
 
 ## 2. Kiến Trúc Domain Hiện Tại
 
-VelclawHost quản lý namespace first-party của Velclaw với **`velclaw.site`** làm platform chính, **`velclaw.dev`** cho developer và **`velclaw.app`** cho application. `velclaw.ai` đã loại khỏi namespace canonical; `velclaw.cfd` là legacy redirect; `.com` chỉ được dùng sau khi ownership/DNS được xác minh.
+VelclawHost dùng một namespace chính thống nhất: **`velclaw.site`** cho platform/web, **`api.velclaw.site`** cho API/developer endpoints và **`app.velclaw.site`** cho giao diện ứng dụng. Các subdomain chỉ hoạt động sau khi DNS và TLS được cấu hình, không tự được tạo chỉ bằng cấu hình mã nguồn.
 
 ```text
 VELCLAW ECOSYSTEM
       │
-      └── velclaw.app
-          ├── https://velclaw.app
-          ├── https://velclaw.app/docs
-          ├── https://velclaw.app/api/*
-          └── https://*.velclaw.app
+      └── app.velclaw.site
+          ├── https://app.velclaw.site
+          ├── https://app.velclaw.site/docs
+          ├── https://app.velclaw.site/api/*
+          └── https://*.app.velclaw.site
 ```
 
 | Namespace | Trạng thái | Vai trò |
 | :--- | :--- | :--- |
-| **`velclaw.site`** | **PRIMARY PLATFORM** | Platform / Company. `velclaw.dev` là developer surface và `velclaw.app` là application surface. |
+| **`velclaw.site`** | **PRIMARY PLATFORM** | Platform / Company. `api.velclaw.site` là developer surface và `app.velclaw.site` là application surface. |
 | `.com` / `.ai` / `.dev` / `.io` / `.app` | **FUTURE MIGRATION** | Chỉ giữ làm mục tiêu khi có domain chính thức và kế hoạch migration. |
 
 ## 3. Kiến Trúc VelclawHost Control Plane
@@ -71,9 +71,9 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
   └───────┼────────────────────────────────────────┘
           ▼
    Running Container Workloads
-   ├── app-frontend   (Port 3000 -> https://project.velclaw.app)
-   ├── preview-branch (Port 3001 -> https://feat-auth.velclaw.app)
-   └── ai-agent-core  (Port 8080 -> https://inference.velclaw.app)
+   ├── app-frontend   (Port 3000 -> https://project.app.velclaw.site)
+   ├── preview-branch (Port 3001 -> https://feat-auth.app.velclaw.site)
+   └── ai-agent-core  (Port 8080 -> https://inference.app.velclaw.site)
 ```
 
 ### Điểm Vượt Trội Của Kiến Trúc Này:
@@ -86,7 +86,7 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 ## 4. Các Tính Năng & Phân Hệ Trọng Yếu
 
 ### 🌐 4.1. Quản Lý Tên Miền Tùy Chỉnh (Domain Management Tab)
-- **Cấu hình tên miền độc lập**: Cho phép người dùng kết nối tên miền riêng vào hạ tầng VelclawHost trên namespace first-party hiện tại `velclaw.site`, `velclaw.dev`, `velclaw.app` và custom domains.
+- **Cấu hình tên miền độc lập**: Cho phép người dùng kết nối tên miền riêng vào hạ tầng VelclawHost trên namespace first-party hiện tại `velclaw.site`, `api.velclaw.site`, `app.velclaw.site` và custom domains.
 - **Trường nhập liệu & Cấu hình DNS**:
   - *Tên miền (Domain Name)*: Kiểm tra cú pháp thời gian thực, phát hiện và gán huy hiệu nhận diện TLD tức thì (.COM, .DEV, .AI, .IO, .APP).
   - *Loại bản ghi DNS*: Hỗ trợ bản ghi **A** (trỏ tới địa chỉ IPv4 máy chủ edge) và **CNAME** (trỏ tới Ingress Hostname alias).
@@ -99,7 +99,7 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 - **Bảng hướng dẫn ủy quyền DNS (DNS Delegation Guide)**: Hướng dẫn chi tiết giá trị Host, Type, Target Value và TTL cho từng tên miền tại Cloudflare, Namecheap, GoDaddy.
 
 ### 🌐 4.2. Quản Lý DNS Anycast & SSL (Tab DNS & SSL)
-- **Quản lý namespace first-party `velclaw.site`, `velclaw.dev`, `velclaw.app`**: Cho phép cấu hình độc lập bảng bản ghi DNS (*A, AAAA, CNAME, TXT, CAA, NS*) cho `velclaw.app` và các custom domains được người dùng cấu hình.
+- **Quản lý namespace first-party `velclaw.site`, `api.velclaw.site`, `app.velclaw.site`**: Cho phép cấu hình độc lập bảng bản ghi DNS (*A, AAAA, CNAME, TXT, CAA, NS*) cho `app.velclaw.site` và các custom domains được người dùng cấu hình.
 - **Chuyển đổi Proxy Cloudflare Edge**: Bật/tắt chế độ giấu IP gốc (Orange Cloud Proxied vs. Gray Cloud DNS-only) chỉ với 1-click.
 - **Kiểm Tra Phân Giải Toàn Cầu (Global Anycast Propagation)**: Kiểm tra trạng thái phản hồi DNS đồng thời tại 6 khu vực trọng yếu: Tokyo (NRT), Singapore (SIN), Frankfurt (FRA), London (LHR), Ashburn (IAD), Sydney (SYD).
 - **Cấu hình Nginx Ingress & HSTS**: Tự động chuyển hướng HTTP 301 sang HTTPS và thiết lập `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`.
@@ -167,7 +167,7 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 │   ├── main.tsx                 # Điểm khởi tạo ứng dụng React
 │   ├── App.tsx                  # Component điều phối chính, thanh điều hướng & modal
 │   ├── types.ts                 # Định nghĩa toàn bộ TypeScript Interfaces & Types
-│   ├── mockData.ts              # Dữ liệu khởi tạo: current `velclaw.app` namespace, migration targets, nodes, metrics, SSL, alerts
+│   ├── mockData.ts              # Dữ liệu khởi tạo: current `app.velclaw.site` namespace, migration targets, nodes, metrics, SSL, alerts
 │   ├── index.css                # CSS toàn cục sử dụng Tailwind CSS
 │   ├── utils/
 │   │   ├── pdfExport.ts         # Module tạo và xuất báo cáo hệ thống chuẩn PDF
@@ -176,8 +176,8 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 │       ├── Navbar.tsx           # Thanh điều hướng phía trên kèm trạng thái kết nối
 │       ├── Sidebar.tsx          # Menu bên trái chuyển đổi giữa các phân hệ
 │       ├── OverviewTab.tsx       # Bảng tổng quan hạ tầng & node clusters
-│       ├── DomainManagementTab.tsx # Cấu hình `velclaw.app` và custom domains
-│       ├── DnsSslTab.tsx        # Quản lý `velclaw.app`, bản ghi DNS, Anycast & SSL
+│       ├── DomainManagementTab.tsx # Cấu hình `app.velclaw.site` và custom domains
+│       ├── DnsSslTab.tsx        # Quản lý `app.velclaw.site`, bản ghi DNS, Anycast & SSL
 │       ├── ChartsTab.tsx        # Trung tâm biểu đồ thời gian thực & heatmap
 │       ├── ChartFullscreenModal.tsx # Modal phóng to biểu đồ toàn màn hình chuyên sâu
 │       ├── AlertsTab.tsx        # Quản lý sự cố, ngưỡng cảnh báo & nút giả lập spike
@@ -228,7 +228,7 @@ cp .env.example .env
 GEMINI_API_KEY="AIzaSy..."
 
 # URL của ứng dụng (trong môi trường development sử dụng localhost)
-APP_URL="http://localhost:3000"
+APP_URL="https://velclaw.site"
 ```
 
 > **Lưu ý**: Nếu chưa có `GEMINI_API_KEY`, ứng dụng sẽ tự động chuyển sang chế độ **Local DevOps Engine Fallback** để xử lý các chỉ lệnh giọng nói và điều hướng giao diện hoàn toàn bình thường mà không gây lỗi hệ thống.
@@ -275,7 +275,7 @@ File thực thi backend tự sinh tại `dist/server.cjs` ở dạng CommonJS đ
 ## 7. Hướng Dẫn Cấu Hình DNS & Ingress Reverse Proxy Mẫu
 
 ### 🌐 7.1. Cấu Hình Wildcard DNS Trên Cloudflare
-Cloudflare authoritative DNS cho **`velclaw.app`** phải có domain gốc và wildcard cùng trỏ về VelclawHost edge/runtime:
+Cloudflare authoritative DNS cho **`app.velclaw.site`** phải có domain gốc và wildcard cùng trỏ về VelclawHost edge/runtime:
 
 ```text
 Type     Name      Target / IPv4        Proxy status    TTL
@@ -290,7 +290,7 @@ Tạo file `Caddyfile` trên máy chủ Host:
 
 ```caddy
 # Tự động hóa SSL Let's Encrypt cho toàn bộ cụm subdomain của Velclaw
-*.velclaw.app {
+*.app.velclaw.site {
     tls {
         dns cloudflare {env.CLOUDFLARE_API_TOKEN}
     }
@@ -317,7 +317,7 @@ Tạo file cấu hình `/etc/nginx/sites-available/velclaw.conf`:
 server {
     listen 80;
     listen [::]:80;
-    server_name velclaw.app *.velclaw.app;
+    server_name app.velclaw.site *.app.velclaw.site;
     return 301 https://$host$request_uri;
 }
 
@@ -325,7 +325,7 @@ server {
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name velclaw.site *.velclaw.site velclaw.dev *.velclaw.dev velclaw.app *.velclaw.app;
+    server_name velclaw.site *.velclaw.site api.velclaw.site *.api.velclaw.site app.velclaw.site *.app.velclaw.site;
 
     ssl_certificate /etc/letsencrypt/live/velclaw/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/velclaw/privkey.pem;
@@ -414,12 +414,12 @@ Request:
 {
   "domain": "api.example.com",
   "recordType": "CNAME",
-  "targetValue": "edge.velclaw.app",
+  "targetValue": "edge.app.velclaw.site",
   "notes": "production ingress"
 }
 ```
 
-The server accepts the current first-party namespace `velclaw.app` and custom domains. DNS verification is performed against a public DNS-over-HTTPS resolver; the service does not claim a domain is active merely because it was registered in the UI.
+The server accepts the current first-party namespace `app.velclaw.site` and custom domains. DNS verification is performed against a public DNS-over-HTTPS resolver; the service does not claim a domain is active merely because it was registered in the UI.
 
 ### Velclaw integration boundary
 
@@ -578,8 +578,8 @@ VelclawHost is the **domain + DNS + SSL + hosting control plane** for the Velcla
 First-party map:
 
 - `velclaw.site` — Platform / Company
-- `velclaw.dev` — Developer / IDE / Docs / API
-- `velclaw.app` — Application / Services
+- `api.velclaw.site` — Developer / IDE / Docs / API
+- `app.velclaw.site` — Application / Services
 
 Legacy `velclaw.cfd` and removed first-party `velclaw.ai` are not canonical endpoints.
 
