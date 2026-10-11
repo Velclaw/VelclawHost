@@ -10,6 +10,8 @@ import { createDeploymentQueue } from "./lib/control-plane/deployment-queue";
 import { getRegistrarProvider } from "./lib/providers";
 import { RegistrarProviderError } from "./lib/providers/registrar";
 import { VELCLAW_FIRST_PARTY_DOMAINS, isSupportedDomain } from "./lib/control-plane/domain-config";
+import { createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
+import { promisify } from 'node:util';
 
 let aiClient: GoogleGenAI | null = null;
 const execFileAsync = promisify(execFile);
@@ -101,57 +103,29 @@ async function startServer() {
 
   function velclawAuthPage() {
     return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sign in · VelclawHost</title>
-<meta name="description" content="Sign in to VelclawHost">
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Đăng nhập · VelclawHost</title><meta name="theme-color" content="#080b12">
 <style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#000;color:#fafafa}
-body{min-height:100svh}
-</style>
-</head>
-<body>
-<div class="vc-auth-root">
-<header class="vc-auth-header">
-  <a class="vc-auth-brand" href="/" style="text-decoration:none;color:inherit">
-    <img class="vc-auth-logo" src="/assets/velclawhost-logo.svg" alt="VelclawHost">
-    <span><strong class="vc-auth-brand-name">VelclawHost</strong><small class="vc-auth-brand-sub">Infrastructure platform</small></span>
-  </a>
-  <a class="vc-auth-header-link" href="/">Back to workspace</a>
-</header>
-<main class="vc-auth-grid">
-  <section class="vc-auth-frame">
-    <div class="vc-auth-hero">
-      <div>
-        <div class="vc-auth-brand">
-          <img class="vc-auth-logo" src="/assets/velclawhost-logo.svg" alt="">
-          <div><div class="vc-next-kicker">Velclaw infrastructure</div><div style="margin-top:5px;font-size:12px;color:#a1a1aa">Secure developer hosting</div></div>
-        </div>
-        <h1 class="vc-auth-hero-title">Your infrastructure.<br>Under your control.</h1>
-        <p class="vc-auth-hero-copy">A focused control plane for deployments, domains, runtime health and infrastructure operations — built for the Velclaw ecosystem.</p>
-        <div class="vc-auth-code"><span></span> identity layer online</div>
-      </div>
-      <div style="font-size:10px;color:#52525b">VelclawHost · Secure access · v1</div>
-    </div>
-    <div class="vc-auth-panel">
-      <div class="vc-next-kicker">Authentication</div>
-      <h2 class="vc-auth-heading" style="margin:10px 0 0">Sign in to VelclawHost</h2>
-      <p class="vc-auth-subtitle">Choose an identity provider to continue to your workspace.</p>
-      <div class="vc-auth-providers">
-        <a class="vc-auth-provider primary" href="/auth/google"><span class="vc-auth-provider-icon">G</span><span>Continue with Google</span></a>
-        <a class="vc-auth-provider" href="/auth/github"><span class="vc-auth-provider-icon">GH</span><span>Continue with GitHub</span></a>
-        <a class="vc-auth-provider" href="/auth/velclaw"><span class="vc-auth-provider-icon">V</span><span>Continue with Velclaw</span></a>
-      </div>
-      <div class="vc-auth-separator">protected access</div>
-      <div class="vc-auth-foot">By continuing, you confirm that you are authorized to access this infrastructure workspace.<br><a href="/">Return to VelclawHost</a></div>
-    </div>
-  </section>
-</main>
-</div>
-</body>
-</html>`;
+:root{color-scheme:dark;--bg:#080b12;--panel:#101622;--line:#263246;--muted:#98a6bb;--accent:#8b5cf6;--cyan:#22d3ee}
+*{box-sizing:border-box}body{margin:0;min-height:100svh;background:radial-gradient(ellipse at 15% 15%,#17213b 0,transparent 44%),radial-gradient(ellipse at 90% 90%,#21143b 0,transparent 40%),var(--bg);color:#f7f8fc;font:15px Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;display:grid;place-items:center;padding:24px}
+.shell{width:min(100%,980px);display:grid;grid-template-columns:1.1fr .9fr;border:1px solid #293247;border-radius:28px;overflow:hidden;background:#0c111bd9;box-shadow:0 32px 100px #0008;backdrop-filter:blur(18px)}
+.hero{padding:54px 46px;display:flex;flex-direction:column;justify-content:space-between;min-height:590px;background:linear-gradient(145deg,#121d31,#0b101b 65%,#17132a);border-right:1px solid #293247}
+.brand{display:flex;align-items:center;gap:13px;text-decoration:none;color:inherit}.mark{width:44px;height:44px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(145deg,#8b5cf6,#22d3ee);box-shadow:0 8px 30px #8b5cf633}.mark svg{width:27px;height:27px}.brand b{display:block;font-size:18px;letter-spacing:-.5px}.brand small{display:block;color:#9ba9bd;margin-top:3px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase}
+.eyebrow{color:#a5b4fc;text-transform:uppercase;font-size:11px;font-weight:750;letter-spacing:2px}.hero h1{font-size:clamp(34px,5vw,52px);letter-spacing:-2px;line-height:1.06;margin:20px 0 18px;max-width:470px}.hero p{color:#a7b2c5;line-height:1.8;max-width:410px}.status{display:inline-flex;align-items:center;gap:9px;color:#b8c5d8;font-size:12px}.dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 14px #34d39988}.foot{color:#64748b;font-size:11px}
+.formpanel{padding:54px 42px;display:flex;flex-direction:column;justify-content:center}.formpanel h2{font-size:27px;letter-spacing:-.8px;margin:10px 0 8px}.sub{color:var(--muted);line-height:1.65;margin:0 0 28px;font-size:13px}.field{display:block;margin:0 0 18px}.field span{display:block;font-size:12px;color:#cbd5e1;margin-bottom:9px;font-weight:650}.field input{width:100%;height:49px;border:1px solid #303c50;border-radius:13px;background:#090e17;color:#fff;padding:0 14px;font:inherit;outline:none;transition:.2s}.field input:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px #8b5cf622}.submit{width:100%;height:50px;border:0;border-radius:13px;background:linear-gradient(100deg,#8b5cf6,#6366f1 55%,#0891b2);color:white;font-weight:750;font-size:14px;cursor:pointer;margin-top:4px;box-shadow:0 9px 26px #6366f133}.submit:disabled{opacity:.65;cursor:wait}.error{min-height:20px;color:#fda4af;font-size:12px;margin:13px 0}.security{border-top:1px solid #253044;padding-top:18px;color:#77869b;font-size:11px;line-height:1.7}.security strong{color:#aab7c9}.back{display:inline-block;margin-top:18px;color:#a5b4fc;text-decoration:none;font-size:12px}.back:hover{color:white}
+@media(max-width:720px){body{padding:14px}.shell{grid-template-columns:1fr;border-radius:22px}.hero{min-height:auto;padding:26px 25px;border-right:0;border-bottom:1px solid #293247;gap:30px}.hero h1{font-size:32px;margin:18px 0 10px}.hero p{font-size:13px;margin-bottom:0}.hero .foot{display:none}.formpanel{padding:30px 25px 28px}.formpanel h2{font-size:24px}}
+</style></head><body>
+<div class="shell"><section class="hero">
+<a class="brand" href="/"><span class="mark"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7 23V9h7l4 7 7-7v14h-5v-6l-6 6-2-4v4H7Z" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/><circle cx="24" cy="8" r="2" fill="#fff"/></svg></span><span><b>VelclawHost</b><small>Cloud infrastructure</small></span></a>
+<div><div class="eyebrow">Your control plane</div><h1>Hạ tầng của bạn.<br>Quyền kiểm soát của bạn.</h1><p>Đăng nhập vào không gian quản trị VelclawHost để quản lý triển khai, tên miền, tài nguyên và trạng thái hệ thống.</p><div class="status"><span class="dot"></span> VelclawHost Identity · Native sign-in</div></div>
+<div class="foot">© <span id="year"></span> VelclawHost · Secure infrastructure access</div>
+</section><section class="formpanel"><div class="eyebrow">Welcome back</div><h2>Đăng nhập</h2><p class="sub">Sử dụng tài khoản VelclawHost của bạn để tiếp tục.</p>
+<form id="login"><label class="field"><span>Email quản trị</span><input id="email" name="email" type="email" autocomplete="username" placeholder="admin@example.com" required></label><label class="field"><span>Mật khẩu</span><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" required></label><button class="submit" id="submit" type="submit">Đăng nhập vào VelclawHost <span aria-hidden="true">→</span></button><div class="error" id="error" role="alert"></div></form>
+<div class="security"><strong>🔒 Bảo vệ tài khoản</strong><br>Phiên đăng nhập được ký bởi VelclawHost và lưu trong cookie HttpOnly. Không sử dụng Cloudflare Access làm hệ thống đăng nhập ứng dụng.</div><a class="back" href="/">← Quay lại VelclawHost</a></section></div>
+<script>
+document.getElementById('year').textContent=new Date().getFullYear();
+document.getElementById('login').addEventListener('submit',async function(e){e.preventDefault();const button=document.getElementById('submit'),error=document.getElementById('error');button.disabled=true;error.textContent='';button.textContent='Đang xác thực…';try{const response=await fetch('/api/v1/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({email:document.getElementById('email').value,password:document.getElementById('password').value})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Không thể đăng nhập.');location.assign('/');}catch(err){error.textContent=err.message||'Đăng nhập thất bại.';button.disabled=false;button.innerHTML='Đăng nhập vào VelclawHost <span aria-hidden="true">→</span>';}});</script>
+</body></html>`;
   }
 
   // API Health Endpoint
@@ -159,27 +133,72 @@ body{min-height:100svh}
     res.json({ status: "ok", service: "Velclaw Hosting Platform Server", timestamp: new Date().toISOString() });
   });
 
-  // VelclawHost Control Plane API
+  // VelclawHost native authentication. No Cloudflare Access dependency.
   const apiToken = process.env.VELCLAWHOST_API_TOKEN?.trim() || '';
-  const { authenticateVelclawRequest, clearVelclawSession, roleAtLeast } = await import('./lib/auth/cloudflare-access');
+  const jwtSecret = process.env.VELCLAWHOST_JWT_SECRET?.trim() || '';
+  const adminEmail = (process.env.VELCLAWHOST_ADMIN_EMAIL || '').trim().toLowerCase();
+  const adminPassword = process.env.VELCLAWHOST_ADMIN_PASSWORD || '';
+  const scrypt = promisify(scryptCallback);
+  const roleRank: Record<string, number> = { viewer: 1, member: 2, admin: 3, owner: 4 };
+  const roleAtLeast = (role: string, required: string) => (roleRank[role] || 0) >= (roleRank[required] || 99);
+  const signJwt = (payload: Record<string, unknown>) => {
+    if (jwtSecret.length < 32) throw new Error('VELCLAWHOST_JWT_SECRET must be at least 32 characters.');
+    const enc = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+    const head = enc({ alg: 'HS256', typ: 'JWT' });
+    const body = enc({ ...payload, iss: 'VelclawHost', iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000)+60*60*8 });
+    const data = head + '.' + body;
+    return data + '.' + createHmac('sha256', jwtSecret).update(data).digest('base64url');
+  };
+  const verifyJwt = (token: string) => {
+    if (jwtSecret.length < 32) throw new Error('JWT authentication is not configured.');
+    const parts = token.split('.');
+    if (parts.length !== 3) throw new Error('Invalid token.');
+    const expected = createHmac('sha256', jwtSecret).update(parts[0] + '.' + parts[1]).digest();
+    const actual = Buffer.from(parts[2], 'base64url');
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) throw new Error('Invalid token signature.');
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    if (payload.iss !== 'VelclawHost' || !Number.isFinite(payload.exp) || payload.exp <= Date.now()/1000) throw new Error('Token expired.');
+    return payload;
+  };
+  const readJwt = (req: express.Request) => {
+    const authorization = req.header('authorization') || '';
+    const bearer = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+    const cookie = (req.headers.cookie || '').split(';').map(v => v.trim()).find(v => v.startsWith('velclawhost_session='))?.slice('velclawhost_session='.length) || '';
+    return bearer || cookie;
+  };
+  const setSessionCookie = (res: express.Response, token: string) => res.setHeader('Set-Cookie', 'velclawhost_session=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800');
+  const clearSessionCookie = (res: express.Response) => res.setHeader('Set-Cookie', 'velclawhost_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
+  app.post('/api/v1/auth/login', async (req, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const password = String(req.body?.password || '');
+    if (!adminEmail || !adminPassword || jwtSecret.length < 32) return res.status(503).json({ error: 'Native login is not configured. Set VELCLAWHOST_ADMIN_EMAIL, VELCLAWHOST_ADMIN_PASSWORD and VELCLAWHOST_JWT_SECRET in Render environment.' });
+    const emailOk = email === adminEmail;
+    const supplied = Buffer.from(password);
+    const configured = Buffer.from(adminPassword);
+    const passOk = supplied.length === configured.length && timingSafeEqual(supplied, configured);
+    if (!emailOk || !passOk) return res.status(401).json({ error: 'Email hoặc mật khẩu không chính xác.' });
+    const user = { id: 'velclawhost-owner', email: adminEmail, role: 'owner', provider: 'velclawhost' };
+    const token = signJwt(user);
+    setSessionCookie(res, token);
+    return res.json({ status: 'success', user, token });
+  });
+  app.post('/api/v1/auth/logout', (_req, res) => { clearSessionCookie(res); res.json({ status: 'success' }); });
   const getConfiguredRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_REGISTRAR || 'none');
   const getSourceRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_SOURCE_REGISTRAR || 'none');
-  const requireApiToken = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const requireApiToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const auth = req.header('authorization') || '';
     if (apiToken && auth === 'Bearer ' + apiToken) {
       (req as any).velclawAuth = { id: 'service-token', email: 'service', role: 'owner', provider: 'service' };
       return next();
     }
     try {
-      const user = await authenticateVelclawRequest(req, res);
-      (req as any).velclawAuth = user;
+      const token = readJwt(req);
+      if (!token) throw new Error('Please sign in to VelclawHost.');
+      const payload = verifyJwt(token);
+      (req as any).velclawAuth = { id: payload.id, email: payload.email, role: payload.role, provider: payload.provider || 'velclawhost' };
       return next();
-    } catch (error) {
-      return res.status(401).json({
-        error: 'Unauthorized',
-        code: 'ACCESS_AUTH_REQUIRED',
-        message: error instanceof Error ? error.message : 'Cloudflare Access authentication is required.',
-      });
+    } catch {
+      return res.status(401).json({ error: 'Unauthorized', code: 'AUTH_REQUIRED', message: 'Đăng nhập VelclawHost để tiếp tục.' });
     }
   };
 
@@ -226,11 +245,6 @@ body{min-height:100svh}
 
   app.get('/api/v1/auth/me', requireApiToken, (req, res) => {
     res.json({ status: 'success', user: (req as any).velclawAuth });
-  });
-
-  app.get('/api/v1/auth/logout', (_req, res) => {
-    clearVelclawSession(res);
-    res.redirect('/cdn-cgi/access/logout');
   });
 
   app.get('/api/v1/auth/roles', requireApiToken, (req, res) => {
