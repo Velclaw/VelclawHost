@@ -24,6 +24,7 @@ import {
   CheckCheck
 } from 'lucide-react';
 import { DnsRecord, SslInfo, HostNode, VelclawTld, VelclawDomainConfig } from '../types';
+import { Cloud, PlusCircle, Trash, RefreshCw as RefreshIcon } from 'lucide-react';
 import { VELCLAW_DOMAINS } from '../mockData';
 
 interface DnsSslTabProps {
@@ -172,6 +173,7 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
 
   return (
     <div className="space-y-6">
+      <LiveDnsManager />
       {/* Top Banner: Domain Strategy & Anti-CFD Notice */}
       <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-cyan-950/40 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -658,3 +660,76 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
     </div>
   );
 };
+
+
+function LiveDnsManager() {
+  const [records, setRecords] = useState<any[]>([]);
+  const [zone, setZone] = useState<any>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [type, setType] = useState('TXT');
+  const [name, setName] = useState('');
+  const [content, setContent] = useState('');
+  const [ttl, setTtl] = useState(300);
+  const [proxied, setProxied] = useState(false);
+  const [notice, setNotice] = useState('');
+
+  const load = async () => {
+    setBusy(true); setError('');
+    try {
+      const [s, r] = await Promise.all([
+        fetch('/api/v1/dns/status', { cache: 'no-store' }),
+        fetch('/api/v1/dns/records?type=' + encodeURIComponent(type), { cache: 'no-store' }),
+      ]);
+      const sj = await s.json(); const rj = await r.json();
+      if (!s.ok) throw new Error(sj.error || sj.message || 'DNS manager chưa được cấu hình trên server.');
+      if (!r.ok) throw new Error(rj.error || 'Không thể tải DNS records.');
+      setZone(sj.zone || null); setRecords(Array.isArray(rj.records) ? rj.records : []);
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(false); }
+  };
+  useEffect(() => { void load(); }, [type]);
+
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setError(''); setNotice('');
+    try {
+      const r = await fetch('/api/v1/dns/records', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, name, content, ttl, proxied }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Không thể tạo DNS record.');
+      setName(''); setContent(''); setNotice('Đã tạo bản ghi DNS.'); await load();
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(false); }
+  };
+  const remove = async (id: string) => {
+    if (!window.confirm('Xóa bản ghi DNS này? Thao tác có thể ảnh hưởng dịch vụ đang dùng bản ghi.')) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const r = await fetch('/api/v1/dns/records/' + encodeURIComponent(id), { method: 'DELETE' });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Không thể xóa DNS record.');
+      setNotice('Đã xóa bản ghi DNS.'); await load();
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(false); }
+  };
+
+  return <section className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-4 sm:p-5 space-y-4">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-3"><div className="rounded-xl bg-cyan-500/10 p-2 text-cyan-300"><Cloud className="h-5 w-5" /></div><div><h3 className="font-semibold text-white">DNS Manager · Live</h3><p className="text-xs text-slate-400">Quản lý bản ghi thật qua API; nameserver vẫn giữ nguyên.</p></div></div>
+      <button type="button" onClick={() => void load()} disabled={busy} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-200 disabled:opacity-50"><RefreshIcon className={"h-4 w-4 " + (busy ? 'animate-spin' : '')} /> Làm mới</button>
+    </div>
+    {zone && <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-slate-300">Zone <b className="text-white">{zone.name}</b> · {zone.status} · Nameservers: {(zone.nameServers || []).join(', ')}</div>}
+    {error && <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{error}</div>}
+    {notice && <div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{notice}</div>}
+    <form onSubmit={add} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2">
+      <select aria-label="Loại DNS" value={type} onChange={e => setType(e.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white">{['A','AAAA','CNAME','TXT','MX','CAA','SRV','NS'].map(t => <option key={t}>{t}</option>)}</select>
+      <input aria-label="Tên bản ghi" required value={name} onChange={e => setName(e.target.value)} placeholder="api.velclaw.tech" className="min-w-0 rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white sm:col-span-1 lg:col-span-2" />
+      <input aria-label="Giá trị bản ghi" required value={content} onChange={e => setContent(e.target.value)} placeholder="Giá trị / IP / target" className="min-w-0 rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white sm:col-span-1 lg:col-span-2" />
+      <button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 px-3 py-3 text-sm font-semibold text-white disabled:opacity-50"><PlusCircle className="h-4 w-4" /> Thêm record</button>
+      <label className="flex items-center gap-2 px-1 text-xs text-slate-300">TTL <input type="number" min="60" max="86400" value={ttl} onChange={e => setTtl(Number(e.target.value))} className="w-24 rounded-lg border border-slate-700 bg-slate-900 px-2 py-2" /></label>
+      {['A','AAAA','CNAME'].includes(type) && <label className="flex items-center gap-2 px-1 text-xs text-slate-300"><input type="checkbox" checked={proxied} onChange={e => setProxied(e.target.checked)} /> Cloudflare proxy</label>}
+    </form>
+    <div className="overflow-x-auto rounded-xl border border-slate-800"><table className="w-full text-left text-xs"><thead className="bg-slate-900 text-slate-400"><tr><th className="p-3">Type</th><th className="p-3">Name</th><th className="p-3">Content</th><th className="p-3">TTL</th><th className="p-3">Proxy</th><th className="p-3">Thao tác</th></tr></thead><tbody>{records.map(r => <tr key={r.id} className="border-t border-slate-800 text-slate-200"><td className="p-3 font-mono">{r.type}</td><td className="p-3 font-mono">{r.name}</td><td className="p-3 font-mono max-w-64 break-all">{r.content}</td><td className="p-3">{r.ttl === 1 ? 'Auto' : r.ttl}</td><td className="p-3">{r.proxied ? 'Bật' : 'Tắt'}</td><td className="p-3"><button type="button" onClick={() => void remove(r.id)} disabled={busy} className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 px-2 py-1.5 text-rose-300 disabled:opacity-50"><Trash className="h-3.5 w-3.5" /> Xóa</button></td></tr>)}</tbody></table></div>
+    {!busy && !records.length && !error && <p className="text-sm text-slate-400">Không có bản ghi thuộc bộ lọc này.</p>}
+    <p className="text-[11px] text-slate-500">DNS mutations require an admin account. Không đổi nameserver từ màn hình này; kiểm tra kỹ bản ghi trước khi xóa.</p>
+  </section>;
+}
