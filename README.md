@@ -634,3 +634,22 @@ RESELLERCLUB_API_KEY=""
 ```
 
 Do not put live reseller credentials in Git. The provider reads them server-side only. ResellerClub's current documentation recommends sandbox testing before live provisioning.
+
+
+## DNS Manager API (Cloudflare)
+
+VelclawHost can manage DNS records through an authenticated server-side proxy. The API token is never sent to the browser. Configure these variables on the Render web service:
+
+- `CLOUDFLARE_API_TOKEN`: scoped Cloudflare API token with **Zone:Read** and **DNS:Edit** for the selected zone.
+- `CLOUDFLARE_ZONE_ID`: Cloudflare zone ID.
+- `CLOUDFLARE_ZONE_NAME`: zone apex, e.g. `velclaw.tech`.
+
+The DNS proxy endpoints require VelclawHost authentication:
+
+- `GET /api/v1/dns/status` — configuration and zone status.
+- `GET /api/v1/dns/records` — list records (optional `type`, `name`, `page`).
+- `POST /api/v1/dns/records` — create a record using `{ "type": "A|AAAA|CNAME|TXT|MX|CAA|SRV|NS", "name": "api.velclaw.tech", "content": "...", "ttl": 300, "proxied": false }`.
+- `PATCH /api/v1/dns/records/:id` — update a record.
+- `DELETE /api/v1/dns/records/:id` — delete a record.
+
+DNS mutations require the authenticated account to have the admin role. Names are restricted to the configured zone. **These endpoints do not change nameservers, registrar settings, DNSSEC, proxy mode for unrelated records, or any existing record unless explicitly requested.** Keep Cloudflare authoritative DNS enabled while validating the new control plane. Do not set `CLOUDFLARE_API_TOKEN` in source code or commit it to Git.
