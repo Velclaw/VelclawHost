@@ -400,12 +400,25 @@ body{min-height:100svh}
     const commitSha = req.body?.commitSha ? String(req.body.commitSha).trim() : null;
     const customDomain = req.body?.customDomain ? String(req.body.customDomain).trim().toLowerCase() : null;
     if (!projectName || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/.test(projectName)) return res.status(400).json({ error: 'Invalid projectName.' });
-    if (!/^https:\/\/github\.com\/[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9][A-Za-z0-9._-]{0,99}(?:\.git)?$/i.test(repoUrl)) return res.status(400).json({ error: 'Only canonical HTTPS GitHub repository URLs are supported.' });
+    let canonicalRepoUrl = '';
+    try {
+      const parsed = new URL(repoUrl);
+      const parts = parsed.pathname.replace(/\\/+$/, '').replace(/\\.git$/i, '').split('/').filter(Boolean);
+      if (parsed.protocol !== 'https:' || parsed.hostname.toLowerCase() !== 'github.com' ||
+          parsed.username || parsed.password || parsed.search || parsed.hash || parts.length !== 2 ||
+          !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(parts[0]) ||
+          !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(parts[1])) {
+        return res.status(400).json({ error: 'Enter a GitHub repository URL like https://github.com/owner/repo (without a file or issue path).' });
+      }
+      canonicalRepoUrl = `https://github.com/${parts[0]}/${parts[1]}`;
+    } catch {
+      return res.status(400).json({ error: 'Repository URL is invalid. Use https://github.com/owner/repo.' });
+    }
     if (!/^[A-Za-z0-9._/-]{1,120}$/.test(branch)) return res.status(400).json({ error: 'Invalid branch.' });
     if (commitSha && !/^[0-9a-f]{40}$/i.test(commitSha)) return res.status(400).json({ error: 'Invalid commit SHA.' });
     if (customDomain && !supportedDomain(customDomain)) return res.status(400).json({ error: 'Unsupported custom domain.' });
     const id = 'dep-' + Date.now();
-    const item: DeploymentRecord = { id, projectName, repoUrl, branch, commitSha, customDomain, status: 'queued', createdAt: new Date().toISOString() };
+    const item: DeploymentRecord = { id, projectName, repoUrl: canonicalRepoUrl, branch, commitSha, customDomain, status: 'queued', createdAt: new Date().toISOString() };
     deployments.set(id, item);
     await persistState();
     queueMetrics.enqueued += 1;
