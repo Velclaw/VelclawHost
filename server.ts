@@ -403,7 +403,7 @@ body{min-height:100svh}
     let canonicalRepoUrl = '';
     try {
       const parsed = new URL(repoUrl);
-      const parts = parsed.pathname.replace(/\\/+$/, '').replace(/\\.git$/i, '').split('/').filter(Boolean);
+      const parts = parsed.pathname.replace(/\/+$/, '').replace(/\.git$/i, '').split('/').filter(Boolean);
       if (parsed.protocol !== 'https:' || parsed.hostname.toLowerCase() !== 'github.com' ||
           parsed.username || parsed.password || parsed.search || parsed.hash || parts.length !== 2 ||
           !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(parts[0]) ||
