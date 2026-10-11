@@ -10,8 +10,7 @@ import { createDeploymentQueue } from "./lib/control-plane/deployment-queue";
 import { getRegistrarProvider } from "./lib/providers";
 import { RegistrarProviderError } from "./lib/providers/registrar";
 import { VELCLAW_FIRST_PARTY_DOMAINS, isSupportedDomain } from "./lib/control-plane/domain-config";
-import { createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
-import { promisify } from 'node:util';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 let aiClient: GoogleGenAI | null = null;
 const execFileAsync = promisify(execFile);
@@ -97,9 +96,6 @@ async function startServer() {
     res.status(200).type('html').send(velclawAuthPage());
   });
 
-  app.get('/auth/google', (_req, res) => res.redirect('/'));
-  app.get('/auth/github', (_req, res) => res.redirect('/'));
-  app.get('/auth/velclaw', (_req, res) => res.redirect('/'));
 
   function velclawAuthPage() {
     return `<!doctype html>
@@ -138,7 +134,6 @@ document.getElementById('login').addEventListener('submit',async function(e){e.p
   const jwtSecret = process.env.VELCLAWHOST_JWT_SECRET?.trim() || '';
   const adminEmail = (process.env.VELCLAWHOST_ADMIN_EMAIL || '').trim().toLowerCase();
   const adminPassword = process.env.VELCLAWHOST_ADMIN_PASSWORD || '';
-  const scrypt = promisify(scryptCallback);
   const roleRank: Record<string, number> = { viewer: 1, member: 2, admin: 3, owner: 4 };
   const roleAtLeast = (role: string, required: string) => (roleRank[role] || 0) >= (roleRank[required] || 99);
   const signJwt = (payload: Record<string, unknown>) => {
