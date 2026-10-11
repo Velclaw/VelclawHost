@@ -1,4 +1,10 @@
-# 🛡️ Velclaw Hosting Platform & Control Plane
+<p align="center">
+  <img src="public/velclaw-logo.svg" alt="Velclaw logo" width="120" />
+</p>
+
+<h1 align="center">VelclawHost</h1>
+
+<p align="center">Deploy. Build. Grow. — Velclaw infrastructure control plane.</p>
 
 > **Hệ thống Quản lý Dịch vụ Lưu trữ Web, Giám sát Hạ tầng Thời gian thực & Điều phối Tên miền Tự động (Domain & Deployment Control Plane).**
 
