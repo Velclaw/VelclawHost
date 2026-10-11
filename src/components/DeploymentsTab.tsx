@@ -41,12 +41,12 @@ export const DeploymentsTab:React.FC=()=>{
    const normalizedRepo=`https://github.com/${parts[0]}/${parts[1]}`;
    const r=await fetch('/api/v1/deployments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectName:name,repoUrl:normalizedRepo,branch:branchName})});
    const p=await r.json().catch(()=>({error:'Máy chủ trả về phản hồi không hợp lệ.'}));
-   if(!r.ok) throw new Error(p.error||`Deploy thất bại (HTTP ${r.status}).`);
+   if(!r.ok) throw new Error([p.message,p.error].filter(Boolean).join(' — ')||`Deploy thất bại (HTTP ${r.status}).`);
    await load();
   } catch(e) { setError(e instanceof Error?e.message:'Không thể tạo deployment.'); }
   finally { setCreating(false); }
  };
- const retry=async(id:string)=>{const r=await fetch(`/api/v1/deployments/${encodeURIComponent(id)}/execute`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(!r.ok){const p=await r.json().catch(()=>({}));setError(p.error||'Retry failed');return}await load()};
+ const retry=async(id:string)=>{const r=await fetch(`/api/v1/deployments/${encodeURIComponent(id)}/execute`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(!r.ok){const p=await r.json().catch(()=>({}));setError([p.message,p.error].filter(Boolean).join(' — ')||'Retry thất bại');return}await load()};
  return <section className="space-y-6">
   <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><div className="vc-next-kicker">Deployment platform</div><h1 className="vc-next-title mt-2">Deployments</h1><p className="mt-2 text-sm text-zinc-500">Git → validate → build → runtime → health check, theo mô hình Vercel/Render.</p></div><div className="flex items-center gap-2 text-[11px] text-zinc-500"><span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"/> Live control plane</div></div>
   <div className="grid gap-3 sm:grid-cols-4">{[['Deployments',counts.total,'All'],['Ready',counts.ready,'Production'],['In progress',counts.active,'Pipeline'],['Failed',counts.failed,'Needs attention']].map(([label,value,sub])=><div key={String(label)} className="vc-next-surface p-4"><div className="text-[10px] uppercase tracking-widest text-zinc-500">{label}</div><div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div><div className="mt-1 text-[10px] text-zinc-600">{sub}</div></div>)}</div>
