@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+<title id="title">Velclaw</title><desc id="desc">Geometric triangular Velclaw mark in electric blue.</desc>
+<defs><linearGradient id="g" x1="28" y1="22" x2="220" y2="234" gradientUnits="userSpaceOnUse"><stop stop-color="#6ca2ff"/><stop offset=".48" stop-color="#2864e8"/><stop offset="1" stop-color="#10172f"/></linearGradient></defs>
+<path d="M24 34h67l54 98-33 55L24 34Z" fill="url(#g)"/>
+<path d="M101 34h131L137 156l-32-54 32-42h-36V34Z" fill="#2864e8"/>
+<path d="M101 34h36l-36 68-31-50 31-18Z" fill="#6ca2ff"/>
+</svg>
