@@ -1,10 +1,10 @@
 export const VELCLAW_FIRST_PARTY_DOMAINS = {
   platform: 'velclaw.site',
-  developer: 'velclaw.dev',
-  application: 'velclaw.app',
+  developer: 'api.velclaw.site',
+  application: 'app.velclaw.site',
 } as const;
 
-export const VELCLAW_FIRST_PARTY_TLDS = ['site', 'dev', 'app'] as const;
+export const VELCLAW_FIRST_PARTY_TLDS = ['site'] as const;
 
 export function getFirstPartyRole(domain: string) {
   const value = domain.trim().toLowerCase().replace(/\.$/, '');
