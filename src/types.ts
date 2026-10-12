@@ -1,6 +1,8 @@
 export type TabType = 
   | 'deployments'
   | 'overview'
+  | 'projects'
+  | 'settings'
   | 'domains'
   | 'dns-ssl'
   | 'metrics-charts'
