@@ -1059,9 +1059,10 @@ const params=new URLSearchParams(location.search);let mode=params.get('mode')===
 
   // DNS management proxy. Credentials remain server-side; this never changes registrar nameservers.
   const cloudflareDnsConfig = () => ({
-    token: process.env.CLOUDFLARE_API_TOKEN?.trim() || '',
-    zoneId: process.env.CLOUDFLARE_ZONE_ID?.trim() || '',
-    zoneName: (process.env.CLOUDFLARE_ZONE_NAME || '').trim().toLowerCase().replace(/\.$/, ''),
+    // Support the requested _3 credentials while retaining backward compatibility.
+    token: (process.env.CLOUDFLARE_API_TOKEN_3 || process.env.CLOUDFLARE_API_TOKEN || '').trim(),
+    zoneId: (process.env.CLOUDFLARE_ZONE_ID_3 || process.env.CLOUDFLARE_ZONE_ID || '').trim(),
+    zoneName: (process.env.CLOUDFLARE_ZONE_NAME_3 || process.env.CLOUDFLARE_ZONE_NAME || '').trim().toLowerCase().replace(/\\.$/, ''),
   });
   async function cloudflareDnsRequest(pathname: string, init: RequestInit = {}) {
     const cfg = cloudflareDnsConfig();
