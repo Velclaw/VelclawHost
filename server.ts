@@ -301,8 +301,8 @@ const params=new URLSearchParams(location.search);let mode=params.get('mode')===
         subject = String(profile.sub); displayName = String(profile.name || profile.email || 'Google user'); email = String(profile.email || '').trim().toLowerCase();
       }
       if (!email || !subject) return fail(403, 'Tài khoản nhà cung cấp không có email đã xác minh.');
-      const allowlist = (process.env.VELCLAWHOST_OAUTH_ALLOWED_EMAILS || adminEmail).split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
-      if (allowlist.length && !allowlist.includes(email)) return fail(403, 'Email này chưa được phép truy cập VelclawHost. Liên hệ quản trị viên.');
+      // Open self-service OAuth: any provider-verified email may create/sign into a member account.
+      // Privileged access remains restricted to the configured owner email.
       const role = adminEmail && email === adminEmail ? 'owner' : 'member';
       const user = { id: provider + ':' + subject, email, name: displayName, role, provider };
       const token = signJwt(user);
