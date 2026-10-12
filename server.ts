@@ -1086,7 +1086,7 @@ const params=new URLSearchParams(location.search);let mode=params.get('mode')===
     const name = normalizeDnsName(body?.name);
     const content = String(body?.content ?? '').trim();
     if (!dnsTypes.has(type)) throw Object.assign(new Error('Unsupported DNS record type.'), { status: 400 });
-    if (!name || name.length > 253 || !/^(?:\\*\\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*$/.test(name)) {
+    if (!name || name.length > 253 || !/^(?:\*\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*$/.test(name)) {
       throw Object.assign(new Error('Invalid DNS record name.'), { status: 400 });
     }
     if (!content || content.length > 2048) throw Object.assign(new Error('DNS record content is required and must be at most 2048 characters.'), { status: 400 });
