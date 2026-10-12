@@ -34,10 +34,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [collapsed, setCollapsed] = useState(false);
 
   const groups: { label: string; items: NavItem[] }[] = [
-    { label: 'Workspace', items: [
+    { label: 'Main menu', items: [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+      { id: 'projects' as TabType, label: 'Projects', icon: Layers3 },
       { id: 'deployments', label: 'Deployments', icon: Rocket, badge: 'LIVE', tone: 'text-violet-300 bg-violet-500/10 border-violet-500/20' },
       { id: 'domains', label: 'Domains', icon: Globe },
+      { id: 'settings' as TabType, label: 'Settings', icon: Settings },
     ]},
     { label: 'Infrastructure', items: [
       { id: 'dns-ssl', label: 'DNS & SSL', icon: Server },
