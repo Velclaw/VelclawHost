@@ -680,7 +680,7 @@ export default function App() {
             </section>
           )}
 
-          {activeTab === 'deployments' && <DeploymentsTab />
+          {activeTab === 'deployments' && <DeploymentsTab />}
 
           {activeTab === 'overview' && (
             <OverviewTab
