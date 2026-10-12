@@ -1,0 +1,1 @@
+{ "$schema": "https://opencode.ai/config.json", "mcp": { "cổng thông tin velclaw-mcp": { "loại": "từ xa", "url": "https://mcp.velclaw.site/mcp", "oauth": {} } } }
