@@ -3,7 +3,7 @@ import { HostNode, MetricSnapshot, DnsRecord, SslInfo, SystemLog, SlowQuery, Api
 export const INITIAL_NODES: HostNode[] = [
   {
     id: 'node-01',
-    hostname: 'prod-edge-asia1.velclaw.cfd',
+    hostname: 'prod-edge-asia1.velclaw.site',
     ipV4: '104.21.78.142',
     ipV6: '2606:4700:3037::ac43:8e12',
     os: 'Debian GNU/Linux 12 (Bookworm x86_64)',
