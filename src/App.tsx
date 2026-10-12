@@ -72,7 +72,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (typeof window === 'undefined') return 'overview';
     const hash = window.location.hash.replace('#/','');
-    const valid: TabType[] = ['overview','deployments','domains','dns-ssl','metrics-charts','alerts','db-optimizer','logs','security-2fa','api-integration','plugins-tools','reports'];
+    const valid: TabType[] = ['overview','projects','deployments','domains','settings','dns-ssl','metrics-charts','alerts','db-optimizer','logs','security-2fa','api-integration','plugins-tools','reports'];
     return valid.includes(hash as TabType) ? hash as TabType : 'overview';
   });
 
@@ -604,12 +604,12 @@ export default function App() {
           <div className="vc-page-header">
             <div className="min-w-0">
               <div className="vc-breadcrumb"><span>VelclawHost</span><span>/</span><span>Production</span><span>/</span><strong>{({
-                overview:'Overview', deployments:'Deployments', domains:'Domains', 'dns-ssl':'DNS & SSL',
+                overview:'Overview', projects:'Projects', deployments:'Deployments', domains:'Domains', settings:'Settings', 'dns-ssl':'DNS & SSL',
                 'metrics-charts':'Analytics', alerts:'Alerts', logs:'Logs', 'db-optimizer':'Storage & Database',
                 'security-2fa':'Security', 'api-integration':'Integrations', 'plugins-tools':'Plugins & Tools', reports:'Usage & Reports'
               } as Record<TabType,string>)[activeTab]}</strong></div>
               <h1 className="vc-page-title">{({
-                overview:'Overview', deployments:'Deployments', domains:'Domains', 'dns-ssl':'DNS & SSL',
+                overview:'Overview', projects:'Projects', deployments:'Deployments', domains:'Domains', settings:'Settings', 'dns-ssl':'DNS & SSL',
                 'metrics-charts':'Analytics', alerts:'Alerts', logs:'Logs', 'db-optimizer':'Storage & Database',
                 'security-2fa':'Security', 'api-integration':'Integrations', reports:'Usage & Reports'
               } as Record<TabType,string>)[activeTab]}</h1>
@@ -637,7 +637,50 @@ export default function App() {
             </div>
           )}
           <div className="vc-next-container">
-          {activeTab === 'deployments' && <DeploymentsTab />}
+          {activeTab === 'projects' && (
+            <section className="space-y-5">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div><h2 className="text-xl font-semibold text-white">Projects</h2><p className="mt-1 text-sm text-slate-400">Các dự án và ứng dụng được quản lý bởi VelclawHost.</p></div>
+                  <button onClick={() => navigateTab('deployments')} className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white">Xem deployments</button>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <article className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+                  <div className="mb-3 flex items-center gap-3"><div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-300"><Globe className="h-5 w-5"/></div><div><h3 className="font-semibold text-white">VelclawHost</h3><p className="text-xs text-slate-400">Control plane</p></div></div>
+                  <p className="text-sm text-slate-400">Bảng điều khiển hạ tầng và quản lý tên miền.</p>
+                  <div className="mt-4 flex items-center justify-between"><span className="text-xs text-emerald-300">Ứng dụng hiện tại</span><a className="text-xs text-cyan-300 underline" href="https://velclawhost.onrender.com" target="_blank" rel="noreferrer">Mở ứng dụng</a></div>
+                </article>
+                <article className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+                  <div className="mb-3 flex items-center gap-3"><div className="rounded-xl bg-violet-500/10 p-3 text-violet-300"><Rocket className="h-5 w-5"/></div><div><h3 className="font-semibold text-white">Deployments</h3><p className="text-xs text-slate-400">Build & release</p></div></div>
+                  <p className="text-sm text-slate-400">Theo dõi trạng thái triển khai từ trang Deployments.</p>
+                  <button onClick={() => navigateTab('deployments')} className="mt-4 text-xs text-cyan-300 underline">Mở Deployments</button>
+                </article>
+              </div>
+            </section>
+          )}
+
+          {activeTab === 'settings' && (
+            <section className="space-y-5">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+                <h2 className="text-xl font-semibold text-white">Settings</h2>
+                <p className="mt-1 text-sm text-slate-400">Cài đặt giao diện và tùy chọn bảng điều khiển.</p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+                <div className="flex items-center justify-between gap-4"><div><h3 className="font-medium text-white">Giao diện</h3><p className="mt-1 text-sm text-slate-400">Chọn chế độ sáng hoặc tối; lựa chọn được lưu trên thiết bị này.</p></div><button onClick={() => setIsDarkMode(v => !v)} className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-white">{isDarkMode ? 'Đang dùng tối · Chuyển sáng' : 'Đang dùng sáng · Chuyển tối'}</button></div>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+                <div className="flex items-center justify-between gap-4"><div><h3 className="font-medium text-white">Bảo mật</h3><p className="mt-1 text-sm text-slate-400">Trạng thái xác thực hai yếu tố.</p></div><span className={twoFactor.enabled && twoFactor.verified ? 'rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300' : 'rounded-full bg-amber-500/10 px-3 py-1 text-xs text-amber-300'}>{twoFactor.enabled && twoFactor.verified ? '2FA đang bật' : '2FA chưa xác minh'}</span></div>
+                <button onClick={() => navigateTab('security-2fa')} className="mt-4 rounded-xl border border-slate-700 px-4 py-2 text-sm text-white">Mở Security</button>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+                <h3 className="font-medium text-white">Hạ tầng và DNS</h3><p className="mt-1 text-sm text-slate-400">Kiểm tra DNS & SSL riêng biệt; thay đổi nameserver chưa được bật ở dashboard.</p>
+                <button onClick={() => navigateTab('dns-ssl')} className="mt-4 rounded-xl border border-slate-700 px-4 py-2 text-sm text-white">Mở DNS & SSL</button>
+              </div>
+            </section>
+          )}
+
+          {activeTab === 'deployments' && <DeploymentsTab />
 
           {activeTab === 'overview' && (
             <OverviewTab
@@ -778,54 +821,7 @@ export default function App() {
         </main>
       </div>
 
-      {/* Mobile Bottom Quick Navigation Bar */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 h-16 border-t border-slate-800 bg-slate-950/95 backdrop-blur-md px-2 flex items-center justify-around">
-        <button
-          onClick={() => navigateTab('overview')}
-          className={`flex flex-col items-center gap-1 text-[10px] ${activeTab === 'overview' ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}
-        >
-          <LayoutDashboard className="w-5 h-5" />
-          <span>Tổng Quan</span>
-        </button>
-
-        <button
-          onClick={() => navigateTab('dns-ssl')}
-          className={`flex flex-col items-center gap-1 text-[10px] ${activeTab === 'dns-ssl' ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}
-        >
-          <Globe className="w-5 h-5" />
-          <span>DNS/SSL</span>
-        </button>
-
-        <button
-          onClick={() => navigateTab('metrics-charts')}
-          className={`flex flex-col items-center gap-1 text-[10px] ${activeTab === 'metrics-charts' ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}
-        >
-          <LineChart className="w-5 h-5" />
-          <span>Biểu Đồ</span>
-        </button>
-
-        <button
-          onClick={() => navigateTab('alerts')}
-          className={`relative flex flex-col items-center gap-1 text-[10px] ${activeTab === 'alerts' ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}
-        >
-          <BellRing className="w-5 h-5" />
-          <span>Cảnh Báo</span>
-          {unreadAlertsCount > 0 && (
-            <span className="absolute -top-1 right-2 w-3.5 h-3.5 bg-rose-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">
-              {unreadAlertsCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => navigateTab('security-2fa')}
-          className={`flex flex-col items-center gap-1 text-[10px] ${activeTab === 'security-2fa' ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}
-        >
-          <ShieldCheck className="w-5 h-5" />
-          <span>2FA MFA</span>
-        </button>
-      </nav>
-
+      {/* Mobile navigation uses the hamburger menu so each section stays on its own page. */}
       {/* Floating Action Button for Voice Assistant */}
       <button
         id="floating-voice-assistant-fab"
