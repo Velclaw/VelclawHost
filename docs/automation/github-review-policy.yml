@@ -1,0 +1,50 @@
+version: 1
+default_mode: approval
+repositories:
+  - Velclaw/VELCLAW
+  - Velclaw/VelclawHost
+auto_merge:
+  enabled_by_default: false
+  allowed_merge_method: squash
+  require_non_draft: true
+  require_green_required_checks: true
+  require_no_merge_conflicts: true
+  require_current_head_sha_reviewed: true
+  require_branch_protection: true
+  require_all_required_reviews: true
+  require_security_findings_below: high
+  require_rollback_plan_for_runtime_changes: true
+  max_changed_files: 20
+  max_additions: 500
+  max_deletions: 300
+  blocked_paths:
+    - ".github/workflows/**"
+    - "**/migrations/**"
+    - "db/**"
+    - "**/.env*"
+    - "**/*secret*"
+    - "**/*credential*"
+    - "infra/**"
+    - "terraform/**"
+    - "wrangler.jsonc"
+    - "render.yaml"
+    - "Dockerfile"
+  always_require_human_approval:
+    - authentication_or_authorization
+    - oauth_or_session_security
+    - secrets_or_environment_variables
+    - billing_or_payment
+    - database_schema_or_data_migration
+    - data_deletion_or_destructive_operation
+    - production_dns_tls_waf_access_or_routing
+    - ci_permissions_or_supply_chain
+    - public_api_or_database_contract_breaking_change
+    - dependency_major_upgrade
+    - security_finding_high_or_critical
+    - failed_or_missing_required_checks
+    - unclear_scope_or_missing_rollback
+review:
+  must_report_severity: [critical, high, medium, low]
+  must_report_tests_and_evidence: true
+  must_report_unverified_assumptions: true
+  never_log_secret_values: true
