@@ -46,7 +46,7 @@ export const DnsSslTab: React.FC<DnsSslTabProps> = ({
   onToggleProxy,
   onDeleteDnsRecord,
 }) => {
-  const [selectedTld, setSelectedTld] = useState<VelclawTld>('cfd');
+  const [selectedTld, setSelectedTld] = useState<VelclawTld>('site');
   const [domainList, setDomainList] = useState<VelclawDomainConfig[]>(VELCLAW_DOMAINS);
   const [isAddingRecord, setIsAddingRecord] = useState(false);
   const [recordType, setRecordType] = useState<DnsRecord['type']>('A');
