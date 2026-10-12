@@ -127,7 +127,7 @@ export const INITIAL_ALERTS: SystemAlert[] = [
     type: 'CPU_HIGH',
     severity: 'warning',
     title: 'Cảnh báo phụ tải CPU chạm 78.4%',
-    message: 'Tải CPU của node prod-edge-asia1.velclaw.cfd đã vượt ngưỡng cảnh báo 75% trong 3 phút.',
+    message: 'Tải CPU của node prod-edge-asia1.velclaw.site đã vượt ngưỡng cảnh báo 75% trong 3 phút.',
     timestamp: 'Hôm nay, 14:15:20',
     value: 78.4,
     threshold: 75,
