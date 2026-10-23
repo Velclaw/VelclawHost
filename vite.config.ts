@@ -4,6 +4,9 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    // GitHub Pages project sites are served from /<repository-name>/.
+    // Keep local development and non-Pages deployments at the root.
+    base: process.env.GITHUB_PAGES === 'true' ? '/VelclawHost/' : '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
