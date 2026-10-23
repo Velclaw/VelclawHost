@@ -55,7 +55,8 @@ import {
   Database, 
   ShieldCheck,
   Bell,
-  Mic
+  Mic,
+  Rocket
 } from 'lucide-react';
 
 export default function App() {
