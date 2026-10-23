@@ -9,6 +9,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write
 
 concurrency:
   group: pages
@@ -35,14 +36,15 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const runId = context.runId;
             const { data } = await github.rest.actions.listWorkflowRunArtifacts({
               owner,
               repo,
-              run_id: runId,
+              run_id: context.runId,
             });
 
-            for (const artifact of data.artifacts.filter((a) => a.name === 'github-pages')) {
+            for (const artifact of data.artifacts.filter((a) =>
+              a.name === 'github-pages' || a.name === 'velclawhost-pages-build'
+            )) {
               await github.rest.actions.deleteArtifact({
                 owner,
                 repo,
@@ -57,6 +59,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
+          name: velclawhost-pages-build
 
   deploy:
     environment:
@@ -68,3 +71,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: velclawhost-pages-build
