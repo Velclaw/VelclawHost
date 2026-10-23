@@ -1,0 +1,5 @@
+exclude:
+  - content/
+  - .github/
+  - Gemfile
+  - Gemfile.lock
