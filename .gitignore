@@ -12,3 +12,5 @@ data/
 
 .velclawhost-tmp/
 deploy/generated/Caddyfile
+
+generated/
