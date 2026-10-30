@@ -7,6 +7,8 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 // before a dedicated database has been connected. Runtime auth/database actions
 // still require DATABASE_URL or DIRECT_URL to point at the new PostgreSQL store.
 const connectionString =
+  process.env.AUTH_DATABASE_URL ??
+  process.env.AUTH_DIRECT_URL ??
   process.env.DATABASE_URL ??
   process.env.DIRECT_URL ??
   process.env.POSTGRES_PRISMA_URL ??
