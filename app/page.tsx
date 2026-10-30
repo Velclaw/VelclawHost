@@ -7,8 +7,8 @@ const Dashboard = dynamic(() => import("../src/App"), {
   loading: () => (
     <main className="grid min-h-screen place-items-center bg-[#030304] px-6 text-center text-sm text-zinc-400">
       <div>
-        <div className="mb-3 text-base font-semibold text-zinc-100">VelclawHost</div>
-        <p>Đang khởi tạo Cloud Infrastructure Console…</p>
+        <div className="mb-3 text-base font-semibold text-zinc-100">VelClawHost</div>
+        <p>Đang khởi tạo VelClawHost Dashboard…</p>
       </div>
     </main>
   ),

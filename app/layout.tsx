@@ -1,19 +1,31 @@
 import type { Metadata, Viewport } from "next";
 import "../src/index.css";
 
+const siteUrl = "https://velclawhost.velclaw.app";
+
 export const metadata: Metadata = {
-  title: "VelclawHost — Cloud Infrastructure",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "VelClawHost — Cloud Infrastructure",
+    template: "%s | VelClawHost",
+  },
   description:
-    "VelclawHost — bảng điều khiển hạ tầng hosting: quản lý hostname và domain, DNS/TLS, triển khai ứng dụng, giám sát CPU/RAM, cảnh báo, nhật ký và báo cáo.",
-  applicationName: "VelclawHost",
+    "VelClawHost — bảng điều khiển hạ tầng hosting: quản lý domain, DNS/TLS, triển khai ứng dụng, giám sát và bảo mật.",
+  applicationName: "VelClawHost",
+  alternates: { canonical: "/" },
   openGraph: {
-    title: "VelclawHost — Cloud Infrastructure",
+    title: "VelClawHost — Cloud Infrastructure",
     description:
       "Một workspace để quản lý hosting, domain, DNS/TLS, deployments và tình trạng hạ tầng.",
-    siteName: "VelclawHost",
+    siteName: "VelClawHost",
+    url: siteUrl,
     type: "website",
   },
-  twitter: { card: "summary" },
+  twitter: {
+    card: "summary",
+    title: "VelClawHost",
+    description: "Cloud infrastructure control plane.",
+  },
   icons: { icon: "/favicon.ico" },
 };
 
