@@ -1,5 +1,5 @@
 "use server";
-import { signOut } from "../../auth";
+import { signOut } from "../../src/auth";
 export async function logout() {
   await signOut({ redirectTo: "/login" });
 }
