@@ -144,23 +144,6 @@ async function startServer() {
 
   const getConfiguredRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_REGISTRAR || 'none');
   const getSourceRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_SOURCE_REGISTRAR || 'none');
-  const requireApiToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const auth = req.header('authorization') || '';
-    if (apiToken && auth === 'Bearer ' + apiToken) {
-      (req as any).velclawAuth = { id: 'service-token', email: 'service', role: 'owner', provider: 'service' };
-      return next();
-    }
-    try {
-      const token = readJwt(req);
-      if (!token) throw new Error('Please sign in to VelclawHost.');
-      const payload = verifyJwt(token);
-      (req as any).velclawAuth = { id: payload.id, email: payload.email, role: payload.role, provider: payload.provider || 'velclawhost' };
-      return next();
-    } catch {
-      return res.status(401).json({ error: 'Unauthorized', code: 'AUTH_REQUIRED', message: 'Đăng nhập VelclawHost để tiếp tục.' });
-    }
-  };
-
   const runtimeWorkerUrl = process.env.RUNTIME_WORKER_URL?.trim().replace(/\/$/, '') || '';
   const runtimeWorkerToken = process.env.RUNTIME_WORKER_TOKEN?.trim() || '';
 
