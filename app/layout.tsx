@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { AuthSessionProvider } from "./session-provider";
 import "../src/index.css";
 
 const siteUrl = "https://velclawhost.velclaw.app";
@@ -41,7 +42,7 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className="bg-slate-950 text-slate-100 antialiased selection:bg-violet-500/30 selection:text-violet-200">
-        <div id="root">{children}</div>
+        <AuthSessionProvider><div id="root">{children}</div></AuthSessionProvider>
         <Analytics />
       </body>
     </html>
