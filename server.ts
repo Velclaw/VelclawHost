@@ -1,4 +1,5 @@
 import express from "express";
+import { getToken } from "next-auth/jwt";
 import path from "path";
 import os from "node:os";
 import fs from "node:fs/promises";
@@ -91,263 +92,59 @@ async function startServer() {
   const deploymentQueue = createDeploymentQueue(process.env.VELCLAWHOST_STATE_STORE === 'postgres' ? process.env.DATABASE_URL : undefined);
   const workerId = process.env.VELCLAWHOST_WORKER_ID?.trim() || 'worker-' + process.pid;
 
-  // VelclawHost-branded native login page. Prevent old Cloudflare/provider login HTML
-  // from being reused by browser or intermediary caches after a deployment.
-  app.get(['/auth', '/auth/'], (_req, res) => {
-    res.set({
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      'Surrogate-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff',
-      'Referrer-Policy': 'strict-origin-when-cross-origin',
-    });
-    res.status(200).type('html').send(velclawAuthPage());
+  // Browser authentication is owned by Auth.js in Next.js. Keep a compatibility redirect only.
+  app.get(['/auth', '/auth/'], (req, res) => {
+    const queryIndex = req.url.indexOf('?');
+    const query = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
+    const authBaseUrl = (process.env.VELCLAWHOST_PUBLIC_URL || 'https://velclawhost.velclaw.app').replace(/\/+$/, '');
+    return res.redirect(302, authBaseUrl + '/login' + query);
   });
-
-
-  function velclawAuthPage() {
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"><meta name="theme-color" content="#08090b"><title>Velclaw — Account access</title><style>html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:pan-y}body{overflow-y:auto;overscroll-behavior-y:auto}input,textarea,select,button{font-size:16px!important;}
-:root{color-scheme:dark;--bg:#08090b;--panel:#0c0e11;--line:#292d34;--line2:#414751;--text:#f4f6f8;--muted:#929aa6;--blue:#3984ff;--mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}*{box-sizing:border-box;border-radius:0!important}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px}body{min-height:100svh;background-image:linear-gradient(#ffffff05 1px,transparent 1px),linear-gradient(90deg,#ffffff05 1px,transparent 1px);background-size:48px 48px}a{color:inherit;text-decoration:none}.top{height:76px;padding:0 clamp(18px,4vw,60px);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff12;background:#08090bdc}.brand{display:flex;align-items:center;gap:12px;font-size:18px;font-weight:800;letter-spacing:-.04em}.triangle{width:28px;height:28px;display:block;background:#f5f7fa;clip-path:polygon(0 0,100% 0,50% 100%);position:relative}.triangle:after{content:"";position:absolute;left:7px;top:6px;width:14px;height:14px;background:var(--bg);clip-path:polygon(0 0,100% 0,50% 100%)}.top-action{border:1px solid var(--line2);padding:11px 18px;min-width:90px;text-align:center;background:transparent;cursor:pointer;font:inherit;color:var(--text)}.top-action:hover,.oauth:hover,.other:hover{border-color:#aeb6c2;background:#ffffff08}main{min-height:calc(100svh - 140px);display:grid;place-items:center;padding:42px 18px}.card{width:min(100%,510px);padding:clamp(22px,5vw,42px);border:1px solid var(--line);background:linear-gradient(145deg,#0d0f12f5,#090a0cf5);box-shadow:0 24px 80px #0007}.eyebrow{color:#a7b1bf;font-size:11px;letter-spacing:.12em;text-transform:uppercase}.title{font-size:clamp(24px,4vw,32px);line-height:1.28;letter-spacing:-.055em;margin:16px 0 10px;font-weight:650}.subtitle{color:var(--muted);font-size:12px;line-height:1.8;margin:0 0 26px}.providers{display:grid;gap:10px}.oauth{display:flex;align-items:center;gap:14px;min-height:51px;width:100%;padding:0 15px;border:1px solid var(--line2);background:#0b0d10;color:var(--text);font:inherit;text-align:left;cursor:pointer}.oauth .glyph{width:23px;text-align:center;font-family:Arial,sans-serif;font-size:19px;font-weight:700}.oauth .label{flex:1}.oauth .arrow{color:#aab3c0;font-size:16px}.oauth:disabled{opacity:.52;cursor:not-allowed}.other{display:flex;align-items:center;justify-content:center;gap:10px;margin:18px 0;width:100%;min-height:38px;border:1px solid transparent;background:transparent;color:#b9c9df;font:inherit;cursor:pointer}.other:before,.other:after{content:"";height:1px;background:var(--line);flex:1}.email-link{display:flex;justify-content:center;align-items:center;gap:12px;width:100%;min-height:52px;margin:18px 0 0;border:1px solid var(--blue);background:var(--blue);color:#fff;font:inherit;font-weight:700;cursor:pointer}.email-link:hover{background:#236ce0}.email-form{display:none;margin-top:20px;border-top:1px solid var(--line);padding-top:18px}.email-form.visible{display:block}.field{display:grid;gap:8px;margin:14px 0}.field label{color:#b1bac6;font-size:10px;letter-spacing:.1em}.field input{width:100%;height:48px;border:1px solid var(--line2);background:#070809;color:#fff;padding:0 13px;font:inherit;outline:none}.field input:focus{border-color:#9bbfff}.submit{width:100%;min-height:49px;border:1px solid var(--blue);background:var(--blue);color:#fff;font:inherit;font-weight:700;cursor:pointer;margin-top:8px}.submit:disabled{opacity:.6;cursor:wait}.message{min-height:18px;margin-top:12px;color:#ffaaa9;font-size:11px;line-height:1.6;overflow-wrap:anywhere}.legal{margin-top:28px;padding-top:17px;border-top:1px solid var(--line);color:#7f8996;font-size:10px;line-height:1.9}.legal a{color:#c5d9ff;text-decoration:underline;text-underline-offset:3px}.foot{display:flex;justify-content:space-between;gap:16px;padding:0 clamp(18px,4vw,60px) 24px;color:#7d8794;font-size:10px}.foot strong{display:block;color:#c1c8d2;font-size:11px;margin-bottom:4px}.hidden{display:none!important}:focus-visible{outline:2px solid #8bb6ff;outline-offset:3px}@media(max-width:480px){.top{height:64px}.brand{font-size:16px}.triangle{width:24px;height:24px}main{padding:26px 13px;align-items:start}.card{padding:24px 18px}.foot{font-size:9px}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
-
-/* Mobile viewport stability: prevent iOS focus zoom and visual viewport jumps. */
-html{-webkit-text-size-adjust:100%;text-size-adjust:100%;width:100%;overflow-x:hidden;overscroll-behavior-x:none}
-body{width:100%;max-width:100%;overflow-x:hidden;overflow-wrap:anywhere}
-input,select,textarea,button{font-size:16px!important;line-height:1.4;max-width:100%;min-width:0}
-.field input{font-size:16px!important;height:48px;scroll-margin-block:24px;touch-action:manipulation}
-main{width:100%;min-width:0}
-.card,.field,.email-form{min-width:0;max-width:100%}
-@supports (height:100dvh){body{min-height:100dvh}main{min-height:calc(100dvh - 140px)}}
-@media(max-width:600px){
-  html,body{width:100%;min-width:0}
-  .top{height:64px;padding-left:16px;padding-right:16px}
-  main{min-height:calc(100svh - 110px);padding:18px 12px 28px;display:block}
-  .card{width:100%;max-width:510px;margin:0 auto;padding:22px 16px;box-shadow:0 12px 36px #0005}
-  .title{font-size:clamp(22px,6vw,30px);overflow-wrap:anywhere}
-  .subtitle{font-size:13px}
-  .field input{width:100%;min-width:0;min-height:48px;padding:0 12px}
-  .foot{padding:0 12px 18px;flex-wrap:wrap}
-}
-@media(max-width:360px){.card{padding:18px 12px}.top-action{min-width:76px;padding:10px 12px}.brand{gap:8px}}
-
-/* iOS Safari: keep native page zoom accessible; 16px controls prevent focus zoom. */
-html,body{width:100%;max-width:100%;overflow-x:hidden;overscroll-behavior-x:none}
-body{min-height:100svh}
-main{width:100%;max-width:100%;transition:none!important}
-input,textarea,select{font-size:16px!important}
-@media(max-width:600px){input,textarea,select{font-size:16px!important}}
-
-/* Mobile layout baseline: iPhone CSS viewport 390-430px (reference 402x874). */
-html{font-size:16px;-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:pan-y}
-body{font-size:16px;line-height:1.55;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:auto;touch-action:pan-y}
-*,*::before,*::after{box-sizing:border-box}
-img,svg,video,canvas,iframe{max-width:100%}
-input,textarea,select,button{font-size:16px!important;line-height:1.4;max-width:100%;min-width:0}
-button,a.btn,.btn,[role="button"]{min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
-@media(max-width:430px){
-  body{width:100%;min-width:0}
-  main,.main,.content,.wrap,.container,.shell,.layout{max-width:100%;min-width:0}
-  p,li,label,.subtitle,.muted,.description{overflow-wrap:anywhere}
-  .top,header,.nav,.top-actions,.actions{gap:8px;flex-wrap:wrap}
-  .content,main{padding-left:16px;padding-right:16px}
-  .grid{grid-template-columns:minmax(0,1fr)}
-  table{display:block;max-width:100%;overflow-x:auto}
-  pre,code{max-width:100%;overflow-x:auto;overflow-wrap:anywhere}
-}
-</style></head><body><header class="top"><a class="brand" href="/" aria-label="Velclaw home"><span class="triangle" aria-hidden="true"></span><span>Velclaw</span></a><button class="top-action" id="switchMode" type="button">Log In</button></header><main><section class="card"><div class="eyebrow" id="eyebrow">// CREATE YOUR WORKSPACE</div><h1 class="title" id="heading">Your first deploy is just a sign-up away.</h1><p class="subtitle" id="subheading">One account for your projects, deployments, and infrastructure.</p><div class="providers" id="providers"><button class="oauth" type="button" data-provider="google" title="Continue with Google"><span class="glyph" style="color:#4285f4">G</span><span class="label">Continue with Google</span><span class="arrow">↗</span></button><button class="oauth" type="button" data-provider="github" title="Continue with GitHub"><span class="glyph">◉</span><span class="label">Continue with GitHub</span><span class="arrow">↗</span></button><button class="oauth extra hidden" type="button" disabled><span class="glyph">◎</span><span class="label">Continue with ChatGPT</span><span class="arrow">↗</span></button><button class="oauth extra hidden" type="button" disabled><span class="glyph">●</span><span class="label">Continue with Apple</span><span class="arrow">↗</span></button><button class="other" id="otherOptions" type="button">Show other options <span id="otherArrow">↓</span></button></div><button class="email-link" id="emailToggle" type="button"><span>✉</span><span id="emailLabel">Continue with Email</span><span>→</span></button><form class="email-form" id="emailForm"><div class="field"><label for="email">EMAIL ADDRESS</label><input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required></div><div class="field"><label for="password">PASSWORD</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required></div><button class="submit" id="submit" type="submit">Create account ↗</button><div class="message" id="message" role="status" aria-live="polite"></div></form><div class="legal" id="legal">By continuing, you agree to our <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>. OAuth providers appear when their credentials are configured.</div></section></main><footer class="foot"><div><strong>Velclaw</strong>Deploy. Scale. Own.</div><div>ACCOUNT GATEWAY // 1.0.0</div></footer><script>
-const params=new URLSearchParams(location.search);let mode=params.get('mode')==='login'?'login':'signup';let emailOpen=false;const switchMode=document.getElementById('switchMode'),heading=document.getElementById('heading'),subheading=document.getElementById('subheading'),eyebrow=document.getElementById('eyebrow'),emailToggle=document.getElementById('emailToggle'),emailLabel=document.getElementById('emailLabel'),emailForm=document.getElementById('emailForm'),submit=document.getElementById('submit'),password=document.getElementById('password'),message=document.getElementById('message'),otherOptions=document.getElementById('otherOptions');function renderMode(){const signup=mode==='signup';switchMode.textContent=signup?'Log In':'Sign Up';eyebrow.textContent=signup?'// CREATE YOUR WORKSPACE':'// WELCOME BACK';heading.textContent=signup?'Your first deploy is just a sign-up away.':'Log in to Velclaw';subheading.textContent=signup?'One account for your projects, deployments, and infrastructure.':'Access your projects, deployments, and infrastructure settings.';emailLabel.textContent=signup?'Continue with Email':'Continue with Email';submit.textContent=signup?'Create account ↗':'Log in ↗';password.autocomplete=signup?'new-password':'current-password';password.placeholder=signup?'At least 8 characters':'Enter your password';message.textContent='';history.replaceState({},'',signup?'/auth?mode=signup':'/auth?mode=login');}switchMode.addEventListener('click',()=>{location.href=mode==='signup'?'/auth?mode=login':'/auth?mode=signup'});emailToggle.addEventListener('click',()=>{emailOpen=!emailOpen;emailForm.classList.toggle('visible',emailOpen);if(emailOpen)document.getElementById('email').focus()});otherOptions.addEventListener('click',()=>{const extras=[...document.querySelectorAll('.extra')];const show=extras[0].classList.contains('hidden');extras.forEach(el=>el.classList.toggle('hidden',!show));otherOptions.innerHTML=show?'Show fewer options <span>↑</span>':'Show other options <span>↓</span>';});renderMode();fetch('/api/v1/auth/providers',{cache:'no-store'}).then(r=>r.json()).then(data=>{document.querySelectorAll('[data-provider]').forEach(button=>{const provider=button.getAttribute('data-provider');const enabled=Boolean(data.providers&&data.providers[provider]);button.disabled=!enabled;button.title=enabled?'Continue with '+provider[0].toUpperCase()+provider.slice(1):provider[0].toUpperCase()+provider.slice(1)+' OAuth credentials are not configured in Render';button.style.opacity=enabled?'1':'.52';});}).catch(()=>{});document.querySelectorAll('[data-provider]').forEach(button=>button.addEventListener('click',()=>{if(!button.disabled)location.href='/api/v1/auth/oauth/'+button.getAttribute('data-provider');}));emailForm.addEventListener('submit',async e=>{e.preventDefault();message.textContent='';submit.disabled=true;const original=submit.textContent;submit.textContent='Please wait…';try{if(mode==='signup'){message.textContent='Account registration is not enabled on the server yet. This interface is ready, but registration must be connected to a persistent user database before accounts can be created.';return;}const response=await fetch('/api/v1/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value,password:password.value})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||data.message||'Login failed.');location.href='/dashboard';}catch(error){message.textContent=error instanceof Error?error.message:'Login failed.';}finally{submit.disabled=false;submit.textContent=original;}});</script><script>
-/* Track iOS visual viewport as the software keyboard opens/closes.
-   Keep layout anchored to the visible frame and gently reveal focused fields. */
-(function(){
-  var root=document.documentElement, vv=window.visualViewport, raf=0, lastKeyboard=false;
-  function updateViewport(){
-    raf=0;
-    var height=vv?vv.height:window.innerHeight;
-    var top=vv?vv.offsetTop:0;
-    var width=vv?vv.width:window.innerWidth;
-    root.style.setProperty('--visual-viewport-height',Math.max(1,height)+'px');
-    root.style.setProperty('--visual-viewport-top',Math.max(0,top)+'px');
-    root.style.setProperty('--visual-viewport-width',Math.max(1,width)+'px');
-    var active=document.activeElement;
-    var keyboard=!!(active && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName) && vv && (window.innerHeight-vv.height)>120);
-    root.classList.toggle('keyboard-open',keyboard);
-    if(keyboard && !lastKeyboard){
-      window.setTimeout(function(){
-        var el=document.activeElement;
-        if(el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)){
-          var rect=el.getBoundingClientRect();
-          var visibleTop=vv?vv.offsetTop:0;
-          var visibleBottom=visibleTop+(vv?vv.height:window.innerHeight);
-          if(rect.bottom>visibleBottom-16 || rect.top<visibleTop+12) el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'nearest'});
-        }
-      },120);
-    }
-    lastKeyboard=keyboard;
-  }
-  function schedule(){if(!raf)raf=requestAnimationFrame(updateViewport);}
-  if(vv){vv.addEventListener('resize',schedule,{passive:true});vv.addEventListener('scroll',schedule,{passive:true});}
-  window.addEventListener('resize',schedule,{passive:true});
-  document.addEventListener('focusin',schedule);
-  document.addEventListener('focusout',function(){window.setTimeout(schedule,120);});
-  updateViewport();
-})();
-</script></body></html>`;
-  }
 
   // API Health Endpoint
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", service: "Velclaw Hosting Platform Server", timestamp: new Date().toISOString() });
   });
 
-  // VelclawHost native authentication. No Cloudflare Access dependency.
+  // Auth.js is the only browser-session issuer. Express validates the Auth.js
+  // encrypted session cookie forwarded by the same-origin Next.js API rewrite.
   const apiToken = process.env.VELCLAWHOST_API_TOKEN?.trim() || '';
-  const jwtSecret = process.env.VELCLAWHOST_JWT_SECRET?.trim() || '';
   const adminEmail = (process.env.VELCLAWHOST_ADMIN_EMAIL || '').trim().toLowerCase();
-  const adminPassword = process.env.VELCLAWHOST_ADMIN_PASSWORD || '';
   const roleRank: Record<string, number> = { viewer: 1, member: 2, admin: 3, owner: 4 };
   const roleAtLeast = (role: string, required: string) => (roleRank[role] || 0) >= (roleRank[required] || 99);
-  const signJwt = (payload: Record<string, unknown>) => {
-    if (jwtSecret.length < 32) throw new Error('VELCLAWHOST_JWT_SECRET must be at least 32 characters.');
-    const enc = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
-    const head = enc({ alg: 'HS256', typ: 'JWT' });
-    const body = enc({ ...payload, iss: 'VelclawHost', iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000)+60*60*8 });
-    const data = head + '.' + body;
-    return data + '.' + createHmac('sha256', jwtSecret).update(data).digest('base64url');
-  };
-  const verifyJwt = (token: string) => {
-    if (jwtSecret.length < 32) throw new Error('JWT authentication is not configured.');
-    const parts = token.split('.');
-    if (parts.length !== 3) throw new Error('Invalid token.');
-    const expected = createHmac('sha256', jwtSecret).update(parts[0] + '.' + parts[1]).digest();
-    const actual = Buffer.from(parts[2], 'base64url');
-    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) throw new Error('Invalid token signature.');
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    if (payload.iss !== 'VelclawHost' || !Number.isFinite(payload.exp) || payload.exp <= Date.now()/1000) throw new Error('Token expired.');
-    return payload;
-  };
-  const readJwt = (req: express.Request) => {
+
+  const requireApiToken = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const authorization = req.header('authorization') || '';
-    const bearer = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
-    const cookie = (req.headers.cookie || '').split(';').map(v => v.trim()).find(v => v.startsWith('velclawhost_session='))?.slice('velclawhost_session='.length) || '';
-    return bearer || cookie;
-  };
-  const setSessionCookie = (res: express.Response, token: string) => res.setHeader('Set-Cookie', 'velclawhost_session=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800');
-  const clearSessionCookie = (res: express.Response) => res.setHeader('Set-Cookie', 'velclawhost_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
-
-  // OAuth sign-in (GitHub + Google). Configure provider credentials in Render, never in source control.
-  const oauthCookie = (name: string, value: string, maxAge: number) =>
-    name + '=' + encodeURIComponent(value) + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=' + maxAge;
-  const oauthProviders = () => ({
-    github: Boolean(process.env.GITHUB_OAUTH_CLIENT_ID?.trim() && process.env.GITHUB_OAUTH_CLIENT_SECRET?.trim()),
-    google: Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID?.trim() && process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim()),
-  });
-  app.get('/api/v1/auth/providers', (_req, res) => {
-    res.set('Cache-Control', 'no-store');
-    res.json({ status: 'success', providers: oauthProviders(), emailPassword: Boolean(adminEmail && adminPassword && jwtSecret.length >= 32) });
-  });
-  app.get('/api/v1/auth/oauth/:provider', (req, res) => {
-    const provider = String(req.params.provider || '').toLowerCase();
-    const enabled = oauthProviders();
-    if (provider !== 'github' && provider !== 'google') return res.status(404).send('Unsupported OAuth provider.');
-    if (!enabled[provider]) return res.status(503).send(provider[0].toUpperCase() + provider.slice(1) + ' sign-in is not configured yet. Add OAuth credentials in Render environment.');
-    if (jwtSecret.length < 32) return res.status(503).send('Authentication is not configured: VELCLAWHOST_JWT_SECRET must be at least 32 characters.');
-    const state = Buffer.from(randomBytes(32)).toString('base64url');
-    res.setHeader('Set-Cookie', oauthCookie('velclawhost_oauth_state', state, 600));
-    const redirectUri = (process.env.VELCLAWHOST_PUBLIC_URL || (req.protocol + '://' + req.get('host'))).replace(/\/$/, '') + '/api/v1/auth/oauth/' + provider + '/callback';
-    const params = new URLSearchParams({ client_id: provider === 'github' ? process.env.GITHUB_OAUTH_CLIENT_ID!.trim() : process.env.GOOGLE_OAUTH_CLIENT_ID!.trim(), redirect_uri: redirectUri, state });
-    if (provider === 'github') { params.set('scope', 'read:user user:email'); return res.redirect(302, 'https://github.com/login/oauth/authorize?' + params.toString()); }
-    params.set('response_type', 'code'); params.set('scope', 'openid email profile'); params.set('prompt', 'select_account');
-    return res.redirect(302, 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString());
-  });
-  app.get('/api/v1/auth/oauth/:provider/callback', async (req, res) => {
-    const provider = String(req.params.provider || '').toLowerCase();
-    const stateCookie = (req.headers.cookie || '').split(';').map(v => v.trim()).find(v => v.startsWith('velclawhost_oauth_state='))?.slice('velclawhost_oauth_state='.length) || '';
-    const clearState = oauthCookie('velclawhost_oauth_state', '', 0);
-    const fail = (status: number, message: string) => { res.setHeader('Set-Cookie', [clearState, 'velclawhost_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0']); return res.status(status).type('html').send('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Velclaw sign-in</title><main style="font:16px system-ui;max-width:520px;margin:15vh auto;padding:24px;color:#e5e7eb;background:#0b0d10"><h1>Không thể đăng nhập</h1><p>' + message.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]!) ) + '</p><a style="color:#93c5fd" href="/auth?mode=login">Quay lại VelclawHost</a></main>'); };
-    if (provider !== 'github' && provider !== 'google') return fail(404, 'OAuth provider không hợp lệ.');
-    if (!oauthProviders()[provider]) return fail(503, 'Nhà cung cấp OAuth chưa được cấu hình trong Render.');
-    const state = String(req.query.state || '');
-    let expectedState = '';
-    try { expectedState = decodeURIComponent(stateCookie); } catch {}
-    if (!state || !expectedState || state !== expectedState) return fail(400, 'State không hợp lệ hoặc đã hết hạn. Hãy thử đăng nhập lại.');
-    if (req.query.error || !req.query.code) return fail(400, 'Nhà cung cấp đã hủy hoặc từ chối đăng nhập.');
-    try {
-      const redirectUri = (process.env.VELCLAWHOST_PUBLIC_URL || (req.protocol + '://' + req.get('host'))).replace(/\/$/, '') + '/api/v1/auth/oauth/' + provider + '/callback';
-      const clientId = provider === 'github' ? process.env.GITHUB_OAUTH_CLIENT_ID!.trim() : process.env.GOOGLE_OAUTH_CLIENT_ID!.trim();
-      const clientSecret = provider === 'github' ? process.env.GITHUB_OAUTH_CLIENT_SECRET!.trim() : process.env.GOOGLE_OAUTH_CLIENT_SECRET!.trim();
-      const tokenResponse = await fetch(provider === 'github' ? 'https://github.com/login/oauth/access_token' : 'https://oauth2.googleapis.com/token', {
-        method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code: String(req.query.code), redirect_uri: redirectUri, ...(provider === 'google' ? { grant_type: 'authorization_code' } : {}) }),
-      });
-      const tokenData: any = await tokenResponse.json();
-      if (!tokenResponse.ok || !tokenData.access_token) return fail(502, 'Không đổi được mã OAuth thành access token.');
-      const headers = { Authorization: 'Bearer ' + tokenData.access_token, Accept: 'application/json', 'User-Agent': 'VelclawHost' };
-      let email = '', subject = '', displayName = '';
-      if (provider === 'github') {
-        const profileResponse = await fetch('https://api.github.com/user', { headers });
-        const profile: any = await profileResponse.json();
-        if (!profileResponse.ok || !profile.id) return fail(502, 'Không đọc được hồ sơ GitHub.');
-        subject = String(profile.id); displayName = String(profile.name || profile.login || 'GitHub user');
-        email = String(profile.email || '').trim().toLowerCase();
-        if (!email) {
-          const emailResponse = await fetch('https://api.github.com/user/emails', { headers });
-          const emails: any = await emailResponse.json();
-          if (emailResponse.ok && Array.isArray(emails)) email = String((emails.find((item: any) => item.primary && item.verified) || emails.find((item: any) => item.verified))?.email || '').trim().toLowerCase();
-        }
-      } else {
-        const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', { headers });
-        const profile: any = await profileResponse.json();
-        if (!profileResponse.ok || !profile.sub || profile.email_verified !== true) return fail(403, 'Google không cung cấp email đã xác minh.');
-        subject = String(profile.sub); displayName = String(profile.name || profile.email || 'Google user'); email = String(profile.email || '').trim().toLowerCase();
-      }
-      if (!email || !subject) return fail(403, 'Tài khoản nhà cung cấp không có email đã xác minh.');
-      // Open self-service OAuth: any provider-verified email may create/sign into a member account.
-      // Privileged access remains restricted to the configured owner email.
-      const role = adminEmail && email === adminEmail ? 'owner' : 'member';
-      const user = { id: provider + ':' + subject, email, name: displayName, role, provider };
-      const token = signJwt(user);
-      res.setHeader('Set-Cookie', [clearState, 'velclawhost_session=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800']);
-      return res.redirect(302, '/dashboard');
-    } catch (error) {
-      console.error('[oauth callback]', provider, error instanceof Error ? error.message : 'unknown error');
-      return fail(502, 'Xác thực OAuth thất bại. Kiểm tra cấu hình OAuth và URL callback trong Render/provider.');
-    }
-  });
-
-  app.post('/api/v1/auth/login', async (req, res) => {
-    const email = String(req.body?.email || '').trim().toLowerCase();
-    const password = String(req.body?.password || '');
-    if (!adminEmail || !adminPassword || jwtSecret.length < 32) return res.status(503).json({ error: 'Native login is not configured. Set VELCLAWHOST_ADMIN_EMAIL, VELCLAWHOST_ADMIN_PASSWORD and VELCLAWHOST_JWT_SECRET in Render environment.' });
-    const emailOk = email === adminEmail;
-    const supplied = Buffer.from(password);
-    const configured = Buffer.from(adminPassword);
-    const passOk = supplied.length === configured.length && timingSafeEqual(supplied, configured);
-    if (!emailOk || !passOk) return res.status(401).json({ error: 'Email hoặc mật khẩu không chính xác.' });
-    const user = { id: 'velclawhost-owner', email: adminEmail, role: 'owner', provider: 'velclawhost' };
-    const token = signJwt(user);
-    setSessionCookie(res, token);
-    return res.json({ status: 'success', user, token });
-  });
-  app.post('/api/v1/auth/logout', (_req, res) => { clearSessionCookie(res); res.json({ status: 'success' }); });
-  const getConfiguredRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_REGISTRAR || 'none');
-  const getSourceRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_SOURCE_REGISTRAR || 'none');
-  const requireApiToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const auth = req.header('authorization') || '';
-    if (apiToken && auth === 'Bearer ' + apiToken) {
+    if (apiToken && authorization === 'Bearer ' + apiToken) {
       (req as any).velclawAuth = { id: 'service-token', email: 'service', role: 'owner', provider: 'service' };
       return next();
     }
     try {
-      const token = readJwt(req);
-      if (!token) throw new Error('Please sign in to VelclawHost.');
-      const payload = verifyJwt(token);
-      (req as any).velclawAuth = { id: payload.id, email: payload.email, role: payload.role, provider: payload.provider || 'velclawhost' };
+      const token = await getToken({
+        req: req as any,
+        secret: process.env.AUTH_SECRET,
+        secureCookie: process.env.NODE_ENV === 'production',
+      });
+      if (!token?.sub) throw new Error('Auth.js session is missing or expired.');
+      const email = typeof token.email === 'string' ? token.email.trim().toLowerCase() : '';
+      const role = adminEmail && email === adminEmail ? 'owner' : 'member';
+      (req as any).velclawAuth = {
+        id: token.sub,
+        email,
+        role,
+        provider: 'authjs',
+      };
       return next();
     } catch {
-      return res.status(401).json({ error: 'Unauthorized', code: 'AUTH_REQUIRED', message: 'Đăng nhập VelclawHost để tiếp tục.' });
+      return res.status(401).json({
+        error: 'Unauthorized',
+        code: 'AUTH_REQUIRED',
+        message: 'Đăng nhập VelClawHost để tiếp tục.',
+      });
     }
   };
 
+  const getConfiguredRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_REGISTRAR || 'none');
+  const getSourceRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_SOURCE_REGISTRAR || 'none');
   const runtimeWorkerUrl = process.env.RUNTIME_WORKER_URL?.trim().replace(/\/$/, '') || '';
   const runtimeWorkerToken = process.env.RUNTIME_WORKER_TOKEN?.trim() || '';
 

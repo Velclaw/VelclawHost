@@ -14,7 +14,12 @@
     "lint": "tsc --noEmit",
     "worker:build": "node runtime-worker/build.cjs",
     "worker:dev": "tsx runtime-worker/index.ts",
-    "worker:start": "node dist/runtime-worker.cjs"
+    "worker:start": "node dist/runtime-worker.cjs",
+    "prebuild": "prisma generate",
+    "prebuild:next": "prisma generate",
+    "prelint": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -33,7 +38,11 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "recharts": "^3.10.1",
-    "vite": "^8.3.0"
+    "vite": "^8.3.0",
+    "@auth/prisma-adapter": "^2.11.3",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "bcryptjs": "^3.0.2"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
@@ -45,7 +54,9 @@
     "esbuild": "^0.28.2",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "prisma": "^7.10.1"
   },
-  "author": "Huỳnh Thương"
+  "author": "Huỳnh Thương",
+  "packageManager": "bun@1.4.4"
 }

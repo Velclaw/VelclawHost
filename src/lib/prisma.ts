@@ -1,0 +1,19 @@
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../../generated/prisma/client';
+
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+// The local fallback lets Next.js collect route metadata during a Preview build
+// before a dedicated database has been connected. Runtime auth/database actions
+// still require AUTH_DATABASE_URL or AUTH_DIRECT_URL to point at the dedicated PostgreSQL store.
+const connectionString =
+  process.env.AUTH_DATABASE_URL ??
+  process.env.AUTH_DIRECT_URL ??
+  'postgresql://build:build@127.0.0.1:5432/velclawhost_auth';
+
+const adapter = new PrismaPg({ connectionString });
+export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}
