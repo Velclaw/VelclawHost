@@ -1,4 +1,5 @@
 import express from "express";
+import { getToken } from "next-auth/jwt";
 import path from "path";
 import os from "node:os";
 import fs from "node:fs/promises";
@@ -91,20 +92,12 @@ async function startServer() {
   const deploymentQueue = createDeploymentQueue(process.env.VELCLAWHOST_STATE_STORE === 'postgres' ? process.env.DATABASE_URL : undefined);
   const workerId = process.env.VELCLAWHOST_WORKER_ID?.trim() || 'worker-' + process.pid;
 
-  // VelclawHost-branded native login page. Prevent old Cloudflare/provider login HTML
-  // from being reused by browser or intermediary caches after a deployment.
-  app.get(['/auth', '/auth/'], (_req, res) => {
-    res.set({
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      'Surrogate-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff',
-      'Referrer-Policy': 'strict-origin-when-cross-origin',
-    });
-    res.status(200).type('html').send(velclawAuthPage());
+  // Browser authentication is owned by Auth.js in Next.js. Keep a compatibility redirect only.
+  app.get(['/auth', '/auth/'], (req, res) => {
+    const queryIndex = req.url.indexOf('?');
+    const query = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
+    return res.redirect(302, '/login' + query);
   });
-
 
   function velclawAuthPage() {
     return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"><meta name="theme-color" content="#08090b"><title>Velclaw — Account access</title><style>html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:pan-y}body{overflow-y:auto;overscroll-behavior-y:auto}input,textarea,select,button{font-size:16px!important;}
@@ -199,136 +192,44 @@ const params=new URLSearchParams(location.search);let mode=params.get('mode')===
     res.json({ status: "ok", service: "Velclaw Hosting Platform Server", timestamp: new Date().toISOString() });
   });
 
-  // VelclawHost native authentication. No Cloudflare Access dependency.
+  // Auth.js is the only browser-session issuer. Express validates the Auth.js
+  // encrypted session cookie forwarded by the same-origin Next.js API rewrite.
   const apiToken = process.env.VELCLAWHOST_API_TOKEN?.trim() || '';
-  const jwtSecret = process.env.VELCLAWHOST_JWT_SECRET?.trim() || '';
   const adminEmail = (process.env.VELCLAWHOST_ADMIN_EMAIL || '').trim().toLowerCase();
-  const adminPassword = process.env.VELCLAWHOST_ADMIN_PASSWORD || '';
   const roleRank: Record<string, number> = { viewer: 1, member: 2, admin: 3, owner: 4 };
   const roleAtLeast = (role: string, required: string) => (roleRank[role] || 0) >= (roleRank[required] || 99);
-  const signJwt = (payload: Record<string, unknown>) => {
-    if (jwtSecret.length < 32) throw new Error('VELCLAWHOST_JWT_SECRET must be at least 32 characters.');
-    const enc = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
-    const head = enc({ alg: 'HS256', typ: 'JWT' });
-    const body = enc({ ...payload, iss: 'VelclawHost', iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000)+60*60*8 });
-    const data = head + '.' + body;
-    return data + '.' + createHmac('sha256', jwtSecret).update(data).digest('base64url');
-  };
-  const verifyJwt = (token: string) => {
-    if (jwtSecret.length < 32) throw new Error('JWT authentication is not configured.');
-    const parts = token.split('.');
-    if (parts.length !== 3) throw new Error('Invalid token.');
-    const expected = createHmac('sha256', jwtSecret).update(parts[0] + '.' + parts[1]).digest();
-    const actual = Buffer.from(parts[2], 'base64url');
-    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) throw new Error('Invalid token signature.');
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    if (payload.iss !== 'VelclawHost' || !Number.isFinite(payload.exp) || payload.exp <= Date.now()/1000) throw new Error('Token expired.');
-    return payload;
-  };
-  const readJwt = (req: express.Request) => {
+
+  const requireApiToken = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const authorization = req.header('authorization') || '';
-    const bearer = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
-    const cookie = (req.headers.cookie || '').split(';').map(v => v.trim()).find(v => v.startsWith('velclawhost_session='))?.slice('velclawhost_session='.length) || '';
-    return bearer || cookie;
-  };
-  const setSessionCookie = (res: express.Response, token: string) => res.setHeader('Set-Cookie', 'velclawhost_session=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800');
-  const clearSessionCookie = (res: express.Response) => res.setHeader('Set-Cookie', 'velclawhost_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
-
-  // OAuth sign-in (GitHub + Google). Configure provider credentials in Render, never in source control.
-  const oauthCookie = (name: string, value: string, maxAge: number) =>
-    name + '=' + encodeURIComponent(value) + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=' + maxAge;
-  const oauthProviders = () => ({
-    github: Boolean(process.env.GITHUB_OAUTH_CLIENT_ID?.trim() && process.env.GITHUB_OAUTH_CLIENT_SECRET?.trim()),
-    google: Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID?.trim() && process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim()),
-  });
-  app.get('/api/v1/auth/providers', (_req, res) => {
-    res.set('Cache-Control', 'no-store');
-    res.json({ status: 'success', providers: oauthProviders(), emailPassword: Boolean(adminEmail && adminPassword && jwtSecret.length >= 32) });
-  });
-  app.get('/api/v1/auth/oauth/:provider', (req, res) => {
-    const provider = String(req.params.provider || '').toLowerCase();
-    const enabled = oauthProviders();
-    if (provider !== 'github' && provider !== 'google') return res.status(404).send('Unsupported OAuth provider.');
-    if (!enabled[provider]) return res.status(503).send(provider[0].toUpperCase() + provider.slice(1) + ' sign-in is not configured yet. Add OAuth credentials in Render environment.');
-    if (jwtSecret.length < 32) return res.status(503).send('Authentication is not configured: VELCLAWHOST_JWT_SECRET must be at least 32 characters.');
-    const state = Buffer.from(randomBytes(32)).toString('base64url');
-    res.setHeader('Set-Cookie', oauthCookie('velclawhost_oauth_state', state, 600));
-    const redirectUri = (process.env.VELCLAWHOST_PUBLIC_URL || (req.protocol + '://' + req.get('host'))).replace(/\/$/, '') + '/api/v1/auth/oauth/' + provider + '/callback';
-    const params = new URLSearchParams({ client_id: provider === 'github' ? process.env.GITHUB_OAUTH_CLIENT_ID!.trim() : process.env.GOOGLE_OAUTH_CLIENT_ID!.trim(), redirect_uri: redirectUri, state });
-    if (provider === 'github') { params.set('scope', 'read:user user:email'); return res.redirect(302, 'https://github.com/login/oauth/authorize?' + params.toString()); }
-    params.set('response_type', 'code'); params.set('scope', 'openid email profile'); params.set('prompt', 'select_account');
-    return res.redirect(302, 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString());
-  });
-  app.get('/api/v1/auth/oauth/:provider/callback', async (req, res) => {
-    const provider = String(req.params.provider || '').toLowerCase();
-    const stateCookie = (req.headers.cookie || '').split(';').map(v => v.trim()).find(v => v.startsWith('velclawhost_oauth_state='))?.slice('velclawhost_oauth_state='.length) || '';
-    const clearState = oauthCookie('velclawhost_oauth_state', '', 0);
-    const fail = (status: number, message: string) => { res.setHeader('Set-Cookie', [clearState, 'velclawhost_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0']); return res.status(status).type('html').send('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Velclaw sign-in</title><main style="font:16px system-ui;max-width:520px;margin:15vh auto;padding:24px;color:#e5e7eb;background:#0b0d10"><h1>Không thể đăng nhập</h1><p>' + message.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]!) ) + '</p><a style="color:#93c5fd" href="/auth?mode=login">Quay lại VelclawHost</a></main>'); };
-    if (provider !== 'github' && provider !== 'google') return fail(404, 'OAuth provider không hợp lệ.');
-    if (!oauthProviders()[provider]) return fail(503, 'Nhà cung cấp OAuth chưa được cấu hình trong Render.');
-    const state = String(req.query.state || '');
-    let expectedState = '';
-    try { expectedState = decodeURIComponent(stateCookie); } catch {}
-    if (!state || !expectedState || state !== expectedState) return fail(400, 'State không hợp lệ hoặc đã hết hạn. Hãy thử đăng nhập lại.');
-    if (req.query.error || !req.query.code) return fail(400, 'Nhà cung cấp đã hủy hoặc từ chối đăng nhập.');
-    try {
-      const redirectUri = (process.env.VELCLAWHOST_PUBLIC_URL || (req.protocol + '://' + req.get('host'))).replace(/\/$/, '') + '/api/v1/auth/oauth/' + provider + '/callback';
-      const clientId = provider === 'github' ? process.env.GITHUB_OAUTH_CLIENT_ID!.trim() : process.env.GOOGLE_OAUTH_CLIENT_ID!.trim();
-      const clientSecret = provider === 'github' ? process.env.GITHUB_OAUTH_CLIENT_SECRET!.trim() : process.env.GOOGLE_OAUTH_CLIENT_SECRET!.trim();
-      const tokenResponse = await fetch(provider === 'github' ? 'https://github.com/login/oauth/access_token' : 'https://oauth2.googleapis.com/token', {
-        method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code: String(req.query.code), redirect_uri: redirectUri, ...(provider === 'google' ? { grant_type: 'authorization_code' } : {}) }),
-      });
-      const tokenData: any = await tokenResponse.json();
-      if (!tokenResponse.ok || !tokenData.access_token) return fail(502, 'Không đổi được mã OAuth thành access token.');
-      const headers = { Authorization: 'Bearer ' + tokenData.access_token, Accept: 'application/json', 'User-Agent': 'VelclawHost' };
-      let email = '', subject = '', displayName = '';
-      if (provider === 'github') {
-        const profileResponse = await fetch('https://api.github.com/user', { headers });
-        const profile: any = await profileResponse.json();
-        if (!profileResponse.ok || !profile.id) return fail(502, 'Không đọc được hồ sơ GitHub.');
-        subject = String(profile.id); displayName = String(profile.name || profile.login || 'GitHub user');
-        email = String(profile.email || '').trim().toLowerCase();
-        if (!email) {
-          const emailResponse = await fetch('https://api.github.com/user/emails', { headers });
-          const emails: any = await emailResponse.json();
-          if (emailResponse.ok && Array.isArray(emails)) email = String((emails.find((item: any) => item.primary && item.verified) || emails.find((item: any) => item.verified))?.email || '').trim().toLowerCase();
-        }
-      } else {
-        const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', { headers });
-        const profile: any = await profileResponse.json();
-        if (!profileResponse.ok || !profile.sub || profile.email_verified !== true) return fail(403, 'Google không cung cấp email đã xác minh.');
-        subject = String(profile.sub); displayName = String(profile.name || profile.email || 'Google user'); email = String(profile.email || '').trim().toLowerCase();
-      }
-      if (!email || !subject) return fail(403, 'Tài khoản nhà cung cấp không có email đã xác minh.');
-      // Open self-service OAuth: any provider-verified email may create/sign into a member account.
-      // Privileged access remains restricted to the configured owner email.
-      const role = adminEmail && email === adminEmail ? 'owner' : 'member';
-      const user = { id: provider + ':' + subject, email, name: displayName, role, provider };
-      const token = signJwt(user);
-      res.setHeader('Set-Cookie', [clearState, 'velclawhost_session=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800']);
-      return res.redirect(302, '/dashboard');
-    } catch (error) {
-      console.error('[oauth callback]', provider, error instanceof Error ? error.message : 'unknown error');
-      return fail(502, 'Xác thực OAuth thất bại. Kiểm tra cấu hình OAuth và URL callback trong Render/provider.');
+    if (apiToken && authorization === 'Bearer ' + apiToken) {
+      (req as any).velclawAuth = { id: 'service-token', email: 'service', role: 'owner', provider: 'service' };
+      return next();
     }
-  });
+    try {
+      const token = await getToken({
+        req: req as any,
+        secret: process.env.AUTH_SECRET,
+        secureCookie: process.env.NODE_ENV === 'production',
+      });
+      if (!token?.sub) throw new Error('Auth.js session is missing or expired.');
+      const email = typeof token.email === 'string' ? token.email.trim().toLowerCase() : '';
+      const role = adminEmail && email === adminEmail ? 'owner' : 'member';
+      (req as any).velclawAuth = {
+        id: token.sub,
+        email,
+        role,
+        provider: 'authjs',
+      };
+      return next();
+    } catch {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        code: 'AUTH_REQUIRED',
+        message: 'Đăng nhập VelClawHost để tiếp tục.',
+      });
+    }
+  };
 
-  app.post('/api/v1/auth/login', async (req, res) => {
-    const email = String(req.body?.email || '').trim().toLowerCase();
-    const password = String(req.body?.password || '');
-    if (!adminEmail || !adminPassword || jwtSecret.length < 32) return res.status(503).json({ error: 'Native login is not configured. Set VELCLAWHOST_ADMIN_EMAIL, VELCLAWHOST_ADMIN_PASSWORD and VELCLAWHOST_JWT_SECRET in Render environment.' });
-    const emailOk = email === adminEmail;
-    const supplied = Buffer.from(password);
-    const configured = Buffer.from(adminPassword);
-    const passOk = supplied.length === configured.length && timingSafeEqual(supplied, configured);
-    if (!emailOk || !passOk) return res.status(401).json({ error: 'Email hoặc mật khẩu không chính xác.' });
-    const user = { id: 'velclawhost-owner', email: adminEmail, role: 'owner', provider: 'velclawhost' };
-    const token = signJwt(user);
-    setSessionCookie(res, token);
-    return res.json({ status: 'success', user, token });
-  });
-  app.post('/api/v1/auth/logout', (_req, res) => { clearSessionCookie(res); res.json({ status: 'success' }); });
   const getConfiguredRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_REGISTRAR || 'none');
   const getSourceRegistrar = () => getRegistrarProvider(process.env.VELCLAWHOST_SOURCE_REGISTRAR || 'none');
   const requireApiToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
