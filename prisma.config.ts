@@ -2,6 +2,8 @@ import 'dotenv/config';
 import { defineConfig } from 'prisma/config';
 
 const databaseUrl =
+  process.env.AUTH_DIRECT_URL ||
+  process.env.AUTH_DATABASE_URL ||
   process.env.DIRECT_URL ||
   process.env.DATABASE_URL ||
   process.env.POSTGRES_PRISMA_URL ||
