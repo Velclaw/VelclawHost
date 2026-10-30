@@ -1,19 +1,9 @@
-"use client";
+import { redirect } from "next/navigation";
+import { auth } from "../auth";
+import DashboardClient from "./dashboard-client";
 
-import dynamic from "next/dynamic";
-
-const Dashboard = dynamic(() => import("../src/App"), {
-  ssr: false,
-  loading: () => (
-    <main className="grid min-h-screen place-items-center bg-[#030304] px-6 text-center text-sm text-zinc-400">
-      <div>
-        <div className="mb-3 text-base font-semibold text-zinc-100">VelClawHost</div>
-        <p>Đang khởi tạo VelClawHost Dashboard…</p>
-      </div>
-    </main>
-  ),
-});
-
-export default function HomePage() {
-  return <Dashboard />;
+export default async function HomePage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  return <DashboardClient />;
 }
