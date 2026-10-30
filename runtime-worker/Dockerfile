@@ -10,7 +10,7 @@ ENV PATH="${BUN_INSTALL}/bin:${PATH}"
 
 WORKDIR /app
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+RUN bun install
 COPY . .
 RUN bun run worker:build
 
