@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import { auth } from "../auth";
-import DashboardClient from "./dashboard-client";
+import { auth } from "../src/auth";
+
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const session = await auth();
-  if (!session?.user) redirect("/login");
-  return <DashboardClient />;
+  redirect(session?.user ? "/dashboard" : "/login");
 }
