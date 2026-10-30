@@ -96,7 +96,8 @@ async function startServer() {
   app.get(['/auth', '/auth/'], (req, res) => {
     const queryIndex = req.url.indexOf('?');
     const query = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
-    return res.redirect(302, '/login' + query);
+    const authBaseUrl = (process.env.VELCLAWHOST_PUBLIC_URL || 'https://velclawhost.velclaw.app').replace(/\/+$/, '');
+    return res.redirect(302, authBaseUrl + '/login' + query);
   });
 
   // API Health Endpoint
