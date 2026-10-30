@@ -7,7 +7,10 @@ import { consumeAuthRateLimit } from '../../../../src/lib/rate-limit';
 export async function POST(request: Request) {
   try {
     if (!(await consumeAuthRateLimit(request, 'forgot-password', 5, 15 * 60 * 1000))) {
-      return NextResponse.json({ ok: true }, { status: 429, headers: { 'Retry-After': '900' } });
+      return NextResponse.json(
+        { ok: false, error: 'Quá nhiều yêu cầu. Thử lại sau.' },
+        { status: 429, headers: { 'Retry-After': '900' } },
+      );
     }
 
     const body = await request.json();
