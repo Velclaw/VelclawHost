@@ -7,7 +7,9 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: "/api/:path((?!auth).*)",
+        // Auth.js routes must stay in Next.js. Only proxy non-auth API paths
+        // to the existing VelclawHost control-plane service.
+        source: "/api/:path((?!auth(?:/|$)).*)",
         destination: `${apiOrigin}/api/:path*`,
       },
     ];
