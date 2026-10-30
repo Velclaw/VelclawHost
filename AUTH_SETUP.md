@@ -22,8 +22,8 @@ VelClawHost-owned.
 - AUTH_URL — canonical URL, https://velclawhost.velclaw.app (Preview URL for Preview tests).
 - AUTH_GITHUB_ID and AUTH_GITHUB_SECRET.
 - AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET.
-- DATABASE_URL — PostgreSQL connection string for Prisma's pg adapter.
-- DIRECT_URL — direct PostgreSQL connection string used for migrations.
+- AUTH_DATABASE_URL — dedicated PostgreSQL connection string for the Auth.js Prisma adapter.
+- AUTH_DIRECT_URL — direct PostgreSQL connection string used for auth migrations.
 - RESEND_API_KEY and EMAIL_FROM — required for registration verification and password reset email.
 
 OAuth callback URLs:
@@ -38,7 +38,7 @@ the corresponding OAuth provider applications before testing.
 A separate Supabase Free project named `velclawhost-auth-staging` was
 provisioned in Singapore. The Prisma schema and initial migration are included
 in this branch. Apply the migration to that staging database and configure
-DATABASE_URL / DIRECT_URL in Vercel Preview before enabling sign-in.
+AUTH_DATABASE_URL / AUTH_DIRECT_URL in Vercel Preview before enabling sign-in.
 
 This database is separate from Cloudxx and VelClawSQL; no existing data is
 copied, modified or deleted.
