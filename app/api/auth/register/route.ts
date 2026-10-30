@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     verificationUrl.searchParams.set('token', raw);
     verificationUrl.searchParams.set('email', email);
 
-    await sendAuthEmail(email, 'Xác minh email Cloudxx', verificationUrl.toString());
+    await sendAuthEmail(email, 'Xác minh email VelClawHost', verificationUrl.toString());
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Không thể đăng ký hoặc gửi email xác minh. Kiểm tra cấu hình email.' }, { status: 500 });
