@@ -1,9 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
+import { getPostgresPool } from "../../db/client";
 
 export type ControlPlaneState = {
   version: 1 | 2;
@@ -42,23 +39,21 @@ class FileStateStore implements ControlPlaneStateStore {
 class PostgresStateStore implements ControlPlaneStateStore {
   constructor(private readonly databaseUrl: string) {}
 
-  private async query(sql: string) {
-    const { stdout } = await execFileAsync("psql", [
-      this.databaseUrl, "-X", "-qAt", "-v", "ON_ERROR_STOP=1", "-c", sql,
-    ], { timeout: 15000, maxBuffer: 8 * 1024 * 1024 });
-    return stdout.trim();
-  }
-
   async load(): Promise<ControlPlaneState | null> {
-    const raw = await this.query("SELECT state::text FROM control_plane_state WHERE id = 1");
-    return raw ? JSON.parse(raw) as ControlPlaneState : null;
+    const result = await getPostgresPool(this.databaseUrl).query<{ state: ControlPlaneState }>(
+      "SELECT state FROM control_plane_state WHERE id = 1"
+    );
+    return result.rows[0]?.state ?? null;
   }
 
   async save(state: ControlPlaneState): Promise<void> {
-    const json = JSON.stringify(state).replace(/'/g, "''");
-    await this.query(`BEGIN;\nINSERT INTO control_plane_state (id, state, updated_at)
-VALUES (1, '${json}'::jsonb, NOW())
-ON CONFLICT (id) DO UPDATE SET state = EXCLUDED.state, updated_at = NOW();\nCOMMIT;`);
+    await getPostgresPool(this.databaseUrl).query(
+      `INSERT INTO control_plane_state (id, state, updated_at)
+       VALUES (1, $1::jsonb, NOW())
+       ON CONFLICT (id) DO UPDATE
+       SET state = EXCLUDED.state, updated_at = NOW()`,
+      [JSON.stringify(state)]
+    );
   }
 }
 
