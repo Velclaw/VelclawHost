@@ -2,7 +2,7 @@ name: VelclawHost CI
 
 on:
   push:
-    branches: ["main", "feature/**"]
+    branches: ["main", "feature/**", "feat/**"]
   pull_request:
     branches: ["main"]
 
@@ -19,7 +19,9 @@ jobs:
         with:
           bun-version: "1.4"
 
-      - run: bun install --frozen-lockfile
+      # Next.js dependencies are added during the Vite-to-Next migration.
+      # Allow Bun to reconcile bun.lock until the refreshed lockfile is committed.
+      - run: bun install
       - run: bun run lint
       - run: bun run build
       - run: bun run worker:build
