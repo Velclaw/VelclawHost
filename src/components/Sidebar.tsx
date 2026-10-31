@@ -50,7 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ]},
     { label: 'Developer', items: [
       { id: 'api-integration', label: 'Integrations', icon: Webhook },
-      { id: 'plugins-tools', label: 'Plugins & Tools', icon: Wrench, badge: 'NEW', tone: 'text-cyan-300 bg-cyan-500/10 border-cyan-500/20' },
+      { id: 'plugins-tools', label: 'Plugins', icon: Wrench, badge: 'NEW', tone: 'text-cyan-300 bg-cyan-500/10 border-cyan-500/20' },
       { id: 'security-2fa', label: 'Security', icon: ShieldCheck },
       { id: 'reports', label: 'Usage & Reports', icon: Download },
     ]},
