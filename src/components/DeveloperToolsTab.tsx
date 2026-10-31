@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Activity, ArrowUpRight, BadgeCheck, Boxes, Check, ChevronRight, CircleAlert,
-  Cloud, Code2, Database, ExternalLink, Github, Globe2, KeyRound, LockKeyhole,
-  Plug, RefreshCw, Search, ShieldCheck, Sparkles, Terminal, Workflow, Zap
+  Activity, ArrowUpRight, BadgeCheck, Boxes, Check, CircleAlert,
+  Cloud, Code2, Database, Github, Globe2, KeyRound, LockKeyhole,
+  Plug, RefreshCw, Search, ShieldCheck, Sparkles, Terminal, Workflow
 } from 'lucide-react';
 
 type Plugin = {
@@ -185,9 +185,9 @@ export const DeveloperToolsTab: React.FC = () => {
             {visiblePlugins.map(plugin => {
               const Icon = categoryIcon[plugin.category] || Plug;
               return <article key={plugin.id} className="rounded-xl border border-zinc-800 bg-black/60 p-4 transition hover:border-zinc-700">
-                <div className="flex items-start justify-between"><div className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900"><Icon className="h-5 w-5 text-zinc-300" /></div><span className={'rounded-full border px-2 py-1 text-[9px] ' + (plugin.connected ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-300' : 'border-zinc-700 bg-zinc-900 text-zinc-500')}>{plugin.connected ? 'Connected' : 'Not connected'}</span></div>
+                <div className="flex items-start justify-between"><div className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900"><Icon className="h-5 w-5 text-zinc-300" /></div><span className={'rounded-full border px-2 py-1 text-[9px] ' + (plugin.connected ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-300' : 'border-zinc-700 bg-zinc-900 text-zinc-500')}>{plugin.connected ? 'Available' : 'Not configured'}</span></div>
                 <h3 className="mt-3 text-sm font-semibold text-white">{plugin.name}</h3><p className="mt-1 min-h-9 text-[10px] leading-4 text-zinc-500">{plugin.description}</p>
-                <div className="mt-3 flex items-center justify-between border-t border-zinc-800 pt-3"><span className="text-[9px] text-zinc-600">{plugin.category}</span><span className="inline-flex items-center gap-1 text-[9px] text-zinc-500">{plugin.connected ? <><Check className="h-3 w-3 text-emerald-400" /> Authorized</> : 'Authorization not configured'}</span></div>
+                <div className="mt-3 flex items-center justify-between border-t border-zinc-800 pt-3"><span className="text-[9px] text-zinc-600">{plugin.category}</span><span className="inline-flex items-center gap-1 text-[9px] text-zinc-500">{plugin.connected ? <><Check className="h-3 w-3 text-emerald-400" /> Catalog enabled</> : 'Connector setup required'}</span></div>
               </article>;
             })}
           </div>
