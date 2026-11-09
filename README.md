@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/velclaw-logo.svg" alt="Velclaw logo" width="120" />
+  <img src="assets/velclawhost-logo.svg" alt="VelclawHost logo" width="120" />
 </p>
 
 <h1 align="center">VelclawHost</h1>
