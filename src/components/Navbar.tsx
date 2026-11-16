@@ -20,7 +20,7 @@ interface NavbarProps {
 
 const VelclawMark = () => (
   <div className="vh-brand-mark" aria-label="VelClaw">
-    <img src="/assets/velclaw-logo.svg" alt="" />
+    <img src="/assets/velclaw-mark.svg" alt="" />
   </div>
 );
 
