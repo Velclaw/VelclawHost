@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<title id="title">VelClaw</title><desc id="desc">Silver angular V and claw emblem.</desc>
+<defs>
+ <linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".32" stop-color="#c9cbd1"/><stop offset=".62" stop-color="#f4f5f8"/><stop offset="1" stop-color="#777d89"/></linearGradient>
+ <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f9fafb"/><stop offset=".5" stop-color="#aeb2bc"/><stop offset="1" stop-color="#4d5360"/></linearGradient>
+ <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feGaussianBlur in="SourceAlpha" stdDeviation="7"/><feOffset dx="0" dy="9"/><feComponentTransfer><feFuncA type="linear" slope=".65"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect width="512" height="512" fill="#090b10"/>
+<g filter="url(#shadow)">
+ <path d="M72 70 L160 75 L290 315 L230 400 Z" fill="url(#shade)" stroke="#f4f5f7" stroke-width="4"/>
+ <path d="M72 70 L160 75 L290 315 L260 358 Z" fill="#f4f5f7" opacity=".52"/>
+ <path d="M270 150 L452 88 L417 143 L298 182 L258 238 L226 204 L258 159 Z" fill="url(#silver)" stroke="#f4f5f7" stroke-width="3"/>
+ <path d="M296 220 L402 180 L372 222 L330 238 L304 282 L274 256 Z" fill="url(#shade)" stroke="#dfe2e8" stroke-width="2"/>
+ <path d="M312 258 L358 248 L335 288 L302 305 L282 280 Z" fill="#aeb3bd"/>
+</g>
+</svg>
