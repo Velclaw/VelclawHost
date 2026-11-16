@@ -76,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="vh-sidebar-top">
             <div className="vh-project-switcher">
               <div className="vh-project-logo">
-                <img src="/assets/velclaw-logo.svg" alt="VelClaw" />
+                <img src="/assets/velclaw-mark.svg" alt="VelClaw" />
               </div>
               {!collapsed && (
                 <div className="min-w-0 flex-1">
