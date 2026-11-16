@@ -33,7 +33,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#030304",
+  themeColor: "#000000",
   colorScheme: "dark",
 };
 
@@ -42,7 +42,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="vi">
-      <body className="bg-slate-950 text-slate-100 antialiased selection:bg-violet-500/30 selection:text-violet-200">
+      <body className="bg-black text-white antialiased">
         <AuthSessionProvider><div id="root">{children}</div></AuthSessionProvider>
         <Analytics />
         <SpeedInsights />
