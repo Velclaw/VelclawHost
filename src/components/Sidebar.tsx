@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard, Rocket, Globe, LineChart, BellRing, Database, FileText,
-  ShieldCheck, Webhook, Download, Sparkles, ChevronLeft, ChevronRight,
+  ShieldCheck, Webhook, Download, ChevronLeft, ChevronRight,
   Activity, Settings, ChevronsUpDown, Wrench, Search, Server, Layers3
 } from 'lucide-react';
 import { TabType } from '../types';
+import { AiThinkingIndicator } from './velclaw/AiThinkingIndicator';
 
 interface SidebarProps {
   activeTab: TabType;
@@ -148,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className={['vh-ai-button', collapsed ? 'justify-center' : ''].join(' ')}
                 title="VelClaw DevOps AI"
               >
-                <Sparkles className="h-4 w-4 shrink-0" />
+                <AiThinkingIndicator status="ready" showLabel={false} className="vc-thinking--compact" />
                 {!collapsed && <span><strong>VelClaw AI</strong><small>Open DevOps assistant</small></span>}
               </button>
             )}

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Paperclip, Volume2, VolumeX, X, Send, Activity, Bot, User,
-  CheckCircle2, Terminal, Cpu, ShieldCheck, FileText, Sparkles,
-  Command, ArrowUpRight, AudioLines
+  Paperclip, X, Send, Activity, User,
+  CheckCircle2, Terminal, Cpu, ShieldCheck, FileText,
+  Command, ArrowUpRight
 } from 'lucide-react';
 import { TabType, HostNode, MetricSnapshot, SystemAlert } from '../types';
 import { AiThinkingIndicator } from './velclaw/AiThinkingIndicator';
@@ -33,9 +33,6 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   isOpen, onClose, selectedNode, currentMetric, alerts, isTwoFactorActive,
   onNavigateTab, onSimulateCpuSpike, onOpenReports,
 }) => {
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [transcript, setTranscript] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,31 +41,10 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     text: 'I’m VelClaw AI. I can help inspect infrastructure, investigate incidents, review deployments and navigate your DevOps workspace. What would you like to work on?',
     timestamp: clock(),
   }]);
-  const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const submittingRef = useRef(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'vi-VN';
-    recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (event: any) => {
-      const spokenText = event.results?.[0]?.[0]?.transcript || '';
-      setTranscript(spokenText);
-      void handleSendCommand(spokenText);
-    };
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
-    recognitionRef.current = recognition;
-    return () => { try { recognition.abort(); } catch { /* no-op */ } };
-  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -77,26 +53,9 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   useEffect(() => {
     if (isOpen) window.setTimeout(() => inputRef.current?.focus(), 80);
     else {
-      recognitionRef.current?.abort?.();
-      window.speechSynthesis?.cancel();
-      setIsListening(false);
-      setIsSpeaking(false);
+      setIsLoading(false);
     }
   }, [isOpen]);
-
-  const speakText = (text: string) => {
-    if (!voiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'vi-VN';
-    utterance.rate = 1.04;
-    const voice = window.speechSynthesis.getVoices().find(v => /vi|VN/i.test(v.lang));
-    if (voice) utterance.voice = voice;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  };
 
   const handleSendCommand = async (cmdText: string) => {
     const command = cmdText.trim();
@@ -126,7 +85,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
       else if (payload.action === 'TRIGGER_SPIKE') { onSimulateCpuSpike(); actionTaken = 'CPU load simulation triggered'; }
       else if (payload.action === 'OPEN_REPORTS') { onOpenReports(); actionTaken = 'Report center opened'; }
       setMessages(prev => [...prev, { id:'usr-'+Date.now(), sender:'user', text:file ? (command || 'Read this file') + ' · ' + file.name : command, timestamp:clock() }, { id:'ast-'+Date.now(), sender:'assistant', text:reply, actionTaken:actionTaken || undefined, timestamp:clock() }]);
-      setTranscript(''); setSelectedFile(null); speakText(reply);
+      setTranscript(''); setSelectedFile(null);
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Unknown error';
       setMessages(prev => [...prev, { id:'err-'+Date.now(), sender:'assistant', text:'Could not process request: '+detail+'. Draft and file are preserved for retry.', timestamp:clock() }]);
@@ -161,14 +120,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="hidden sm:flex items-center gap-2 border-r border-[#262626] pr-3 mr-1 text-[10px] font-mono text-[#777]">
-            <span className={`h-1.5 w-1.5 ${isSpeaking ? 'bg-[#168bff] animate-pulse' : 'bg-[#555]'}`} />
-            {isListening ? 'LISTENING' : isSpeaking ? 'SPEAKING' : 'READY'}
-          </div>
-          <button onClick={() => { if (voiceEnabled) window.speechSynthesis?.cancel(); setVoiceEnabled(v => !v); }} className={`h-9 w-9 border grid place-items-center ${voiceEnabled ? 'border-[#343434] text-[#ddd]' : 'border-[#262626] text-[#666]'} hover:bg-[#151515]`} title={voiceEnabled ? 'Disable voice responses' : 'Enable voice responses'}>
-            {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-          </button>
-          <button onClick={onClose} className="h-9 w-9 border border-[#343434] text-[#aaa] grid place-items-center hover:bg-[#171717] hover:text-white" aria-label="Close VelClaw AI"><X size={17} /></button>
+          <button onClick={onClose className="h-9 w-9 border border-[#343434] text-[#aaa] grid place-items-center hover:bg-[#171717] hover:text-white" aria-label="Close VelClaw AI"><X size={17} /></button>
         </div>
       </header>
 
@@ -204,7 +156,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
             <div className="max-w-3xl mx-auto">
               {messages.length === 1 && (
                 <div className="mb-8 sm:mb-12 pt-3 sm:pt-8">
-                  <div className="h-10 w-10 border border-[#333] bg-[#0b0b0b] grid place-items-center mb-5"><Sparkles size={18} className="text-[#168bff]" /></div>
+                  <div className="mb-5"><AiThinkingIndicator status="ready" showLabel={false} className="vc-thinking--compact" /></div>
                   <div className="text-[10px] font-mono uppercase tracking-[.2em] text-[#168bff] mb-3">DevOps intelligence</div>
                   <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">What are we <span className="text-[#777]">building</span> today?</h1>
                   <p className="mt-3 text-sm text-[#858585] max-w-xl leading-6">Ask about infrastructure, deployments, observability, security or your development workflow.</p>
@@ -216,14 +168,14 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
               <div className="space-y-6">
                 {messages.map(msg => <article key={msg.id} className={`flex gap-3 sm:gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`h-8 w-8 shrink-0 border grid place-items-center ${msg.sender === 'assistant' ? 'border-[#303030] bg-[#101010] text-[#168bff]' : 'border-[#383838] bg-[#191919] text-[#ddd]'}`}>{msg.sender === 'assistant' ? <Bot size={15} /> : <User size={15} />}</div>
+                  <div className={`h-8 w-8 shrink-0 border grid place-items-center ${msg.sender === 'assistant' ? 'border-[#303030] bg-[#101010] text-[#168bff]' : 'border-[#383838] bg-[#191919] text-[#ddd]'}`}>{msg.sender === 'assistant' ? <AiThinkingIndicator status="ready" showLabel={false} /> : <User size={15} />}</div>
                   <div className={`min-w-0 max-w-[88%] sm:max-w-[80%] ${msg.sender === 'user' ? 'text-right' : ''}`}>
                     <div className="flex items-center gap-2 mb-1.5"><span className="text-[10px] font-semibold text-[#ddd]">{msg.sender === 'assistant' ? 'VelClaw AI' : 'You'}</span><span className="text-[9px] font-mono text-[#666]">{msg.timestamp}</span></div>
                     <div className={`text-[13px] leading-6 whitespace-pre-wrap text-left ${msg.sender === 'user' ? 'inline-block border border-[#24476a] bg-[#0b1723] px-3.5 py-2.5 text-[#e4edf7]' : 'text-[#c7c7c7]'}`}>{msg.sender === 'assistant' ? <AiStreamingText text={msg.text} isStreaming={false} showThinking={false} /> : msg.text}</div>
                     {msg.actionTaken && <div className="mt-2 inline-flex items-center gap-2 border border-[#21432f] bg-[#0b160f] px-2.5 py-1.5 text-[10px] text-[#9bd5ad]"><CheckCircle2 size={12} />{msg.actionTaken}</div>}
                   </div>
                 </article>)}
-                {isLoading && <div className="flex gap-3" aria-label="VelClaw AI is preparing a response"><div className="h-8 w-8 border border-[#303030] bg-[#101010] text-[#168bff] grid place-items-center"><Bot size={15} /></div><div className="pt-1"><AiStreamingText text="" isStreaming showThinking /></div></div>}
+                {isLoading && <div className="flex gap-3" aria-label="VelClaw AI is preparing a response"><div className="shrink-0"><AiThinkingIndicator status="thinking" showLabel={false} className="vc-thinking--compact" /></div><div className="pt-1"><AiStreamingText text="" isStreaming showThinking /></div></div>}
                 <div ref={messagesEndRef} />
               </div>
             </div>
@@ -231,7 +183,6 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
           <div className="shrink-0 border-t border-[#252525] bg-[#080808] px-3 sm:px-7 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
             <div className="max-w-3xl mx-auto">
-              {(isListening || isSpeaking) && <div className="mb-2 flex items-center gap-2 text-[10px] font-mono text-[#168bff]"><AudioLines size={13} />{isListening ? 'Listening for your command…' : 'Speaking response…'}</div>}
               <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md,.csv,.json" className="hidden" onChange={e => {
  const f=e.target.files?.[0]; e.target.value=''; if(!f)return;
  const m:Record<string,string>={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',txt:'text/plain',md:'text/plain',csv:'text/csv',json:'application/json'};
