@@ -5,6 +5,8 @@ import {
   Command, ArrowUpRight, AudioLines
 } from 'lucide-react';
 import { TabType, HostNode, MetricSnapshot, SystemAlert } from '../types';
+import { AiThinkingIndicator } from './velclaw/AiThinkingIndicator';
+import { AiStreamingText } from './velclaw/AiStreamingText';
 
 interface VoiceAssistantModalProps {
   isOpen: boolean;
@@ -217,11 +219,11 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
                   <div className={`h-8 w-8 shrink-0 border grid place-items-center ${msg.sender === 'assistant' ? 'border-[#303030] bg-[#101010] text-[#168bff]' : 'border-[#383838] bg-[#191919] text-[#ddd]'}`}>{msg.sender === 'assistant' ? <Bot size={15} /> : <User size={15} />}</div>
                   <div className={`min-w-0 max-w-[88%] sm:max-w-[80%] ${msg.sender === 'user' ? 'text-right' : ''}`}>
                     <div className="flex items-center gap-2 mb-1.5"><span className="text-[10px] font-semibold text-[#ddd]">{msg.sender === 'assistant' ? 'VelClaw AI' : 'You'}</span><span className="text-[9px] font-mono text-[#666]">{msg.timestamp}</span></div>
-                    <div className={`text-[13px] leading-6 whitespace-pre-wrap text-left ${msg.sender === 'user' ? 'inline-block border border-[#24476a] bg-[#0b1723] px-3.5 py-2.5 text-[#e4edf7]' : 'text-[#c7c7c7]'}`}>{msg.text}</div>
+                    <div className={`text-[13px] leading-6 whitespace-pre-wrap text-left ${msg.sender === 'user' ? 'inline-block border border-[#24476a] bg-[#0b1723] px-3.5 py-2.5 text-[#e4edf7]' : 'text-[#c7c7c7]'}`}>{msg.sender === 'assistant' ? <AiStreamingText text={msg.text} isStreaming={false} showThinking={false} /> : msg.text}</div>
                     {msg.actionTaken && <div className="mt-2 inline-flex items-center gap-2 border border-[#21432f] bg-[#0b160f] px-2.5 py-1.5 text-[10px] text-[#9bd5ad]"><CheckCircle2 size={12} />{msg.actionTaken}</div>}
                   </div>
                 </article>)}
-                {isLoading && <div className="flex gap-3"><div className="h-8 w-8 border border-[#303030] bg-[#101010] text-[#168bff] grid place-items-center"><Bot size={15} /></div><div className="pt-2 text-[11px] text-[#888] flex items-center gap-2"><span className="h-1.5 w-1.5 bg-[#168bff] animate-pulse" />VelClaw AI is analyzing your request…</div></div>}
+                {isLoading && <div className="flex gap-3"><div className="h-8 w-8 border border-[#303030] bg-[#101010] text-[#168bff] grid place-items-center"><Bot size={15} /></div><div className="pt-1"><AiThinkingIndicator status="thinking" /></div></div>}
                 <div ref={messagesEndRef} />
               </div>
             </div>
