@@ -190,7 +190,7 @@ export default function App() {
     return () => { cancelled = true; };
   }, []);
 
-  // Load domains from the VelclawHost Control Plane instead of treating mock data as source of truth.
+  // Load domains from the VelClaw Control Plane instead of treating mock data as source of truth.
   useEffect(() => {
     let cancelled = false;
     fetch('/api/v1/domains')
@@ -604,7 +604,7 @@ export default function App() {
         <main className="vc-next-content vc-main min-w-0">
           <div className="vc-page-header">
             <div className="min-w-0">
-              <div className="vc-breadcrumb"><span>VelclawHost</span><span>/</span><span>Production</span><span>/</span><strong>{({
+              <div className="vc-breadcrumb"><span>VelClaw</span><span>/</span><span>Control Plane</span><span>/</span><strong>{({
                 overview:'Overview', projects:'Projects', deployments:'Deployments', domains:'Domains', settings:'Settings', 'dns-ssl':'DNS & SSL',
                 'metrics-charts':'Analytics', alerts:'Alerts', logs:'Logs', 'db-optimizer':'Storage & Database',
                 'security-2fa':'Security', 'api-integration':'Integrations', 'plugins-tools':'Plugins & Tools', reports:'Usage & Reports'
@@ -616,7 +616,7 @@ export default function App() {
               } as Record<TabType,string>)[activeTab]}</h1>
             </div>
             <div className="vc-page-actions">
-              <span className="vc-live-pill"><i/> Production</span>
+              <span className="vc-live-pill"><i/> Control Plane</span>
             </div>
           </div>
           {capabilities && (
@@ -642,7 +642,7 @@ export default function App() {
             <section className="space-y-5">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div><h2 className="text-xl font-semibold text-white">Projects</h2><p className="mt-1 text-sm text-slate-400">Các dự án và ứng dụng được quản lý bởi VelclawHost.</p></div>
+                  <div><h2 className="text-xl font-semibold text-white">Projects</h2><p className="mt-1 text-sm text-slate-400">Các dự án và ứng dụng được quản lý bởi VelClaw.</p></div>
                   <button onClick={() => navigateTab('deployments')} className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white">Xem deployments</button>
                 </div>
               </div>
