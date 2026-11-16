@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc" focusable="false">
+  <title id="title">VELCLAW Minimal AI Thinking</title>
+  <desc id="desc">Minimal line-art VELCLAW mark with a subtle animated arc and three signal dots.</desc>
+  <style>
+    .arc { transform-box: fill-box; transform-origin: center; animation: vc-line-rotate 4.5s linear infinite; }
+    .pulse { animation: vc-line-pulse 1.35s ease-in-out infinite; }
+    .delay-1 { animation-delay: .18s; }
+    .delay-2 { animation-delay: .36s; }
+    @keyframes vc-line-rotate { to { transform: rotate(360deg); } }
+    @keyframes vc-line-pulse { 0%,100% { opacity: .3; transform: translateY(0); } 45% { opacity: 1; transform: translateY(-2px); } }
+    @media (prefers-reduced-motion: reduce) { .arc, .pulse { animation: none; } }
+  </style>
+  <g class="arc" fill="none" stroke="#2F80FF" stroke-linecap="round">
+    <path d="M18 12a23 23 0 0 1 32 7" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="1 6" />
+    <path d="M52 45a23 23 0 0 1-35 6" stroke-opacity=".24" stroke-width="1" stroke-dasharray="1 5" />
+  </g>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 15h8l11 27-7 9L16 15Z" stroke="#F7F8FA" stroke-width="2.4" />
+    <path d="m34 27 18-11-4 8-12 6-5 8-4-7 5-4h2Z" stroke="#C7CBD4" stroke-width="2.1" />
+    <path d="m39 32 12-7-3 7-8 4-4 5-4-5 4-4Z" stroke="#2F80FF" stroke-width="1.8" />
+  </g>
+  <g fill="#2F80FF">
+    <circle class="pulse" cx="43" cy="52" r="1.7" />
+    <circle class="pulse delay-1" cx="49" cy="52" r="1.7" />
+    <circle class="pulse delay-2" cx="55" cy="52" r="1.7" />
+  </g>
+</svg>

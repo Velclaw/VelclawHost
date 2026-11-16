@@ -741,3 +741,46 @@ Nếu WebView hoặc native renderer chỉ hiển thị SVG tĩnh, logo vẫn gi
 - Đặt file trong cache dài hạn nếu tên file có hash hoặc version.
 - Khi request kết thúc, unmount SVG hoặc dừng animation để tiết kiệm pin.
 - Giữ `aria-label`/`accessibilityLabel` dù label chữ bị ẩn trên mobile.
+
+
+---
+
+## 13. Minimal / Line Art variant cho compact UI
+
+File `velclaw-ai-thinking-minimal.svg` là biến thể dành cho toolbar, chat bubble, input composer và các layout có chiều cao hạn chế.
+
+### Đặc điểm
+
+- `viewBox="0 0 64 64"`, phù hợp kích thước 20–32px.
+- Chỉ dùng stroke, không dùng fill cho biểu tượng chính.
+- Halo là hai cung nét đứt xanh quay rất chậm.
+- Dấu V + móng vuốt giữ silhouette nhưng giảm chi tiết.
+- Ba chấm tín hiệu nằm sát đáy, không chiếm thêm chiều ngang.
+- Nền trong suốt, không tạo hộp bao quanh.
+
+### Cách dùng
+
+```tsx
+export function CompactThinkingIcon({ size = 24 }: { size?: number }) {
+  return (
+    <img
+      src="/assets/velclaw-ai-thinking-minimal.svg"
+      width={size}
+      height={size}
+      alt="VELCLAW đang xử lý"
+      draggable={false}
+    />
+  );
+}
+```
+
+### Khi nào dùng variant này?
+
+| Ngữ cảnh | Kích thước | Khuyến nghị |
+|---|---:|---|
+| Chat composer | 20–24px | Chỉ icon, ẩn label |
+| Message bubble | 24–28px | Icon + label ngắn |
+| Toolbar | 20–24px | Giữ khoảng cách 8px với text |
+| Full assistant panel | 32–40px | Dùng bản SVG đầy đủ thay vì line art |
+
+Không dùng line-art variant cho splash screen hoặc full-screen loading; ở những bề mặt lớn, bản SVG đầy đủ có halo rõ hơn và truyền tải trạng thái tốt hơn.
