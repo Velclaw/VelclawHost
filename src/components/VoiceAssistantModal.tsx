@@ -101,7 +101,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     setIsLoading(true);
     try {
       const activeAlertsCount = alerts.filter(a => !a.resolved).length;
-      const response = await fetch('/api/ai/voice-command', {
+      const response = await fetch('/api/ai/ask-command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ command, context: {
