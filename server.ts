@@ -1401,21 +1401,9 @@ async function startServer() {
         if (!res.destroyed) res.write(JSON.stringify(payload) + "\n");
       };
 
-      if (useGateway) {
-        send({ type: "start", source: "vercel-ai-gateway" });
-        // Load the ESM-only AI SDK dynamically: the production server bundle is CommonJS.
-        const { streamText } = await import("ai");
-        const result = streamText({
-          model: "openai/gpt-6-astra",
-          prompt,
-          abortSignal: controller.signal,
-        });
-        for await (const delta of result.textStream) {
-          if (delta) send({ type: "delta", delta });
-        }
-        send({ type: "done", action, targetTab, source: "vercel-ai-gateway" });
-      } else if (ai) {
-        send({ type: "start", source: "gemini" });
+      const streamGemini = async (source: string) => {
+        if (!ai) throw new Error("GEMINI_API_KEY is not configured.");
+        send({ type: "start", source });
         const contents = attachment
           ? [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: attachment.mimeType, data: attachment.data } }] }]
           : prompt;
@@ -1431,6 +1419,33 @@ async function startServer() {
           if (delta) send({ type: "delta", delta });
         }
         send({ type: "done", action, targetTab, source: "gemini-3.8-flash" });
+      };
+
+      if (useGateway) {
+        send({ type: "start", source: "vercel-ai-gateway" });
+        // Load the ESM-only AI SDK dynamically: the production server bundle is CommonJS.
+        const { streamText } = await import("ai");
+        const result = streamText({
+          model: "openai/gpt-6-astra",
+          prompt,
+          abortSignal: controller.signal,
+        });
+        let emittedDelta = false;
+        try {
+          for await (const delta of result.textStream) {
+            if (delta) {
+              emittedDelta = true;
+              send({ type: "delta", delta });
+            }
+          }
+          send({ type: "done", action, targetTab, source: "vercel-ai-gateway" });
+        } catch (gatewayError) {
+          if (!ai || emittedDelta || controller.signal.aborted) throw gatewayError;
+          send({ type: "provider_fallback", source: "gemini", reason: "gateway_unavailable" });
+          await streamGemini("gemini-fallback");
+        }
+      } else if (ai) {
+        await streamGemini("gemini");
       }
       return res.end();
     } catch (err: any) {
