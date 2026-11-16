@@ -13,7 +13,7 @@ interface SidebarProps {
   isMobileMenuOpen: boolean;
   onCloseMobileMenu: () => void;
   unreadAlertCount: number;
-  onOpenVoiceAssistant?: () => void;
+  onOpenAiAssistant?: () => void;
 }
 
 type NavItem = {
@@ -30,7 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileMenuOpen,
   onCloseMobileMenu,
   unreadAlertCount,
-  onOpenVoiceAssistant,
+  onOpenAiAssistant,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -143,9 +143,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
 
           <div className="vh-sidebar-bottom">
-            {onOpenVoiceAssistant && (
+            {onOpenAiAssistant && (
               <button
-                onClick={() => { onOpenVoiceAssistant(); onCloseMobileMenu(); }}
+                onClick={() => { onOpenAiAssistant(); onCloseMobileMenu(); }}
                 className={['vh-ai-button', collapsed ? 'justify-center' : ''].join(' ')}
                 title="VelClaw DevOps AI"
               >
