@@ -125,7 +125,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                PRODUCTION ACTIVE
+                CONTROL PLANE
               </span>
               <span className="px-2.5 py-1 rounded-md text-[11px] font-mono bg-slate-800 text-slate-300 border border-slate-700">
                 {node.region}
@@ -140,7 +140,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 {node.hostname}
               </h1>
               <a 
-                href={`https://${node.hostname}`} 
+                href={node.hostname && node.hostname !== "loading" ? `https://${node.hostname}` : undefined} 
                 target="_blank" 
                 rel="noreferrer" 
                 className="text-slate-400 hover:text-cyan-400 transition-colors p-1"
