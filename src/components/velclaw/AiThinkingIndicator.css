@@ -89,3 +89,12 @@
   .vc-thinking__halo,.vc-thinking__core,.vc-thinking__dots i,.vc-thinking__caret { animation: none; }
   .vc-thinking__halo { opacity: .8; }
 }
+
+/* Compact brand mark for message avatars and navigation controls. */
+.vc-thinking--compact { gap: 0; }
+.vc-thinking--compact .vc-thinking__visual { width: 36px; height: 36px; }
+.vc-thinking--compact .vc-thinking__halo { inset: 2px; box-shadow: 0 0 0 4px rgba(47,128,255,.06), 0 0 14px rgba(47,128,255,.16); }
+.vc-thinking--compact .vc-thinking__core { width: 24px; height: 24px; }
+.vc-thinking--compact .vc-thinking__mark { width: 16px; height: 16px; }
+.vc-thinking--compact .vc-thinking__dots { right: -2px; bottom: -1px; gap: 2px; }
+.vc-thinking--compact .vc-thinking__dots i { width: 3px; height: 3px; }
