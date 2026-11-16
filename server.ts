@@ -7,7 +7,6 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
-import { streamText } from "ai";
 import { createDeploymentQueue } from "./lib/control-plane/deployment-queue";
 import { getRegistrarProvider } from "./lib/providers";
 import { RegistrarProviderError } from "./lib/providers/registrar";
@@ -1404,6 +1403,8 @@ async function startServer() {
 
       if (useGateway) {
         send({ type: "start", source: "vercel-ai-gateway" });
+        // Load the ESM-only AI SDK dynamically: the production server bundle is CommonJS.
+        const { streamText } = await import("ai");
         const result = streamText({
           model: "openai/gpt-6-astra",
           prompt,
