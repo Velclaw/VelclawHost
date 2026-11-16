@@ -76,12 +76,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="vh-sidebar-top">
             <div className="vh-project-switcher">
               <div className="vh-project-logo">
-                <img src="/assets/velclawhost-logo.svg" alt="VelclawHost" />
+                <img src="/assets/velclawhost-logo.svg" alt="VelClawHost" />
               </div>
               {!collapsed && (
                 <div className="min-w-0 flex-1">
-                  <div className="vh-project-name">VelclawHost</div>
-                  <div className="vh-project-meta"><span /> production</div>
+                  <div className="vh-project-name">VelClawHost</div>
+                  <div className="vh-project-meta"><span /> control plane</div>
                 </div>
               )}
               {!collapsed && <ChevronsUpDown className="h-3.5 w-3.5 text-zinc-600" />}
@@ -157,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="vh-account-card">
                 <div className="vh-avatar">VH</div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[10px] font-medium text-zinc-200">Velclaw account</div>
+                  <div className="truncate text-[10px] font-medium text-zinc-200">VelClawHost account</div>
                   <div className="truncate text-[9px] text-zinc-600">Owner · authenticated</div>
                 </div>
                 <Settings className="h-3.5 w-3.5 text-zinc-600" />
@@ -169,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Activity className="h-4 w-4 text-emerald-400" />
               ) : (
                 <>
-                  <div className="vh-health-row"><span>Production</span><span className="vh-health"><i /> Healthy</span></div>
+                  <div className="vh-health-row"><span>Control plane</span><span className="vh-health"><i /> Runtime</span></div>
                   <div className="vh-health-host">velclawhost.onrender.com</div>
                 </>
               )}
