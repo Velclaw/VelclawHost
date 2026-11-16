@@ -67,7 +67,7 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
 
   const downloadBackupCodes = () => {
     const text = [
-      '# VELCLAWHOST CONTROL CENTER - EMERGENCY 2FA BACKUP CODES',
+      '# VELCLAW - EMERGENCY 2FA BACKUP CODES',
       `# Administrator: ${twoFactor.adminEmail}`,
       `# Generated: ${new Date().toISOString()}`,
       '# Each code can only be used once in emergency lockout scenarios.\n',

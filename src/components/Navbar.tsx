@@ -19,17 +19,8 @@ interface NavbarProps {
 }
 
 const VelclawMark = () => (
-  <div className="vh-brand-mark" aria-label="VelClawHost">
-    <svg viewBox="0 0 32 32" aria-hidden="true">
-      <defs>
-        <linearGradient id="vh-v" x1="4" y1="4" x2="28" y2="28">
-          <stop stopColor="#a78bfa" />
-          <stop offset=".55" stopColor="#7c3aed" />
-          <stop offset="1" stopColor="#22d3ee" />
-        </linearGradient>
-      </defs>
-      <path fill="url(#vh-v)" d="M4 6h6.1l5.9 12.4L21.9 6H28L18.7 25.5a3 3 0 0 1-5.4 0L4 6Z" />
-    </svg>
+  <div className="vh-brand-mark" aria-label="VelClaw">
+    <img src="/assets/velclaw-mark.svg" alt="" />
   </div>
 );
 
@@ -56,11 +47,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </button>
 
-        <a href="/" className="vh-brand-link" aria-label="VelClawHost home">
+        <a href="/" className="vh-brand-link" aria-label="VelClaw home">
           <VelclawMark />
           <div className="hidden sm:block">
-            <div className="vh-brand-title">VelClawHost</div>
-            <div className="vh-brand-sub">cloud infrastructure</div>
+            <div className="vh-brand-title">VelClaw</div>
+            <div className="vh-brand-sub">CODE. INNOVATE. ELEVATE.</div>
           </div>
         </a>
 

@@ -9,27 +9,27 @@ const siteUrl = "https://velclawhost.velclaw.app";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "VelClawHost — Developer Control Center",
-    template: "%s | VelClawHost",
+    default: "VelClaw — Developer Control Center",
+    template: "%s | VelClaw",
   },
   description:
-    "VelClawHost — bảng điều khiển hạ tầng hosting: quản lý domain, DNS/TLS, triển khai ứng dụng, giám sát và bảo mật.",
-  applicationName: "VelClawHost",
+    "VelClaw — bảng điều khiển hạ tầng hosting: quản lý domain, DNS/TLS, triển khai ứng dụng, giám sát và bảo mật.",
+  applicationName: "VelClaw",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "VelClawHost — Cloud Infrastructure",
+    title: "VelClaw — Cloud Infrastructure",
     description:
       "Một workspace để quản lý hosting, domain, DNS/TLS, deployments và tình trạng hạ tầng.",
-    siteName: "VelClawHost",
+    siteName: "VelClaw",
     url: siteUrl,
     type: "website",
   },
   twitter: {
-    card: "summary",
-    title: "VelClawHost",
+    card: "summary_large_image",
+    title: "VelClaw",
     description: "Cloud infrastructure control plane.",
   },
-  icons: { icon: "/favicon.ico" },
+  icons: { icon: "/assets/velclaw-mark.svg" },
 };
 
 export const viewport: Viewport = {

@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="assets/velclawhost-logo.svg" alt="VelClawHost logo" width="120" />
+  <img src="assets/velclaw-logo.svg" alt="VelClaw logo" width="120" />
 </p>
 
-<h1 align="center">VelClawHost</h1>
+<h1 align="center">VelClaw</h1>
 
-<p align="center">Deploy. Build. Grow. — VelClawHost — Developer Control Center.</p>
+<p align="center">CODE. INNOVATE. ELEVATE.</p>
 
 > **Hệ thống Quản lý Dịch vụ Lưu trữ Web, Giám sát Hạ tầng Thời gian thực & Điều phối Tên miền Tự động (Domain & Deployment Control Plane).**
 
@@ -14,7 +14,7 @@
 
 - [1. Giới Thiệu Tổng Quan](#1-giới-thiệu-tổng-quan)
 - [2. Kiến Trúc Domain Hiện Tại](#2-kiến-trúc-domain-hiện-tại)
-- [3. Kiến Trúc VelClawHost Control Plane](#3-kiến-trúc-velclawhost-control-plane)
+- [3. Kiến Trúc VelClaw Control Plane](#3-kiến-trúc-velclaw-control-plane)
 - [4. Các Tính Năng & Phân Hệ Trọng Yếu](#4-các-tính-năng--phân-hệ-trọng-yếu)
 - [5. Cấu Trúc Mã Nguồn (Project Structure)](#5-cấu-trúc-mã-nguồn-project-structure)
 - [6. Hướng Dẫn Cài Đặt & Vận Hành Chi Tiết](#6-hướng-dẫn-cài-đặt--vận-hành-chi-tiết)
@@ -26,13 +26,13 @@
 
 ## 1. Giới Thiệu Tổng Quan
 
-**VelClawHost** là giải pháp quản trị hạ tầng Cloud & Server thế hệ mới, kết hợp bảng điều khiển giám sát tài nguyên máy chủ thời gian thực (Real-time Metrics), trung tâm kiểm soát DNS Anycast, tự động hóa chứng chỉ SSL/TLS 1.3 Let's Encrypt, bảo mật đa yếu tố (2FA TOTP), tối ưu hóa cơ sở dữ liệu và tích hợp Trợ lý Trí tuệ Nhân tạo **Gemini 3.8 Flash** điều khiển bằng giọng nói.
+**VelClaw** là giải pháp quản trị hạ tầng Cloud & Server thế hệ mới, kết hợp bảng điều khiển giám sát tài nguyên máy chủ thời gian thực (Real-time Metrics), trung tâm kiểm soát DNS Anycast, tự động hóa chứng chỉ SSL/TLS 1.3 Let's Encrypt, bảo mật đa yếu tố (2FA TOTP), tối ưu hóa cơ sở dữ liệu và tích hợp Trợ lý Trí tuệ Nhân tạo **Gemini 3.8 Flash** điều khiển bằng giọng nói.
 
 ---
 
 ## 2. Kiến Trúc Domain Hiện Tại
 
-VelClawHost dùng một namespace chính thống nhất: **`velclaw.site`** cho platform/web, **`api.velclaw.site`** cho API/developer endpoints và **`app.velclaw.site`** cho giao diện ứng dụng. Các subdomain chỉ hoạt động sau khi DNS và TLS được cấu hình, không tự được tạo chỉ bằng cấu hình mã nguồn.
+VelClaw dùng một namespace chính thống nhất: **`velclaw.site`** cho platform/web, **`api.velclaw.site`** cho API/developer endpoints và **`app.velclaw.site`** cho giao diện ứng dụng. Các subdomain chỉ hoạt động sau khi DNS và TLS được cấu hình, không tự được tạo chỉ bằng cấu hình mã nguồn.
 
 ```text
 VELCLAW ECOSYSTEM
@@ -49,16 +49,16 @@ VELCLAW ECOSYSTEM
 | **`velclaw.site`** | **PRIMARY PLATFORM** | Platform / Company. `api.velclaw.site` là developer surface và `app.velclaw.site` là application surface. |
 | `.com` / `.ai` / `.dev` / `.io` / `.app` | **FUTURE MIGRATION** | Chỉ giữ làm mục tiêu khi có domain chính thức và kế hoạch migration. |
 
-## 3. Kiến Trúc VelClawHost Control Plane
+## 3. Kiến Trúc VelClaw Control Plane
 
-**VelClawHost** đóng vai trò là tầng trung gian điều phối giữa Core Platform Velclaw, Nhà cung cấp DNS (Cloudflare API), Cổng Ingress Reverse Proxy và Runtime Containers:
+**VelClaw** đóng vai trò là tầng trung gian điều phối giữa Core Platform Velclaw, Nhà cung cấp DNS (Cloudflare API), Cổng Ingress Reverse Proxy và Runtime Containers:
 
 ```
 VELCLAW CORE (UI / CLI)
           │
           │ Deploy Spec (Git Hash / Docker Image / Env)
           ▼
-   VELCLAWHOST API (Control Plane)
+   VELCLAW API (Control Plane)
           │
   ┌───────┼────────────────────────────────────────┐
   ▼       ▼                                        ▼
@@ -86,7 +86,7 @@ Cloudflare Caddy / Nginx Ingress              Let's Encrypt (ACME)
 ## 4. Các Tính Năng & Phân Hệ Trọng Yếu
 
 ### 🌐 4.1. Quản Lý Tên Miền Tùy Chỉnh (Domain Management Tab)
-- **Cấu hình tên miền độc lập**: Cho phép người dùng kết nối tên miền riêng vào hạ tầng VelClawHost trên namespace first-party hiện tại `velclaw.site`, `api.velclaw.site`, `app.velclaw.site` và custom domains.
+- **Cấu hình tên miền độc lập**: Cho phép người dùng kết nối tên miền riêng vào hạ tầng VelClaw trên namespace first-party hiện tại `velclaw.site`, `api.velclaw.site`, `app.velclaw.site` và custom domains.
 - **Trường nhập liệu & Cấu hình DNS**:
   - *Tên miền (Domain Name)*: Kiểm tra cú pháp thời gian thực, phát hiện và gán huy hiệu nhận diện TLD tức thì (.COM, .DEV, .AI, .IO, .APP).
   - *Loại bản ghi DNS*: Hỗ trợ bản ghi **A** (trỏ tới địa chỉ IPv4 máy chủ edge) và **CNAME** (trỏ tới Ingress Hostname alias).
@@ -275,7 +275,7 @@ File thực thi backend tự sinh tại `dist/server.cjs` ở dạng CommonJS đ
 ## 7. Hướng Dẫn Cấu Hình DNS & Ingress Reverse Proxy Mẫu
 
 ### 🌐 7.1. Cấu Hình Wildcard DNS Trên Cloudflare
-Cloudflare authoritative DNS cho **`app.velclaw.site`** phải có domain gốc và wildcard cùng trỏ về VelClawHost edge/runtime:
+Cloudflare authoritative DNS cho **`app.velclaw.site`** phải có domain gốc và wildcard cùng trỏ về VelClaw edge/runtime:
 
 ```text
 Type     Name      Target / IPv4        Proxy status    TTL
@@ -372,7 +372,7 @@ server {
 
 ### Control-plane reconciliation
 
-VelClawHost runs a bounded reconciliation loop in the server process. It verifies Docker-managed runtime containers, probes configured runtime health endpoints, and moves stale runtimes/deployments to `failed` instead of treating a persisted `running` record as proof of liveness.
+VelClaw runs a bounded reconciliation loop in the server process. It verifies Docker-managed runtime containers, probes configured runtime health endpoints, and moves stale runtimes/deployments to `failed` instead of treating a persisted `running` record as proof of liveness.
 
 Configuration:
 
@@ -385,7 +385,7 @@ The reconciliation status is available at `GET /api/v1/reconciliation` and repor
 
 ## Control Plane API
 
-VelClawHost exposes a minimal control-plane contract for the Velclaw core platform. The browser console and external deploy clients use the same API.
+VelClaw exposes a minimal control-plane contract for the Velclaw core platform. The browser console and external deploy clients use the same API.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
@@ -437,7 +437,7 @@ VELCLAWHOST
 Ingress / Runtime
 ```
 
-The Velclaw core repository remains the product layer. VelClawHost is the infrastructure control plane. Production DNS, TLS, proxy and runtime credentials must be injected through deployment secrets rather than committed to this repository.
+The Velclaw core repository remains the product layer. VelClaw is the infrastructure control plane. Production DNS, TLS, proxy and runtime credentials must be injected through deployment secrets rather than committed to this repository.
 
 
 ### Staged deployment executor
@@ -573,7 +573,7 @@ Production requires the PostgreSQL migrations in `db/migrations/`, persistent Do
 
 ## Domain provider architecture
 
-VelClawHost is the **domain + DNS + SSL + hosting control plane** for the Velclaw ecosystem. The registrar layer is adapter-based so the UI and API are not coupled to Vercel.
+VelClaw is the **domain + DNS + SSL + hosting control plane** for the Velclaw ecosystem. The registrar layer is adapter-based so the UI and API are not coupled to Vercel.
 
 First-party map:
 
@@ -585,7 +585,7 @@ Legacy `velclaw.cfd` and removed first-party `velclaw.ai` are not canonical endp
 
 ### Registrar migration
 
-Vercel exposes a Domains Registrar API for availability, pricing, auth-code retrieval, transfer-in, transfer status and nameserver management. VelClawHost includes a server-side Vercel adapter for the **source-registrar** step.
+Vercel exposes a Domains Registrar API for availability, pricing, auth-code retrieval, transfer-in, transfer status and nameserver management. VelClaw includes a server-side Vercel adapter for the **source-registrar** step.
 
 Configure:
 
@@ -597,14 +597,14 @@ VERCEL_REGISTRAR_TEAM_ID=""
 VERCEL_REGISTRAR_API_BASE_URL="https://api.vercel.com"
 ```
 
-The target registrar remains a separate adapter. VelClawHost does not become an ICANN-accredited registrar merely by running this control plane; a true Velclaw registrar/reseller service requires the appropriate registrar/registry or reseller relationship.
+The target registrar remains a separate adapter. VelClaw does not become an ICANN-accredited registrar merely by running this control plane; a true Velclaw registrar/reseller service requires the appropriate registrar/registry or reseller relationship.
 
 Vercel states that outbound transfer requires a domain to have been registered with Vercel for at least 60 days before an authorization code can be requested. ICANN requires an Auth-Code for gTLD registrar transfers and applies 60-day locks in specified situations.
 
 
 ### Target registrar / reseller: ResellerClub
 
-VelClawHost now supports **ResellerClub as the target registrar/reseller adapter** while Vercel remains the migration/source registrar adapter. ResellerClub's official developer platform exposes domain availability, registration, transfer and DNS lifecycle APIs, with separate sandbox and live environments.
+VelClaw now supports **ResellerClub as the target registrar/reseller adapter** while Vercel remains the migration/source registrar adapter. ResellerClub's official developer platform exposes domain availability, registration, transfer and DNS lifecycle APIs, with separate sandbox and live environments.
 
 Architecture:
 
@@ -612,7 +612,7 @@ Architecture:
 Velclaw
   │
   ▼
-VelClawHost Control Plane
+VelClaw Control Plane
   ├── Source: Vercel
   │     └── Auth-Code / transfer-out
   │
@@ -638,13 +638,13 @@ Do not put live reseller credentials in Git. The provider reads them server-side
 
 ## DNS Manager API (Cloudflare)
 
-VelClawHost can manage DNS records through an authenticated server-side proxy. The API token is never sent to the browser. Configure these variables on the Render web service:
+VelClaw can manage DNS records through an authenticated server-side proxy. The API token is never sent to the browser. Configure these variables on the Render web service:
 
 - `CLOUDFLARE_API_TOKEN`: scoped Cloudflare API token with **Zone:Read** and **DNS:Edit** for the selected zone.
 - `CLOUDFLARE_ZONE_ID`: Cloudflare zone ID.
 - `CLOUDFLARE_ZONE_NAME`: zone apex, e.g. `velclaw.tech`.
 
-The DNS proxy endpoints require VelClawHost authentication:
+The DNS proxy endpoints require VelClaw authentication:
 
 - `GET /api/v1/dns/status` — configuration and zone status.
 - `GET /api/v1/dns/records` — list records (optional `type`, `name`, `page`).

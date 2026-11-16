@@ -1,4 +1,4 @@
-# VelclawHost Edge
+# VelClaw Edge
 
 Cloudflare Worker used as the public edge for `velclaw.site`.
 
