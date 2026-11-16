@@ -670,3 +670,74 @@ Sau đó mở story `VELCLAW / AiStreamingText` và chuyển background giữa `
 | Error | Có thông báo lỗi riêng, không giả lập trạng thái ready |
 | Reset | Text, chunk counter và status trở về idle |
 | Reduced motion | Animation dừng nhưng label vẫn rõ |
+
+
+---
+
+## 12. Bản SVG animation cho Mobile app
+
+File `velclaw-ai-thinking.svg` là phiên bản vector nhẹ của hiệu ứng AI Thinking. File dùng `viewBox="0 0 120 120"`, không phụ thuộc ảnh raster và có thể scale từ icon 24px đến loading state 96px mà không vỡ nét.
+
+### Đặc điểm
+
+- Nền trong suốt, phù hợp đặt trên Dark/Light surface.
+- Dung lượng nhỏ hơn nhiều so với PNG app icon.
+- Halo xanh co giãn bằng CSS keyframes.
+- Core VELCLAW xoay chậm để giữ cảm giác hệ thống đang hoạt động.
+- Ba chấm xanh chạy tuần tự.
+- Có `prefers-reduced-motion` để tắt animation khi người dùng yêu cầu giảm chuyển động.
+- Có `<title>` và `<desc>` để hỗ trợ accessibility khi dùng như inline SVG.
+
+### Dùng trong WebView hoặc React Native Web
+
+```tsx
+export function MobileThinkingIcon({ size = 64 }: { size?: number }) {
+  return (
+    <img
+      src="/assets/velclaw-ai-thinking.svg"
+      width={size}
+      height={size}
+      alt="VELCLAW đang suy nghĩ"
+      draggable={false}
+    />
+  );
+}
+```
+
+Nếu SVG được import trực tiếp trong Next.js, dùng loader SVG của dự án hoặc đặt file trong `public/assets` rồi tham chiếu bằng đường dẫn `/assets/velclaw-ai-thinking.svg`. Không cần tải thêm thư viện animation.
+
+### Dùng trong Expo / React Native
+
+Với Expo, có thể đưa file SVG vào bundle và render qua `react-native-svg` hoặc `react-native-svg-transformer`. Nếu target là native iOS/Android thuần, nên dùng cùng `viewBox` và chuyển các keyframes thành `Animated` props của `react-native-svg`; không nên phụ thuộc vào SMIL nếu runtime native không hỗ trợ SVG animation trong `<Image>`.
+
+```tsx
+import { SvgUri } from "react-native-svg";
+
+export function MobileThinkingIcon() {
+  return (
+    <SvgUri
+      width={64}
+      height={64}
+      uri="https://your-cdn.example.com/velclaw-ai-thinking.svg"
+      accessible
+      accessibilityLabel="VELCLAW đang suy nghĩ"
+    />
+  );
+}
+```
+
+### Fallback khi runtime không chạy animation
+
+Nếu WebView hoặc native renderer chỉ hiển thị SVG tĩnh, logo vẫn giữ được hình dạng chính. Trong trường hợp cần animation native tuyệt đối, giữ cùng cấu trúc 3 lớp:
+
+1. Halo: animate scale và opacity.
+2. Core: animate rotation tối đa 5 giây/vòng.
+3. Dots: animate translateY + opacity theo delay `.16s` và `.32s`.
+
+### Tối ưu mobile
+
+- Dùng kích thước 48–64px trong chat bubble và 72–96px ở full-screen loading.
+- Không đặt nhiều SVG animated trên cùng một màn hình; chỉ nên có một indicator đang active.
+- Đặt file trong cache dài hạn nếu tên file có hash hoặc version.
+- Khi request kết thúc, unmount SVG hoặc dừng animation để tiết kiệm pin.
+- Giữ `aria-label`/`accessibilityLabel` dù label chữ bị ẩn trên mobile.
