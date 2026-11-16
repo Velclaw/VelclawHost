@@ -120,7 +120,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <button onClick={onClose className="h-9 w-9 border border-[#343434] text-[#aaa] grid place-items-center hover:bg-[#171717] hover:text-white" aria-label="Close VelClaw AI"><X size={17} /></button>
+          <button onClick={onClose} className="h-9 w-9 border border-[#343434] text-[#aaa] grid place-items-center hover:bg-[#171717] hover:text-white" aria-label="Close VelClaw AI"><X size={17} /></button>
         </div>
       </header>
 
@@ -168,7 +168,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
               <div className="space-y-6">
                 {messages.map(msg => <article key={msg.id} className={`flex gap-3 sm:gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`h-8 w-8 shrink-0 border grid place-items-center ${msg.sender === 'assistant' ? 'border-[#303030] bg-[#101010] text-[#168bff]' : 'border-[#383838] bg-[#191919] text-[#ddd]'}`}>{msg.sender === 'assistant' ? <AiThinkingIndicator status="ready" showLabel={false} /> : <User size={15} />}</div>
+                  <div className={`h-8 w-8 shrink-0 border grid place-items-center ${msg.sender === 'assistant' ? 'border-[#303030] bg-[#101010] text-[#168bff]' : 'border-[#383838] bg-[#191919] text-[#ddd]'}`}>{msg.sender === 'assistant' ? <AiThinkingIndicator status="ready" showLabel={false} className="vc-thinking--compact" /> : <User size={15} />}</div>
                   <div className={`min-w-0 max-w-[88%] sm:max-w-[80%] ${msg.sender === 'user' ? 'text-right' : ''}`}>
                     <div className="flex items-center gap-2 mb-1.5"><span className="text-[10px] font-semibold text-[#ddd]">{msg.sender === 'assistant' ? 'VelClaw AI' : 'You'}</span><span className="text-[9px] font-mono text-[#666]">{msg.timestamp}</span></div>
                     <div className={`text-[13px] leading-6 whitespace-pre-wrap text-left ${msg.sender === 'user' ? 'inline-block border border-[#24476a] bg-[#0b1723] px-3.5 py-2.5 text-[#e4edf7]' : 'text-[#c7c7c7]'}`}>{msg.sender === 'assistant' ? <AiStreamingText text={msg.text} isStreaming={false} showThinking={false} /> : msg.text}</div>
