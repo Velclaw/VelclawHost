@@ -34,7 +34,7 @@ export function downloadMetricsCsv(metrics: MetricSnapshot[], hostname: string) 
   ]);
 
   const csvContent = [
-    `# VelClawHost - Production Hostname Metrics Report`,
+    `# VelClaw - Production Hostname Metrics Report`,
     `# Hostname: ${hostname}`,
     `# Generated: ${new Date().toISOString()}`,
     headers.join(','),
@@ -74,7 +74,7 @@ export function downloadLogsCsv(logs: SystemLog[], alerts: SystemAlert[]) {
   ]);
 
   const csvContent = [
-    `# VelClawHost - Audit & Event Logs Export`,
+    `# VelClaw - Audit & Event Logs Export`,
     `# Generated: ${new Date().toISOString()}`,
     headers.join(','),
     ...logRows.map(r => r.join(',')),
