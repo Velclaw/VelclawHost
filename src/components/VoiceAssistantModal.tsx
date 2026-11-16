@@ -223,7 +223,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
                     {msg.actionTaken && <div className="mt-2 inline-flex items-center gap-2 border border-[#21432f] bg-[#0b160f] px-2.5 py-1.5 text-[10px] text-[#9bd5ad]"><CheckCircle2 size={12} />{msg.actionTaken}</div>}
                   </div>
                 </article>)}
-                {isLoading && <div className="flex gap-3"><div className="h-8 w-8 border border-[#303030] bg-[#101010] text-[#168bff] grid place-items-center"><Bot size={15} /></div><div className="pt-1"><AiThinkingIndicator status="thinking" /></div></div>}
+                {isLoading && <div className="flex gap-3" aria-label="VelClaw AI is preparing a response"><div className="h-8 w-8 border border-[#303030] bg-[#101010] text-[#168bff] grid place-items-center"><Bot size={15} /></div><div className="pt-1"><AiStreamingText text="" isStreaming showThinking /></div></div>}
                 <div ref={messagesEndRef} />
               </div>
             </div>
