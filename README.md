@@ -4,7 +4,7 @@
 
 <h1 align="center">VelClaw</h1>
 
-<p align="center">Deploy. Build. Grow. — VelClaw — Code. Innovate. Elevate.</p>
+<p align="center">CODE. INNOVATE. ELEVATE.</p>
 
 > **Hệ thống Quản lý Dịch vụ Lưu trữ Web, Giám sát Hạ tầng Thời gian thực & Điều phối Tên miền Tự động (Domain & Deployment Control Plane).**
 
@@ -14,7 +14,7 @@
 
 - [1. Giới Thiệu Tổng Quan](#1-giới-thiệu-tổng-quan)
 - [2. Kiến Trúc Domain Hiện Tại](#2-kiến-trúc-domain-hiện-tại)
-- [3. Kiến Trúc VelClaw Control Plane](#3-kiến-trúc-velclawhost-control-plane)
+- [3. Kiến Trúc VelClaw Control Plane](#3-kiến-trúc-velclaw-control-plane)
 - [4. Các Tính Năng & Phân Hệ Trọng Yếu](#4-các-tính-năng--phân-hệ-trọng-yếu)
 - [5. Cấu Trúc Mã Nguồn (Project Structure)](#5-cấu-trúc-mã-nguồn-project-structure)
 - [6. Hướng Dẫn Cài Đặt & Vận Hành Chi Tiết](#6-hướng-dẫn-cài-đặt--vận-hành-chi-tiết)
@@ -58,7 +58,7 @@ VELCLAW CORE (UI / CLI)
           │
           │ Deploy Spec (Git Hash / Docker Image / Env)
           ▼
-   VELCLAWHOST API (Control Plane)
+   VELCLAW API (Control Plane)
           │
   ┌───────┼────────────────────────────────────────┐
   ▼       ▼                                        ▼
