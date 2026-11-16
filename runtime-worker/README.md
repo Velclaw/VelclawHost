@@ -1,6 +1,6 @@
-# VelclawHost Runtime Worker
+# VelClaw Runtime Worker
 
-The Runtime Worker is the execution plane for VelclawHost. It is intentionally separate from the public control plane.
+The Runtime Worker is the execution plane for VelClaw. It is intentionally separate from the public control plane.
 
 ## Responsibilities
 
@@ -19,7 +19,7 @@ The worker must run on a host with access to a Docker daemon. The worker does **
 Recommended production topology:
 
 ```
-VelclawHost Control Plane
+VelClaw Control Plane
         |
         | HTTPS + RUNTIME_WORKER_TOKEN
         v
