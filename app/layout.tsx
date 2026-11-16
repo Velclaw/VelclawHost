@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     title: "VelClaw",
     description: "Cloud infrastructure control plane.",
   },
-  icons: { icon: "/assets/velclaw-logo.svg" },
+  icons: { icon: "/assets/velclaw-mark.svg" },
 };
 
 export const viewport: Viewport = {
