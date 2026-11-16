@@ -1312,8 +1312,8 @@ async function startServer() {
     });
   });
 
-  // AI Voice Command & Diagnostic Endpoint
-  app.post("/api/ai/voice-command", async (req, res) => {
+  // VelClaw AI Ask Command & Diagnostic Endpoint
+  app.post("/api/ai/ask-command", async (req, res) => {
     try {
       const { command, context } = req.body;
       if (!command) {
