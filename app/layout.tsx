@@ -9,7 +9,7 @@ const siteUrl = "https://velclawhost.velclaw.app";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "VelClawHost — Cloud Infrastructure",
+    default: "VelClawHost — Developer Control Center",
     template: "%s | VelClawHost",
   },
   description:
