@@ -5,6 +5,7 @@ import {
   Command, ArrowUpRight, AudioLines
 } from 'lucide-react';
 import { TabType, HostNode, MetricSnapshot, SystemAlert } from '../types';
+import { validateAssistantAttachment, type AssistantAttachment } from '../lib/assistant-attachment';
 
 interface VoiceAssistantModalProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [transcript, setTranscript] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<AssistantAttachment | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<MessageItem[]>([{
     id: 'welcome-1', sender: 'assistant',
@@ -46,6 +47,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileSelectionRef = useRef(0);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -97,13 +99,13 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
   const handleSendCommand = async (cmdText: string) => {
     const command = cmdText.trim();
-    const file = selectedFile;
+    const file = selectedFile?.file;
     if ((!command && !file) || isLoading) return;
     setMessages(prev => [...prev, { id: `usr-${Date.now()}`, sender: 'user', text: file ? command + ' · ' + file.name : command, timestamp: clock() }]);
     setTranscript('');
     setSelectedFile(null);
     let attachment: { name: string; mimeType: string; data: string } | undefined;
-    if (file) { const data = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1] || ''); reader.onerror = () => reject(new Error('Unable to read file')); reader.readAsDataURL(file); }); attachment = { name: file.name, mimeType: file.type, data }; }
+    if (file) { const data = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1] || ''); reader.onerror = () => reject(new Error('Unable to read file')); reader.readAsDataURL(file); }); attachment = { name: file.name, mimeType: selectedFile!.mimeType, data }; }
     setIsLoading(true);
     try {
       const activeAlertsCount = alerts.filter(a => !a.resolved).length;
@@ -139,6 +141,25 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
+    }
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const selection = ++fileSelectionRef.current;
+    setSelectedFile(null);
+    try {
+      const attachment = await validateAssistantAttachment(file);
+      if (selection === fileSelectionRef.current) setSelectedFile(attachment);
+    } catch {
+      if (selection !== fileSelectionRef.current) return;
+      setMessages(prev => [...prev, {
+        id: `file-error-${Date.now()}`, sender: 'assistant',
+        text: 'Supported: PDF, PNG, JPG, WEBP, TXT, MD, CSV, JSON. Maximum 8 MB. File content must match its type.',
+        timestamp: clock(),
+      }]);
     }
   };
 
@@ -248,7 +269,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           <div className="shrink-0 border-t border-[#252525] bg-[#080808] px-3 sm:px-7 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
             <div className="max-w-3xl mx-auto">
               {(isListening || isSpeaking) && <div className="mb-2 flex items-center gap-2 text-[10px] font-mono text-[#168bff]"><AudioLines size={13} />{isListening ? 'Listening for your command…' : 'Speaking response…'}</div>}
-              <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md,.csv,.json" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const ok = ["application/pdf","image/png","image/jpeg","image/webp","text/plain","text/markdown","text/csv","application/json"]; if (!ok.includes(f.type) || f.size > 8 * 1024 * 1024) { setMessages(prev => [...prev, { id: "file-error-" + Date.now(), sender: "assistant", text: "Supported: PDF, PNG, JPG, WEBP, TXT, MD, CSV, JSON. Maximum 8 MB.", timestamp: clock() }]); e.target.value = ""; return; } setSelectedFile(f); e.target.value = ""; }} />{selectedFile && <div className="mb-2 flex items-center gap-2 border border-[#303030] bg-[#0b0b0b] px-3 py-2 text-[11px] text-[#ccc]"><Paperclip size={14} className="text-[#168bff]" /><span className="min-w-0 flex-1 truncate">{selectedFile.name}</span><span className="text-[#666]">{(selectedFile.size / 1024 / 1024).toFixed(1)} MB</span><button type="button" onClick={() => setSelectedFile(null)} className="h-7 w-7 grid place-items-center" aria-label="Remove attachment"><X size={14} /></button></div>}<form onSubmit={e => { e.preventDefault(); void handleSendCommand(transcript); }} className="flex items-center gap-2 border border-[#383838] bg-[#050505] p-1.5 focus-within:border-[#168bff]">
+              <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md,.csv,.json" className="hidden" onChange={handleFileChange} />{selectedFile && <div className="mb-2 flex items-center gap-2 border border-[#303030] bg-[#0b0b0b] px-3 py-2 text-[11px] text-[#ccc]"><Paperclip size={14} className="text-[#168bff]" /><span className="min-w-0 flex-1 truncate">{selectedFile.file.name}</span><span className="text-[#666]">{(selectedFile.file.size / 1024 / 1024).toFixed(1)} MB</span><button type="button" onClick={() => { fileSelectionRef.current++; setSelectedFile(null); }} className="h-7 w-7 grid place-items-center" aria-label="Remove attachment"><X size={14} /></button></div>}<form onSubmit={e => { e.preventDefault(); void handleSendCommand(transcript); }} className="flex items-center gap-2 border border-[#383838] bg-[#050505] p-1.5 focus-within:border-[#168bff]">
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="h-10 w-10 shrink-0 grid place-items-center border border-transparent text-[#888] hover:bg-[#151515] hover:text-white" title="Upload a file for VelClaw AI to read" aria-label="Upload file"><Paperclip size={18} /></button>
                 <input ref={inputRef} value={transcript} onChange={e => setTranscript(e.target.value)} placeholder="Message VelClaw AI or attach a file…" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-[13px] text-white outline-none placeholder:text-[#666]" />
                 <button type="submit" disabled={(!transcript.trim() && !selectedFile) || isLoading} className="h-10 w-10 shrink-0 bg-[#f5f5f5] text-black grid place-items-center hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Send message"><Send size={16} /></button>
