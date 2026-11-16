@@ -1,6 +1,6 @@
 {
-  "name": "VelClawHost",
-  "description": "VelClawHost — Developer Control Center for projects, deployments, domains, DNS/TLS, infrastructure monitoring, security and audit operations.",
+  "name": "VelClaw",
+  "description": "VelClaw — Code. Innovate. Elevate. Developer platform and infrastructure control center.",
   "requestFramePermissions": ["notifications", "microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
