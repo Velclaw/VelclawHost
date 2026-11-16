@@ -102,7 +102,7 @@ async function startServer() {
 
   // API Health Endpoint
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", service: "Velclaw Hosting Platform Server", timestamp: new Date().toISOString() });
+    res.json({ status: "ok", service: "VelClawHost Control Plane API", timestamp: new Date().toISOString() });
   });
 
   // Auth.js is the only browser-session issuer. Express validates the Auth.js
