@@ -11,7 +11,6 @@ interface NavbarProps {
   isTwoFactorActive: boolean;
   onOpenSecurityModal: () => void;
   onOpenFcmModal: () => void;
-  onOpenVoiceAssistant?: () => void;
   alerts: SystemAlert[];
   isMobileMenuOpen: boolean;
   onToggleMobileMenu: () => void;
@@ -26,7 +25,7 @@ const VelclawMark = () => (
 
 export const Navbar: React.FC<NavbarProps> = ({
   nodes, selectedNode, onSelectNode, isDarkMode, onToggleTheme, isTwoFactorActive,
-  onOpenSecurityModal, onOpenFcmModal, onOpenVoiceAssistant, alerts,
+  onOpenSecurityModal, onOpenFcmModal, alerts,
   isMobileMenuOpen, onToggleMobileMenu, onOpenDeployments,
 }) => {
   const [isNodeDropdownOpen, setIsNodeDropdownOpen] = useState(false);

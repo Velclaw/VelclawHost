@@ -580,7 +580,7 @@ export default function App() {
         isTwoFactorActive={twoFactor.enabled && twoFactor.verified}
         onOpenSecurityModal={() => navigateTab('security-2fa')}
         onOpenFcmModal={() => setIsFcmModalOpen(true)}
-        onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
+        onOpenAiAssistant={() => setIsVoiceAssistantOpen(true)}
         alerts={alerts}
         isMobileMenuOpen={isMobileMenuOpen}
         onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -822,16 +822,16 @@ export default function App() {
       </div>
 
       {/* Mobile navigation uses the hamburger menu so each section stays on its own page. */}
-      {/* Floating Action Button for Voice Assistant */}
+      {/* Floating Action Button for VelClaw AI */}
       <button
-        id="floating-voice-assistant-fab"
+        id="floating-ai-assistant-fab"
         onClick={() => setIsVoiceAssistantOpen(true)}
-        className="fixed bottom-18 sm:bottom-6 right-4 sm:right-6 z-40 p-3 sm:p-3.5 rounded-2xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 text-white shadow-xl shadow-cyan-600/30 hover:scale-105 active:scale-95 transition-all border border-cyan-400/40 flex items-center gap-2 group"
-        title="Trợ lý Giọng nói AI (Gemini Live)"
+        className="fixed bottom-18 sm:bottom-6 right-4 sm:right-6 z-40 p-3 sm:p-3.5 rounded-none bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 text-white shadow-xl shadow-cyan-600/30 hover:scale-105 active:scale-95 transition-all border border-cyan-400/40 flex items-center gap-2 group"
+        title="Open VelClaw AI Assistant"
       >
         <img src={`${import.meta.env.BASE_URL}velclaw-icon-dark.svg`} alt="VelClaw AI" className="h-6 w-6 object-contain transition-transform group-hover:scale-110" />
         <span className="hidden md:inline text-xs font-bold font-mono tracking-wide">
-          DevOps Voice AI
+          VelClaw AI
         </span>
       </button>
 
