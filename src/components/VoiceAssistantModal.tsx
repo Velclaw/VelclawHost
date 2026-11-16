@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Mic, MicOff, Volume2, VolumeX, X, Send, Activity, Bot, User,
+  Paperclip, Volume2, VolumeX, X, Send, Activity, Bot, User,
   CheckCircle2, Terminal, Cpu, ShieldCheck, FileText, Sparkles,
   Command, ArrowUpRight, AudioLines
 } from 'lucide-react';
@@ -35,6 +35,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [transcript, setTranscript] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<MessageItem[]>([{
     id: 'welcome-1', sender: 'assistant',
@@ -44,6 +45,8 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -95,55 +98,40 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
   const handleSendCommand = async (cmdText: string) => {
     const command = cmdText.trim();
-    if (!command || isLoading) return;
-    setMessages(prev => [...prev, { id: `usr-${Date.now()}`, sender: 'user', text: command, timestamp: clock() }]);
-    setTranscript('');
+    const file = selectedFile;
+    if ((!command && !file) || submittingRef.current) return;
+    submittingRef.current = true;
     setIsLoading(true);
     try {
-      const activeAlertsCount = alerts.filter(a => !a.resolved).length;
-      const response = await fetch('/api/ai/ask-command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command, context: {
-          hostname: selectedNode.hostname, cpuUsage: currentMetric.cpuUsage,
-          ramUsagePercent: currentMetric.ramUsagePercent, ramUsedGb: currentMetric.ramUsedGb,
-          activeAlertsCount, is2FaActive: isTwoFactorActive, latencyMs: currentMetric.latencyMs,
-        } }),
-      });
-      if (!response.ok) throw new Error(`Assistant API returned ${response.status}`);
-      const data = await response.json();
-      const reply = data.reply || 'The request was received. I could not find a detailed response.';
-      let actionTaken = '';
-      if (data.action === 'NAVIGATE' && data.targetTab) {
-        onNavigateTab(data.targetTab as TabType);
-        actionTaken = `Workspace opened: ${data.targetTab}`;
-      } else if (data.action === 'TRIGGER_SPIKE') {
-        onSimulateCpuSpike();
-        actionTaken = 'CPU load simulation triggered';
-      } else if (data.action === 'OPEN_REPORTS') {
-        onOpenReports();
-        actionTaken = 'Report center opened';
+      let attachment: { name: string; mimeType: string; data: string } | undefined;
+      if (file) {
+        const data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+          reader.onerror = () => reject(new Error('Unable to read file'));
+          reader.readAsDataURL(file);
+        });
+        const mime: Record<string,string> = { pdf:'application/pdf', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', webp:'image/webp', txt:'text/plain', md:'text/plain', csv:'text/csv', json:'application/json' };
+        attachment = { name:file.name, mimeType:mime[file.name.split('.').pop()?.toLowerCase() || ''], data };
       }
-      setMessages(prev => [...prev, { id: `ast-${Date.now()}`, sender: 'assistant', text: reply, actionTaken: actionTaken || undefined, timestamp: clock() }]);
-      speakText(reply);
+      const activeAlertsCount = alerts.filter(a => !a.resolved).length;
+      const response = await fetch('/api/ai/ask-command', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ command, attachment, context:{ hostname:selectedNode.hostname, cpuUsage:currentMetric.cpuUsage, ramUsagePercent:currentMetric.ramUsagePercent, ramUsedGb:currentMetric.ramUsedGb, activeAlertsCount, is2FaActive:isTwoFactorActive, latencyMs:currentMetric.latencyMs } }) });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Assistant API request failed');
+      const reply = payload.reply || 'The request was received.';
+      let actionTaken = '';
+      if (payload.action === 'NAVIGATE' && payload.targetTab) { onNavigateTab(payload.targetTab as TabType); actionTaken = 'Workspace opened: ' + payload.targetTab; }
+      else if (payload.action === 'TRIGGER_SPIKE') { onSimulateCpuSpike(); actionTaken = 'CPU load simulation triggered'; }
+      else if (payload.action === 'OPEN_REPORTS') { onOpenReports(); actionTaken = 'Report center opened'; }
+      setMessages(prev => [...prev, { id:'usr-'+Date.now(), sender:'user', text:file ? (command || 'Read this file') + ' · ' + file.name : command, timestamp:clock() }, { id:'ast-'+Date.now(), sender:'assistant', text:reply, actionTaken:actionTaken || undefined, timestamp:clock() }]);
+      setTranscript(''); setSelectedFile(null); speakText(reply);
     } catch (error) {
-      console.error('VelClaw AI request failed:', error);
-      const message = 'I could not reach the assistant service. Check the API connection and try again. No infrastructure action was executed.';
-      setMessages(prev => [...prev, { id: `err-${Date.now()}`, sender: 'assistant', text: message, timestamp: clock() }]);
-    } finally {
-      setIsLoading(false);
-      inputRef.current?.focus();
-    }
+      const detail = error instanceof Error ? error.message : 'Unknown error';
+      setMessages(prev => [...prev, { id:'err-'+Date.now(), sender:'assistant', text:'Could not process request: '+detail+'. Draft and file are preserved for retry.', timestamp:clock() }]);
+    } finally { submittingRef.current = false; setIsLoading(false); inputRef.current?.focus(); }
   };
 
-  const toggleListen = () => {
-    if (!recognitionRef.current) {
-      setMessages(prev => [...prev, { id: `notice-${Date.now()}`, sender: 'assistant', text: 'Voice input is not available in this browser. You can continue by typing your command.', timestamp: clock() }]);
-      return;
-    }
-    if (isListening) recognitionRef.current.stop();
-    else { setTranscript(''); try { recognitionRef.current.start(); } catch (error) { console.warn(error); } }
-  };
+
 
   if (!isOpen) return null;
 
@@ -242,10 +230,18 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           <div className="shrink-0 border-t border-[#252525] bg-[#080808] px-3 sm:px-7 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
             <div className="max-w-3xl mx-auto">
               {(isListening || isSpeaking) && <div className="mb-2 flex items-center gap-2 text-[10px] font-mono text-[#168bff]"><AudioLines size={13} />{isListening ? 'Listening for your command…' : 'Speaking response…'}</div>}
-              <form onSubmit={e => { e.preventDefault(); void handleSendCommand(transcript); }} className="flex items-center gap-2 border border-[#383838] bg-[#050505] p-1.5 focus-within:border-[#168bff]">
-                <button type="button" onClick={toggleListen} className={`h-10 w-10 shrink-0 grid place-items-center border ${isListening ? 'border-[#a43a3a] bg-[#241010] text-[#ff8585]' : 'border-transparent text-[#888] hover:bg-[#151515] hover:text-white'}`} title={isListening ? 'Stop listening' : 'Start voice input'}>{isListening ? <MicOff size={17} /> : <Mic size={17} />}</button>
-                <input ref={inputRef} value={transcript} onChange={e => setTranscript(e.target.value)} placeholder="Message VelClaw AI…" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-[13px] text-white outline-none placeholder:text-[#666]" />
-                <button type="submit" disabled={!transcript.trim() || isLoading} className="h-10 w-10 shrink-0 bg-[#f5f5f5] text-black grid place-items-center hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Send message"><Send size={16} /></button>
+              <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md,.csv,.json" className="hidden" onChange={e => {
+ const f=e.target.files?.[0]; e.target.value=''; if(!f)return;
+ const m:Record<string,string>={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',txt:'text/plain',md:'text/plain',csv:'text/csv',json:'application/json'};
+ const ext=f.name.split('.').pop()?.toLowerCase()||'', expected=m[ext];
+ if(!expected||f.size>8*1024*1024||(f.type&&f.type!==expected&&f.type!=='application/octet-stream')){setMessages(p=>[...p,{id:'file-error-'+Date.now(),sender:'assistant',text:'Unsupported file or file exceeds 8 MB.',timestamp:clock()}]);return;}
+ setSelectedFile(f);
+}} />
+{selectedFile && <div className="mb-2 flex items-center gap-2 border border-[#303030] px-3 py-2 text-[11px] text-[#ccc]"><Paperclip size={14}/><span className="flex-1 truncate">{selectedFile.name}</span><button type="button" onClick={()=>setSelectedFile(null)} aria-label="Remove attachment"><X size={14}/></button></div>}
+<form onSubmit={e => { e.preventDefault(); void handleSendCommand(transcript); }} className="flex items-center gap-2 border border-[#383838] bg-[#050505] p-1.5 focus-within:border-[#168bff]">
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="h-10 w-10 shrink-0 grid place-items-center text-[#888]" title="Upload file" aria-label="Upload file"><Paperclip size={18}/></button>
+                <input ref={inputRef} value={transcript} onChange={e => setTranscript(e.target.value)} placeholder="Message VelClaw AI or attach a file…" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-[13px] text-white outline-none placeholder:text-[#666]" />
+                <button type="submit" disabled={(!transcript.trim() && !selectedFile) || isLoading} className="h-10 w-10 shrink-0 bg-[#f5f5f5] text-black grid place-items-center hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Send message"><Send size={16} /></button>
               </form>
               <div className="mt-2 flex items-center justify-between text-[9px] text-[#626262]"><span>VelClaw AI can make mistakes. Verify critical infrastructure changes.</span><span className="hidden sm:inline font-mono">ENTER TO SEND</span></div>
             </div>
