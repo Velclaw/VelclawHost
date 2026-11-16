@@ -85,7 +85,7 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
 
-  app.use(express.json());
+  app.use(express.json({ limit: '12mb' }));
 
   // Initialize the deployment queue before any route/worker can invoke runDeploymentJob().
   // Keeping this before the first queue tick avoids a temporal-dead-zone crash during startup.
@@ -1315,13 +1315,22 @@ async function startServer() {
   // VelClaw AI Ask Command & Diagnostic Endpoint
   app.post("/api/ai/ask-command", async (req, res) => {
     try {
-      const { command, context } = req.body;
-      if (!command) {
-        return res.status(400).json({ error: "Missing command text" });
+      const { command, context, attachment } = req.body;
+      if (!command && !attachment) return res.status(400).json({ error: "Enter a message or attach a file." });
+      const allowedMimeTypes = new Set(["application/pdf", "image/png", "image/jpeg", "image/webp", "text/plain", "text/markdown", "text/csv", "application/json"]);
+      const maxAttachmentBytes = 8 * 1024 * 1024;
+      if (attachment) {
+        if (!allowedMimeTypes.has(attachment.mimeType) || typeof attachment.data !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(attachment.data) || typeof attachment.name !== "string" || attachment.name.length > 180) {
+          return res.status(400).json({ error: "Invalid attachment metadata or Base64 data." });
+        }
+        const decodedAttachment = Buffer.from(attachment.data, "base64");
+        if (decodedAttachment.length > maxAttachmentBytes) return res.status(413).json({ error: "Attachment exceeds the 8 MB limit." });
+        attachment.data = decodedAttachment.toString("base64");
       }
 
       const ai = getGeminiClient();
       if (!ai) {
+        if (attachment) return res.status(503).json({ error: "File reading requires GEMINI_API_KEY. The file was not analyzed." });
         // Intelligent fallback when GEMINI_API_KEY is not yet populated
         const cmdLower = String(command).toLowerCase();
         let reply = "Tôi đã ghi nhận chỉ lệnh của bạn. Hệ thống máy chủ Velclaw đang vận hành ổn định.";
@@ -1393,7 +1402,7 @@ Yêu cầu:
 
       const response = await ai.models.generateContent({
         model: "gemini-3.8-flash",
-        contents: prompt,
+        contents: attachment ? [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: attachment.mimeType, data: attachment.data } }] }] : prompt,
         config: {
           responseMimeType: "application/json",
           systemInstruction: "Bạn là trợ lý điều khiển giọng nói cho hệ thống máy chủ Velclaw Hosting. Luôn phản hồi JSON hợp lệ.",
