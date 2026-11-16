@@ -401,3 +401,9 @@ body { letter-spacing: -.008em; }
   .vc-page-actions { flex-wrap: wrap; }
   .vh-sidebar { width: min(84vw, 300px) !important; }
 }
+
+/* VelClaw silver brand mark */
+.vh-brand-mark { overflow: hidden; background: #090b10 !important; }
+.vh-brand-mark img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.vh-project-logo { overflow: hidden; background: #090b10; }
+.vh-project-logo img { display: block; width: 100%; height: 100%; object-fit: cover; }
