@@ -1373,7 +1373,7 @@ async function startServer() {
       ].filter(Boolean).join("\n\n");
 
       const ai = getGeminiClient();
-      const useGateway = Boolean(process.env.AI_GATEWAY_API_KEY?.trim()) && !attachment;
+      const useGateway = Boolean(process.env.AI_GATEWAY_API_KEY?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim()) && !attachment;
       const useGemini = Boolean(ai);
 
       if (!useGateway && !useGemini) {
