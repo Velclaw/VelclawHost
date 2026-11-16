@@ -216,7 +216,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <button onClick={onClose className="h-9 w-9 border border-[#343434] text-[#aaa] grid place-items-center hover:bg-[#171717] hover:text-white" aria-label="Close VelClaw AI"><X size={17} /></button>
+          <button onClick={onClose} className="h-9 w-9 border border-[#343434] text-[#aaa] grid place-items-center hover:bg-[#171717] hover:text-white" aria-label="Close VelClaw AI"><X size={17} /></button>
         </div>
       </header>
 
