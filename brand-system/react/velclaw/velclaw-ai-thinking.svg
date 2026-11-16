@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title desc" focusable="false">
+  <title id="title">VELCLAW AI Thinking</title>
+  <desc id="desc">Animated VELCLAW mark with a breathing blue halo and three signal dots.</desc>
+  <style>
+    :root { --vc-blue: #2F80FF; --vc-cloud: #F7F8FA; --vc-silver: #C7CBD4; }
+    .vc-halo { transform-box: fill-box; transform-origin: center; animation: vc-breathe 1.8s cubic-bezier(.2,.8,.2,1) infinite; }
+    .vc-core { transform-box: fill-box; transform-origin: center; animation: vc-rotate 5s linear infinite; }
+    .vc-dot { animation: vc-dot 1.25s cubic-bezier(.2,.8,.2,1) infinite; }
+    .vc-dot-2 { animation-delay: .16s; }
+    .vc-dot-3 { animation-delay: .32s; }
+    @keyframes vc-breathe { 0%,100% { opacity: .7; transform: scale(.88); } 50% { opacity: 1; transform: scale(1.12); } }
+    @keyframes vc-rotate { to { transform: rotate(360deg); } }
+    @keyframes vc-dot { 0%,60%,100% { opacity: .35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-5px); } }
+    @media (prefers-reduced-motion: reduce) {
+      .vc-halo, .vc-core, .vc-dot { animation: none; }
+    }
+  </style>
+  <circle class="vc-halo" cx="60" cy="60" r="37" fill="none" stroke="#2F80FF" stroke-opacity=".58" />
+  <circle cx="60" cy="60" r="47" fill="none" stroke="#2F80FF" stroke-opacity=".06" stroke-width="9" />
+  <g class="vc-core">
+    <circle cx="60" cy="60" r="22" fill="#0B0C0F" stroke="#FFFFFF" stroke-opacity=".14" />
+    <path d="M38 37h12l16 36-10 13L38 37Z" fill="#F7F8FA" />
+    <path d="m60 51 33-19-7 15-24 12-7 13-7-11 8-10 4 0Z" fill="#F7F8FA" />
+    <path d="m68 60 23-12-5 11-15 7-5 8-6-8 8-6Z" fill="#C7CBD4" />
+    <path d="m73 57 15-8-4 8-11 5Z" fill="#2F80FF" />
+  </g>
+  <g aria-hidden="true">
+    <circle class="vc-dot vc-dot-1" cx="95" cy="91" r="3" fill="#2F80FF" />
+    <circle class="vc-dot vc-dot-2" cx="104" cy="91" r="3" fill="#2F80FF" />
+    <circle class="vc-dot vc-dot-3" cx="113" cy="91" r="3" fill="#2F80FF" />
+  </g>
+</svg>
