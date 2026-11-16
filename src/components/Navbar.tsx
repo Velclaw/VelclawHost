@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, ShieldAlert, Bell, Sun, Moon, Menu, X, Search, ChevronDown, Activity, Mic, Rocket } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Bell, Sun, Moon, Menu, X, Search, ChevronDown, Activity, Rocket } from 'lucide-react';
 import { HostNode, SystemAlert } from '../types';
 
 interface NavbarProps {
@@ -105,12 +105,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             {isTwoFactorActive ? <ShieldCheck className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
             <span className="hidden sm:inline text-[10px]">2FA</span>
           </button>
-
-          {onOpenVoiceAssistant && (
-            <button onClick={onOpenVoiceAssistant} className="vh-icon-button hidden md:flex" title="Velclaw AI">
-              <Mic className="h-3.5 w-3.5" />
-            </button>
-          )}
 
           <button id="fcm-notification-navbar-btn" onClick={onOpenFcmModal} className="vh-icon-button relative" title="Notifications">
             <Bell className="h-3.5 w-3.5" />
