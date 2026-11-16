@@ -3,3 +3,7 @@
 Standalone brand identity showcase for the VELCLAW application. Open `index.html` directly or serve this directory with any static web server.
 
 Includes the VELCLAW story, Dark/Light logo family, color palette, typography, logo rules, responsive product examples, mobile navigation, contrast toggle, and copy-to-clipboard color swatches.
+
+## AI Thinking
+
+The response-state module demonstrates the VELCLAW AI thinking indicator: a breathing halo, subtle VELCLAW mark motion, and a sequenced three-dot signal. The demo button toggles between the thinking and answer-ready states.
