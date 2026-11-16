@@ -491,3 +491,182 @@ Không thêm gradient, shadow nặng hoặc hiệu ứng 3D vào indicator. Hi�
 - [ ] Request lỗi hiển thị thông báo lỗi riêng.
 - [ ] Không có layout shift lớn khi indicator xuất hiện hoặc biến mất.
 - [ ] Component không phụ thuộc vào thư viện animation bên ngoài.
+
+
+---
+
+## 10. Component hiển thị streaming text
+
+`AiStreamingText` dùng cùng với `AiThinkingIndicator` để xử lý toàn bộ vòng đời phản hồi:
+
+- Khi chưa có chunk đầu tiên: hiển thị AI Thinking.
+- Khi đã nhận text đầu tiên: hiển thị nội dung đang stream, caret xanh và nhãn `VELCLAW is responding`.
+- Khi stream kết thúc: giữ nội dung, ẩn caret và nhãn loading.
+
+Tạo file `components/velclaw/AiStreamingText.tsx`:
+
+```tsx
+import "./AiStreamingText.css";
+import { AiThinkingIndicator } from "./AiThinkingIndicator";
+
+type AiStreamingTextProps = {
+  text: string;
+  isStreaming: boolean;
+  showThinking?: boolean;
+  respondingLabel?: string;
+  className?: string;
+};
+
+export function AiStreamingText({
+  text,
+  isStreaming,
+  showThinking = true,
+  respondingLabel = "VELCLAW is responding",
+  className = "",
+}: AiStreamingTextProps) {
+  const waitingForFirstChunk = isStreaming && text.length === 0;
+  const showThinkingState = waitingForFirstChunk && showThinking;
+
+  return (
+    <div
+      className={`vc-streaming-text ${isStreaming ? "is-streaming" : "is-complete"} ${className}`.trim()}
+      role="status"
+      aria-live="polite"
+      aria-busy={isStreaming}
+    >
+      {showThinkingState ? (
+        <AiThinkingIndicator status="thinking" />
+      ) : (
+        <>
+          <p className="vc-streaming-text__content">
+            {text}
+            {isStreaming && <span className="vc-streaming-text__caret" aria-hidden="true" />}
+          </p>
+          {isStreaming && (
+            <span className="vc-streaming-text__meta">
+              <span className="vc-streaming-text__live-dot" aria-hidden="true" />
+              <span>{respondingLabel}</span>
+              <span className="vc-streaming-text__dots" aria-hidden="true">•••</span>
+            </span>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+```
+
+Tạo file `components/velclaw/AiStreamingText.css`:
+
+```css
+.vc-streaming-text {
+  max-width: 680px;
+  color: #f7f8fa;
+  font: 400 16px/1.65 Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.vc-streaming-text__content {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.vc-streaming-text__caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 4px;
+  vertical-align: -.14em;
+  background: #2f80ff;
+  animation: vc-streaming-caret 1s steps(2, end) infinite;
+}
+
+.vc-streaming-text__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: #8e939e;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.vc-streaming-text__live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2f80ff;
+}
+
+.vc-streaming-text__dots {
+  color: #2f80ff;
+  letter-spacing: .18em;
+  animation: vc-streaming-dots 1.15s steps(4, end) infinite;
+}
+
+@keyframes vc-streaming-caret { 50% { opacity: 0; } }
+@keyframes vc-streaming-dots { 0%, 20% { opacity: .3; } 50% { opacity: 1; } 80%, 100% { opacity: .45; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .vc-streaming-text__caret,
+  .vc-streaming-text__dots { animation: none; }
+}
+```
+
+### Cách dùng trong chat panel
+
+```tsx
+<AiStreamingText
+  text={answer}
+  isStreaming={status === "thinking" || status === "streaming"}
+/>
+```
+
+Component sẽ tự chuyển từ AI Thinking sang streaming text ngay khi `text` có ký tự đầu tiên. Khi `isStreaming` chuyển thành `false`, caret và nhãn phản hồi biến mất nhưng nội dung vẫn được giữ nguyên.
+
+### Lưu ý khi nhận chunk
+
+Không thêm dấu cách thủ công giữa các chunk trừ khi API của bạn không giữ whitespace. Với stream dạng token, hãy nối chuỗi ở state:
+
+```tsx
+setAnswer((current) => current + nextChunk);
+```
+
+Không dùng hiệu ứng typewriter để chạy lại toàn bộ chuỗi mỗi lần state cập nhật; điều đó gây trễ và làm caret nhảy. Component này chỉ tạo caret và trạng thái loading, còn tốc độ hiển thị do stream thực tế quyết định.
+
+
+---
+
+## 11. Storybook test file
+
+Tạo file `components/velclaw/AiStreamingText.stories.tsx` để test nhanh toàn bộ vòng đời:
+
+- `Thinking`: chưa có chunk đầu tiên, hiển thị AI Thinking.
+- `Streaming`: đã có text và vẫn đang nhận chunk, hiển thị caret + response label.
+- `Ready`: stream hoàn tất, caret và loading label được ẩn.
+- `EmptyWithoutThinking`: kiểm tra fallback khi muốn ẩn AI Thinking.
+- `ErrorState`: kiểm tra thông báo lỗi với `role="alert"`.
+- `InteractiveSimulation`: mô phỏng chunk theo thời gian, có nút Start, Error và Reset.
+
+Nội dung story đầy đủ nằm trong file `AiStreamingText.stories.tsx`. Nếu dự án đã có Storybook, chạy:
+
+```bash
+pnpm storybook
+# hoặc
+npm run storybook
+```
+
+Sau đó mở story `VELCLAW / AiStreamingText` và chuyển background giữa `carbon` và `cloud` để kiểm tra Dark/Light mode.
+
+### Ma trận kiểm tra
+
+| Case | Kỳ vọng |
+|---|---|
+| Start stream | `thinking` xuất hiện trước chunk đầu tiên |
+| Chunk đầu tiên | AI Thinking chuyển thành text + caret |
+| Chunk tiếp theo | Text nối tiếp, không bị typewriter chạy lại từ đầu |
+| Stream complete | Caret và response label biến mất |
+| Error | Có thông báo lỗi riêng, không giả lập trạng thái ready |
+| Reset | Text, chunk counter và status trở về idle |
+| Reduced motion | Animation dừng nhưng label vẫn rõ |
