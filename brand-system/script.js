@@ -43,3 +43,18 @@ function showToast(message) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
 }
+
+const thinkingTrigger = document.querySelector('.thinking-trigger');
+const thinkingIcon = document.querySelector('.thinking-icon');
+const thinkingLabel = document.querySelector('.thinking-label');
+
+thinkingTrigger?.addEventListener('click', () => {
+  const active = thinkingIcon?.classList.toggle('is-active');
+  thinkingTrigger.setAttribute('aria-pressed', String(Boolean(active)));
+  if (thinkingLabel) {
+    thinkingLabel.innerHTML = active
+      ? 'VELCLAW is thinking<span class="typing-caret">_</span>'
+      : 'Answer ready <span class="typing-caret">↗</span>';
+  }
+  showToast(active ? 'Thinking state on' : 'Response state ready');
+});
