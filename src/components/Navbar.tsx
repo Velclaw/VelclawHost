@@ -19,7 +19,7 @@ interface NavbarProps {
 }
 
 const VelclawMark = () => (
-  <div className="vh-brand-mark" aria-label="VelClawHost">
+  <div className="vh-brand-mark" aria-label="VelClaw">
     <svg viewBox="0 0 32 32" aria-hidden="true">
       <defs>
         <linearGradient id="vh-v" x1="4" y1="4" x2="28" y2="28">
@@ -56,10 +56,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </button>
 
-        <a href="/" className="vh-brand-link" aria-label="VelClawHost home">
+        <a href="/" className="vh-brand-link" aria-label="VelClaw home">
           <VelclawMark />
           <div className="hidden sm:block">
-            <div className="vh-brand-title">VelClawHost</div>
+            <div className="vh-brand-title">VelClaw</div>
             <div className="vh-brand-sub">cloud infrastructure</div>
           </div>
         </a>
