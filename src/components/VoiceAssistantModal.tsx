@@ -156,7 +156,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
             <div className="max-w-3xl mx-auto">
               {messages.length === 1 && (
                 <div className="mb-8 sm:mb-12 pt-3 sm:pt-8">
-                  <div className="mb-5"><AiThinkingIndicator status="ready" showLabel={false} /></div>
+                  <div className="mb-5"><AiThinkingIndicator status="ready" showLabel={false} className="vc-thinking--compact" /></div>
                   <div className="text-[10px] font-mono uppercase tracking-[.2em] text-[#168bff] mb-3">DevOps intelligence</div>
                   <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">What are we <span className="text-[#777]">building</span> today?</h1>
                   <p className="mt-3 text-sm text-[#858585] max-w-xl leading-6">Ask about infrastructure, deployments, observability, security or your development workflow.</p>
@@ -175,7 +175,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
                     {msg.actionTaken && <div className="mt-2 inline-flex items-center gap-2 border border-[#21432f] bg-[#0b160f] px-2.5 py-1.5 text-[10px] text-[#9bd5ad]"><CheckCircle2 size={12} />{msg.actionTaken}</div>}
                   </div>
                 </article>)}
-                {isLoading && <div className="flex gap-3" aria-label="VelClaw AI is preparing a response"><div className="shrink-0"><AiThinkingIndicator status="thinking" showLabel={false} /></div><div className="pt-1"><AiStreamingText text="" isStreaming showThinking /></div></div>}
+                {isLoading && <div className="flex gap-3" aria-label="VelClaw AI is preparing a response"><div className="shrink-0"><AiThinkingIndicator status="thinking" showLabel={false} className="vc-thinking--compact" /></div><div className="pt-1"><AiStreamingText text="" isStreaming showThinking /></div></div>}
                 <div ref={messagesEndRef} />
               </div>
             </div>
