@@ -97,16 +97,20 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
   const handleSendCommand = async (cmdText: string) => {
     const command = cmdText.trim();
-    if (!command || isLoading) return;
-    setMessages(prev => [...prev, { id: `usr-${Date.now()}`, sender: 'user', text: command, timestamp: clock() }]);
+    const file = selectedFile;
+    if ((!command && !file) || isLoading) return;
+    setMessages(prev => [...prev, { id: `usr-${Date.now()}`, sender: 'user', text: file ? command + ' · ' + file.name : command, timestamp: clock() }]);
     setTranscript('');
+    setSelectedFile(null);
+    let attachment: { name: string; mimeType: string; data: string } | undefined;
+    if (file) { const data = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1] || ''); reader.onerror = () => reject(new Error('Unable to read file')); reader.readAsDataURL(file); }); attachment = { name: file.name, mimeType: file.type, data }; }
     setIsLoading(true);
     try {
       const activeAlertsCount = alerts.filter(a => !a.resolved).length;
       const response = await fetch('/api/ai/ask-command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command, context: {
+        body: JSON.stringify({ command, attachment, context: {
           hostname: selectedNode.hostname, cpuUsage: currentMetric.cpuUsage,
           ramUsagePercent: currentMetric.ramUsagePercent, ramUsedGb: currentMetric.ramUsedGb,
           activeAlertsCount, is2FaActive: isTwoFactorActive, latencyMs: currentMetric.latencyMs,
@@ -244,10 +248,10 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           <div className="shrink-0 border-t border-[#252525] bg-[#080808] px-3 sm:px-7 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
             <div className="max-w-3xl mx-auto">
               {(isListening || isSpeaking) && <div className="mb-2 flex items-center gap-2 text-[10px] font-mono text-[#168bff]"><AudioLines size={13} />{isListening ? 'Listening for your command…' : 'Speaking response…'}</div>}
-              <form onSubmit={e => { e.preventDefault(); void handleSendCommand(transcript); }} className="flex items-center gap-2 border border-[#383838] bg-[#050505] p-1.5 focus-within:border-[#168bff]">
+              <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md,.csv,.json" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const ok = ["application/pdf","image/png","image/jpeg","image/webp","text/plain","text/markdown","text/csv","application/json"]; if (!ok.includes(f.type) || f.size > 8 * 1024 * 1024) { setMessages(prev => [...prev, { id: "file-error-" + Date.now(), sender: "assistant", text: "Supported: PDF, PNG, JPG, WEBP, TXT, MD, CSV, JSON. Maximum 8 MB.", timestamp: clock() }]); e.target.value = ""; return; } setSelectedFile(f); e.target.value = ""; }} /><form onSubmit={e => { e.preventDefault(); void handleSendCommand(transcript); }} className="flex items-center gap-2 border border-[#383838] bg-[#050505] p-1.5 focus-within:border-[#168bff]">
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="h-10 w-10 shrink-0 grid place-items-center border border-transparent text-[#888] hover:bg-[#151515] hover:text-white" title="Upload a file for VelClaw AI to read" aria-label="Upload file"><Paperclip size={18} /></button>
-                <input ref={inputRef} value={transcript} onChange={e => setTranscript(e.target.value)} placeholder="Message VelClaw AI…" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-[13px] text-white outline-none placeholder:text-[#666]" />
-                <button type="submit" disabled={!transcript.trim() || isLoading} className="h-10 w-10 shrink-0 bg-[#f5f5f5] text-black grid place-items-center hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Send message"><Send size={16} /></button>
+                <input ref={inputRef} value={transcript} onChange={e => setTranscript(e.target.value)} placeholder="Message VelClaw AI or attach a file…" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-[13px] text-white outline-none placeholder:text-[#666]" />
+                <button type="submit" disabled={(!transcript.trim() && !selectedFile) || isLoading} className="h-10 w-10 shrink-0 bg-[#f5f5f5] text-black grid place-items-center hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Send message"><Send size={16} /></button>
               </form>
               <div className="mt-2 flex items-center justify-between text-[9px] text-[#626262]"><span>VelClaw AI can make mistakes. Verify critical infrastructure changes.</span><span className="hidden sm:inline font-mono">ENTER TO SEND</span></div>
             </div>
