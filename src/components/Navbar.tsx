@@ -20,16 +20,7 @@ interface NavbarProps {
 
 const VelclawMark = () => (
   <div className="vh-brand-mark" aria-label="VelClaw">
-    <svg viewBox="0 0 32 32" aria-hidden="true">
-      <defs>
-        <linearGradient id="vh-v" x1="4" y1="4" x2="28" y2="28">
-          <stop stopColor="#a78bfa" />
-          <stop offset=".55" stopColor="#7c3aed" />
-          <stop offset="1" stopColor="#22d3ee" />
-        </linearGradient>
-      </defs>
-      <path fill="url(#vh-v)" d="M4 6h6.1l5.9 12.4L21.9 6H28L18.7 25.5a3 3 0 0 1-5.4 0L4 6Z" />
-    </svg>
+    <img src="/assets/velclaw-logo.svg" alt="" />
   </div>
 );
 
@@ -60,7 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <VelclawMark />
           <div className="hidden sm:block">
             <div className="vh-brand-title">VelClaw</div>
-            <div className="vh-brand-sub">cloud infrastructure</div>
+            <div className="vh-brand-sub">CODE. INNOVATE. ELEVATE.</div>
           </div>
         </a>
 
