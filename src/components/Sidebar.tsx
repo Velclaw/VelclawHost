@@ -76,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="vh-sidebar-top">
             <div className="vh-project-switcher">
               <div className="vh-project-logo">
-                <img src="/assets/velclaw-mark.svg" alt="VelClaw" />
+                <img src={`${import.meta.env.BASE_URL}assets/velclaw-mark.svg`} alt="VelClaw" />
               </div>
               {!collapsed && (
                 <div className="min-w-0 flex-1">
@@ -146,10 +146,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => { onOpenVoiceAssistant(); onCloseMobileMenu(); }}
                 className={['vh-ai-button', collapsed ? 'justify-center' : ''].join(' ')}
-                title="Velclaw DevOps AI"
+                title="VelClaw DevOps AI"
               >
                 <Sparkles className="h-4 w-4 shrink-0" />
-                {!collapsed && <span><strong>Velclaw AI</strong><small>Open DevOps assistant</small></span>}
+                {!collapsed && <span><strong>VelClaw AI</strong><small>Open DevOps assistant</small></span>}
               </button>
             )}
 
