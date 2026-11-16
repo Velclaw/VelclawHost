@@ -149,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className={['vh-ai-button', collapsed ? 'justify-center' : ''].join(' ')}
                 title="VelClaw DevOps AI"
               >
-                <AiThinkingIndicator status="ready" showLabel={false} />
+                <AiThinkingIndicator status="ready" showLabel={false} className="vc-thinking--compact" />
                 {!collapsed && <span><strong>VelClaw AI</strong><small>Open DevOps assistant</small></span>}
               </button>
             )}
