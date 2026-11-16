@@ -34,7 +34,7 @@ export function generatePdfReport({
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('VELCLAW HOSTING PLATFORM', 14, 12);
+  doc.text('VELCLAWHOST CONTROL CENTER', 14, 12);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
