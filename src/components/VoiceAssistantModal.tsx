@@ -111,7 +111,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           reader.onerror = () => reject(new Error('Unable to read file'));
           reader.readAsDataURL(file);
         });
-        const mime: Record<string,string> = { pdf:'application/pdf', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', webp:'image/webp', txt:'text/plain', md:'text/markdown', csv:'text/csv', json:'application/json' };
+        const mime: Record<string,string> = { pdf:'application/pdf', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', webp:'image/webp', txt:'text/plain', md:'text/plain', csv:'text/csv', json:'application/json' };
         attachment = { name:file.name, mimeType:mime[file.name.split('.').pop()?.toLowerCase() || ''], data };
       }
       const activeAlertsCount = alerts.filter(a => !a.resolved).length;
@@ -232,7 +232,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
               {(isListening || isSpeaking) && <div className="mb-2 flex items-center gap-2 text-[10px] font-mono text-[#168bff]"><AudioLines size={13} />{isListening ? 'Listening for your command…' : 'Speaking response…'}</div>}
               <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md,.csv,.json" className="hidden" onChange={e => {
  const f=e.target.files?.[0]; e.target.value=''; if(!f)return;
- const m:Record<string,string>={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',txt:'text/plain',md:'text/markdown',csv:'text/csv',json:'application/json'};
+ const m:Record<string,string>={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',txt:'text/plain',md:'text/plain',csv:'text/csv',json:'application/json'};
  const ext=f.name.split('.').pop()?.toLowerCase()||'', expected=m[ext];
  if(!expected||f.size>8*1024*1024||(f.type&&f.type!==expected&&f.type!=='application/octet-stream')){setMessages(p=>[...p,{id:'file-error-'+Date.now(),sender:'assistant',text:'Unsupported file or file exceeds 8 MB.',timestamp:clock()}]);return;}
  setSelectedFile(f);
