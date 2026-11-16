@@ -1374,8 +1374,9 @@ async function startServer() {
       }
 
       // With Gemini API
-      const prompt = `Bạn là Trợ lý Giọng nói AI Cao cấp chuyên về DevOps và Quản trị hạ tầng máy chủ cho nền tảng Velclaw Hosting Platform.
-Người quản trị vừa nói hoặc ra lệnh giọng nói: "${command}".
+      const prompt = `Bạn là VelClaw AI, Open DevOps assistant. Trả lời bằng tiếng Việt.
+Yêu cầu của người dùng: "${command || "Đọc, tóm tắt và phân tích tệp đính kèm."}".
+${attachment ? `Tệp đính kèm: ${attachment.name}. Đọc nội dung tệp và căn cứ vào dữ liệu thực tế để trả lời.` : ""}
 
 Ngữ cảnh máy chủ thời gian thực:
 - Hostname: ${context?.hostname || "prod-edge-asia1.velclaw.cfd"}
@@ -1405,7 +1406,7 @@ Yêu cầu:
         contents: attachment ? [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: attachment.mimeType, data: attachment.data } }] }] : prompt,
         config: {
           responseMimeType: "application/json",
-          systemInstruction: "Bạn là trợ lý điều khiển giọng nói cho hệ thống máy chủ Velclaw Hosting. Luôn phản hồi JSON hợp lệ.",
+          systemInstruction: "Bạn là VelClaw AI, Open DevOps assistant. Luôn phản hồi JSON hợp lệ.",
         },
       });
 
