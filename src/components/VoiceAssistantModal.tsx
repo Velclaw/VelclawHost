@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Mic, MicOff, Volume2, VolumeX, X, Send, Activity, Bot, User,
+  Paperclip, Volume2, VolumeX, X, Send, Activity, Bot, User,
   CheckCircle2, Terminal, Cpu, ShieldCheck, FileText, Sparkles,
   Command, ArrowUpRight, AudioLines
 } from 'lucide-react';
@@ -35,6 +35,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [transcript, setTranscript] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<MessageItem[]>([{
     id: 'welcome-1', sender: 'assistant',
@@ -44,6 +45,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -101,7 +103,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     setIsLoading(true);
     try {
       const activeAlertsCount = alerts.filter(a => !a.resolved).length;
-      const response = await fetch('/api/ai/voice-command', {
+      const response = await fetch('/api/ai/ask-command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ command, context: {
@@ -243,7 +245,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
             <div className="max-w-3xl mx-auto">
               {(isListening || isSpeaking) && <div className="mb-2 flex items-center gap-2 text-[10px] font-mono text-[#168bff]"><AudioLines size={13} />{isListening ? 'Listening for your command…' : 'Speaking response…'}</div>}
               <form onSubmit={e => { e.preventDefault(); void handleSendCommand(transcript); }} className="flex items-center gap-2 border border-[#383838] bg-[#050505] p-1.5 focus-within:border-[#168bff]">
-                <button type="button" onClick={toggleListen} className={`h-10 w-10 shrink-0 grid place-items-center border ${isListening ? 'border-[#a43a3a] bg-[#241010] text-[#ff8585]' : 'border-transparent text-[#888] hover:bg-[#151515] hover:text-white'}`} title={isListening ? 'Stop listening' : 'Start voice input'}>{isListening ? <MicOff size={17} /> : <Mic size={17} />}</button>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="h-10 w-10 shrink-0 grid place-items-center border border-transparent text-[#888] hover:bg-[#151515] hover:text-white" title="Upload a file for VelClaw AI to read" aria-label="Upload file"><Paperclip size={18} /></button>
                 <input ref={inputRef} value={transcript} onChange={e => setTranscript(e.target.value)} placeholder="Message VelClaw AI…" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-[13px] text-white outline-none placeholder:text-[#666]" />
                 <button type="submit" disabled={!transcript.trim() || isLoading} className="h-10 w-10 shrink-0 bg-[#f5f5f5] text-black grid place-items-center hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Send message"><Send size={16} /></button>
               </form>
