@@ -354,9 +354,19 @@ server {
 
 | Tên Biến | Bắt Buộc | Giá Trị Mặc Định | Mô Tả |
 | :--- | :---: | :--- | :--- |
-| `GEMINI_API_KEY` | Tùy chọn | `""` | Khóa API Google AI Studio cho mô hình Gemini 3.8 Flash |
+| `AI_GATEWAY_API_KEY` | Tùy chọn | `""` | Khóa Vercel AI Gateway; Vercel runtime có thể xác thực bằng OIDC thay thế |
+| `GEMINI_API_KEY` | Tùy chọn | `""` | Khóa Google AI Studio; streaming dự phòng và phân tích tệp đính kèm |
 | `APP_URL` | Tùy chọn | `http://localhost:3000` | Địa chỉ URL gốc phục vụ kiểm tra endpoint và webhook |
 | `PORT` | Cố định | `3000` | Cổng ingress reverse proxy gắn kết nội bộ container |
+
+### VelClaw AI streaming
+
+- Text responses stream through the Vercel AI SDK using the Vercel AI Gateway model `openai/gpt-6-astra` when `AI_GATEWAY_API_KEY` is configured (or Vercel OIDC is available at runtime).
+- Gemini 3.8 Flash remains the streaming fallback and handles image/PDF/text attachments through `GEMINI_API_KEY`.
+- Without either provider credential, the endpoint keeps its local DevOps fallback and returns JSON; no fake token stream is emitted.
+- The browser consumes newline-delimited JSON events and transitions the branded indicator through `thinking → streaming → ready`.
+
+Set provider credentials only in the hosting platform's encrypted environment-variable settings. Never commit API keys to this repository.
 
 ---
 

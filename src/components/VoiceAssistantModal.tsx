@@ -25,6 +25,7 @@ interface MessageItem {
   text: string;
   actionTaken?: string;
   timestamp: string;
+  status?: 'thinking' | 'streaming' | 'ready';
 }
 
 const clock = () => new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -63,6 +64,11 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     if ((!command && !file) || submittingRef.current) return;
     submittingRef.current = true;
     setIsLoading(true);
+
+    const userId = 'usr-' + Date.now();
+    const assistantId = 'ast-' + Date.now();
+    const timestamp = clock();
+
     try {
       let attachment: { name: string; mimeType: string; data: string } | undefined;
       if (file) {
@@ -73,25 +79,115 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           reader.readAsDataURL(file);
         });
         const mime: Record<string,string> = { pdf:'application/pdf', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', webp:'image/webp', txt:'text/plain', md:'text/plain', csv:'text/csv', json:'application/json' };
-        attachment = { name:file.name, mimeType:mime[file.name.split('.').pop()?.toLowerCase() || ''], data };
+        const mimeType = mime[file.name.split('.').pop()?.toLowerCase() || ''];
+        if (!mimeType) throw new Error('Unsupported attachment type');
+        attachment = { name:file.name, mimeType, data };
       }
+
+      setMessages(prev => [...prev,
+        { id:userId, sender:'user', text:file ? (command || 'Read this file') + ' · ' + file.name : command, timestamp },
+        { id:assistantId, sender:'assistant', text:'', timestamp:clock(), status:'thinking' },
+      ]);
+
       const activeAlertsCount = alerts.filter(a => !a.resolved).length;
-      const response = await fetch('/api/ai/ask-command', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ command, attachment, context:{ hostname:selectedNode.hostname, cpuUsage:currentMetric.cpuUsage, ramUsagePercent:currentMetric.ramUsagePercent, ramUsedGb:currentMetric.ramUsedGb, activeAlertsCount, is2FaActive:isTwoFactorActive, latencyMs:currentMetric.latencyMs } }) });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Assistant API request failed');
-      const reply = payload.reply || 'The request was received.';
+      const response = await fetch('/api/ai/ask-command', {
+        method:'POST',
+        headers:{'Content-Type':'application/json', 'Accept':'application/x-ndjson, application/json'},
+        body:JSON.stringify({
+          command, attachment,
+          context:{
+            hostname:selectedNode.hostname,
+            cpuUsage:currentMetric.cpuUsage,
+            ramUsagePercent:currentMetric.ramUsagePercent,
+            ramUsedGb:currentMetric.ramUsedGb,
+            activeAlertsCount,
+            is2FaActive:isTwoFactorActive,
+            latencyMs:currentMetric.latencyMs,
+          },
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Assistant API request failed');
+      }
+
+      let action: string | null = null;
+      let targetTab: string | null = null;
+      const applyDelta = (delta: string) => {
+        if (!delta) return;
+        setMessages(prev => prev.map(msg => msg.id === assistantId
+          ? { ...msg, text: msg.text + delta, status:'streaming' }
+          : msg));
+      };
+      const applyDone = (payload: any) => {
+        action = payload.action || null;
+        targetTab = payload.targetTab || null;
+      };
+
+      if ((response.headers.get('content-type') || '').includes('application/x-ndjson') && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let receivedDone = false;
+        const consumeLine = (line: string) => {
+          if (!line.trim()) return;
+          const event = JSON.parse(line);
+          if (event.type === 'delta') applyDelta(String(event.delta || ''));
+          else if (event.type === 'done') { applyDone(event); receivedDone = true; }
+          else if (event.type === 'error') throw new Error(event.error || 'AI stream failed');
+        };
+        while (true) {
+          const { value, done } = await reader.read();
+          buffer += decoder.decode(value, { stream: !done });
+          let newline = buffer.indexOf('\n');
+          while (newline >= 0) {
+            consumeLine(buffer.slice(0, newline));
+            buffer = buffer.slice(newline + 1);
+            newline = buffer.indexOf('\n');
+          }
+          if (done) break;
+        }
+        if (buffer.trim()) consumeLine(buffer);
+        if (!receivedDone) throw new Error('AI stream ended before completion');
+      } else {
+        const payload = await response.json();
+        applyDelta(String(payload.reply || 'The request was received.'));
+        applyDone(payload);
+      }
+
       let actionTaken = '';
-      if (payload.action === 'NAVIGATE' && payload.targetTab) { onNavigateTab(payload.targetTab as TabType); actionTaken = 'Workspace opened: ' + payload.targetTab; }
-      else if (payload.action === 'TRIGGER_SPIKE') { onSimulateCpuSpike(); actionTaken = 'CPU load simulation triggered'; }
-      else if (payload.action === 'OPEN_REPORTS') { onOpenReports(); actionTaken = 'Report center opened'; }
-      setMessages(prev => [...prev, { id:'usr-'+Date.now(), sender:'user', text:file ? (command || 'Read this file') + ' · ' + file.name : command, timestamp:clock() }, { id:'ast-'+Date.now(), sender:'assistant', text:reply, actionTaken:actionTaken || undefined, timestamp:clock() }]);
-      setTranscript(''); setSelectedFile(null);
+      if (action === 'NAVIGATE' && targetTab) {
+        onNavigateTab(targetTab as TabType);
+        actionTaken = 'Workspace opened: ' + targetTab;
+      } else if (action === 'TRIGGER_SPIKE') {
+        onSimulateCpuSpike();
+        actionTaken = 'CPU load simulation triggered';
+      } else if (action === 'OPEN_REPORTS') {
+        onOpenReports();
+        actionTaken = 'Report center opened';
+      }
+      setMessages(prev => prev.map(msg => msg.id === assistantId
+        ? { ...msg, status:'ready', actionTaken:actionTaken || undefined }
+        : msg));
+      setTranscript('');
+      setSelectedFile(null);
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Unknown error';
-      setMessages(prev => [...prev, { id:'err-'+Date.now(), sender:'assistant', text:'Could not process request: '+detail+'. Draft and file are preserved for retry.', timestamp:clock() }]);
-    } finally { submittingRef.current = false; setIsLoading(false); inputRef.current?.focus(); }
+      setMessages(prev => {
+        const hasPlaceholder = prev.some(msg => msg.id === assistantId);
+        if (!hasPlaceholder) {
+          return [...prev, { id:assistantId, sender:'assistant', text:'Could not process request: '+detail+'. Draft and file are preserved for retry.', timestamp:clock(), status:'ready' }];
+        }
+        return prev.map(msg => msg.id === assistantId
+          ? { ...msg, text:'Could not process request: '+detail+'. Draft and file are preserved for retry.', status:'ready' }
+          : msg);
+      });
+    } finally {
+      submittingRef.current = false;
+      setIsLoading(false);
+      inputRef.current?.focus();
+    }
   };
-
 
 
   if (!isOpen) return null;
@@ -168,14 +264,13 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
               <div className="space-y-6">
                 {messages.map(msg => <article key={msg.id} className={`flex gap-3 sm:gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`h-8 w-8 shrink-0 border grid place-items-center ${msg.sender === 'assistant' ? 'border-[#303030] bg-[#101010] text-[#168bff]' : 'border-[#383838] bg-[#191919] text-[#ddd]'}`}>{msg.sender === 'assistant' ? <AiThinkingIndicator status="ready" showLabel={false} /> : <User size={15} />}</div>
+                  <div className={`h-8 w-8 shrink-0 border grid place-items-center ${msg.sender === 'assistant' ? 'border-[#303030] bg-[#101010] text-[#168bff]' : 'border-[#383838] bg-[#191919] text-[#ddd]'}`}>{msg.sender === 'assistant' ? <AiThinkingIndicator status={msg.status || 'ready'} showLabel={false} className="vc-thinking--compact" /> : <User size={15} />}</div>
                   <div className={`min-w-0 max-w-[88%] sm:max-w-[80%] ${msg.sender === 'user' ? 'text-right' : ''}`}>
                     <div className="flex items-center gap-2 mb-1.5"><span className="text-[10px] font-semibold text-[#ddd]">{msg.sender === 'assistant' ? 'VelClaw AI' : 'You'}</span><span className="text-[9px] font-mono text-[#666]">{msg.timestamp}</span></div>
-                    <div className={`text-[13px] leading-6 whitespace-pre-wrap text-left ${msg.sender === 'user' ? 'inline-block border border-[#24476a] bg-[#0b1723] px-3.5 py-2.5 text-[#e4edf7]' : 'text-[#c7c7c7]'}`}>{msg.sender === 'assistant' ? <AiStreamingText text={msg.text} isStreaming={false} showThinking={false} /> : msg.text}</div>
+                    <div className={`text-[13px] leading-6 whitespace-pre-wrap text-left ${msg.sender === 'user' ? 'inline-block border border-[#24476a] bg-[#0b1723] px-3.5 py-2.5 text-[#e4edf7]' : 'text-[#c7c7c7]'}`}>{msg.sender === 'assistant' ? <AiStreamingText text={msg.text} isStreaming={msg.status === 'thinking' || msg.status === 'streaming'} showThinking={msg.status === 'thinking'} /> : msg.text}</div>
                     {msg.actionTaken && <div className="mt-2 inline-flex items-center gap-2 border border-[#21432f] bg-[#0b160f] px-2.5 py-1.5 text-[10px] text-[#9bd5ad]"><CheckCircle2 size={12} />{msg.actionTaken}</div>}
                   </div>
                 </article>)}
-                {isLoading && <div className="flex gap-3" aria-label="VelClaw AI is preparing a response"><div className="shrink-0"><AiThinkingIndicator status="thinking" showLabel={false} className="vc-thinking--compact" /></div><div className="pt-1"><AiStreamingText text="" isStreaming showThinking /></div></div>}
                 <div ref={messagesEndRef} />
               </div>
             </div>
