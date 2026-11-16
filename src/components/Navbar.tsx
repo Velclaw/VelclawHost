@@ -20,7 +20,7 @@ interface NavbarProps {
 
 const VelclawMark = () => (
   <div className="vh-brand-mark" aria-label="VelClaw">
-    <img src="/assets/velclaw-mark.svg" alt="" />
+    <img src={`${import.meta.env.BASE_URL}assets/velclaw-mark.svg`} alt="" />
   </div>
 );
 
@@ -75,7 +75,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
             {isNodeDropdownOpen && (
               <div className="vh-node-menu">
-                <div className="vh-menu-label">Production host</div>
+                <div className="vh-menu-label">Control plane nodes</div>
                 {nodes.map(node => (
                   <button key={node.id} onClick={() => { onSelectNode(node); setIsNodeDropdownOpen(false); }} className="vh-node-option">
                     <div><strong>{node.hostname}</strong><small>{node.region}</small></div>
