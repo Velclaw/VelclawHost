@@ -85,7 +85,7 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
 
-  app.use(express.json());
+  app.use(express.json({ limit: '12mb' }));
 
   // Initialize the deployment queue before any route/worker can invoke runDeploymentJob().
   // Keeping this before the first queue tick avoids a temporal-dead-zone crash during startup.
@@ -1313,15 +1313,16 @@ async function startServer() {
   });
 
   // AI Voice Command & Diagnostic Endpoint
-  app.post("/api/ai/voice-command", async (req, res) => {
+  app.post("/api/ai/ask-command", async (req, res) => {
     try {
-      const { command, context } = req.body;
-      if (!command) {
-        return res.status(400).json({ error: "Missing command text" });
-      }
+      const { command, context, attachment } = req.body;
+      if (!command && !attachment) return res.status(400).json({ error: "Enter a message or attach a file." });
+      const allowed = ["application/pdf","image/png","image/jpeg","image/webp","text/plain","text/markdown","text/csv","application/json"];
+      if (attachment && (!allowed.includes(attachment.mimeType) || typeof attachment.data !== "string" || attachment.data.length > 10700000)) return res.status(400).json({ error: "Unsupported file or file exceeds 8 MB." });
 
       const ai = getGeminiClient();
       if (!ai) {
+        if (attachment) return res.status(503).json({ error: "File reading requires GEMINI_API_KEY. The file was not analyzed." });
         // Intelligent fallback when GEMINI_API_KEY is not yet populated
         const cmdLower = String(command).toLowerCase();
         let reply = "Tôi đã ghi nhận chỉ lệnh của bạn. Hệ thống máy chủ Velclaw đang vận hành ổn định.";
@@ -1393,7 +1394,7 @@ Yêu cầu:
 
       const response = await ai.models.generateContent({
         model: "gemini-3.8-flash",
-        contents: prompt,
+        contents: attachment ? [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: attachment.mimeType, data: attachment.data } }] }] : prompt,
         config: {
           responseMimeType: "application/json",
           systemInstruction: "Bạn là trợ lý điều khiển giọng nói cho hệ thống máy chủ Velclaw Hosting. Luôn phản hồi JSON hợp lệ.",
