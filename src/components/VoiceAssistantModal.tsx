@@ -1,23 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Mic, 
-  MicOff, 
-  Volume2, 
-  VolumeX, 
-  X, 
-  Sparkles, 
-  Send, 
-  Activity, 
-  Bot, 
-  User, 
-  CheckCircle2, 
-  AlertTriangle,
-  ArrowRight,
-  Terminal,
-  Cpu,
-  Layers,
-  ShieldCheck,
-  FileText
+import {
+  Mic, MicOff, Volume2, VolumeX, X, Send, Activity, Bot, User,
+  CheckCircle2, Terminal, Cpu, ShieldCheck, FileText, Sparkles,
+  Command, ArrowUpRight, AudioLines
 } from 'lucide-react';
 import { TabType, HostNode, MetricSnapshot, SystemAlert } from '../types';
 
@@ -32,7 +17,6 @@ interface VoiceAssistantModalProps {
   onSimulateCpuSpike: () => void;
   onOpenReports: () => void;
 }
-
 interface MessageItem {
   id: string;
   sender: 'user' | 'assistant';
@@ -41,422 +25,232 @@ interface MessageItem {
   timestamp: string;
 }
 
+const clock = () => new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
 export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
-  isOpen,
-  onClose,
-  selectedNode,
-  currentMetric,
-  alerts,
-  isTwoFactorActive,
-  onNavigateTab,
-  onSimulateCpuSpike,
-  onOpenReports,
+  isOpen, onClose, selectedNode, currentMetric, alerts, isTwoFactorActive,
+  onNavigateTab, onSimulateCpuSpike, onOpenReports,
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [transcript, setTranscript] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState<MessageItem[]>([
-    {
-      id: 'welcome-1',
-      sender: 'assistant',
-      text: `Xin chào! Tôi là Trợ lý Giọng nói AI Velclaw DevOps. Bạn có thể nói hoặc nhấn các câu lệnh mẫu để tôi kiểm tra CPU/RAM, điều hướng hệ thống, kích hoạt kiểm tra cảnh báo hoặc xuất báo cáo.`,
-      timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-    },
-  ]);
-
+  const [messages, setMessages] = useState<MessageItem[]>([{
+    id: 'welcome-1', sender: 'assistant',
+    text: 'I’m VelClaw AI. I can help inspect infrastructure, investigate incidents, review deployments and navigate your DevOps workspace. What would you like to work on?',
+    timestamp: clock(),
+  }]);
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize Speech Recognition if available in browser
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'vi-VN';
-
-        recognition.onstart = () => {
-          setIsListening(true);
-        };
-
-        recognition.onresult = (event: any) => {
-          const spokenText = event.results[0][0].transcript;
-          setTranscript(spokenText);
-          handleSendCommand(spokenText);
-        };
-
-        recognition.onerror = (event: any) => {
-          console.warn('Speech recognition error:', event.error);
-          setIsListening(false);
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-        };
-
-        recognitionRef.current = recognition;
-      }
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // ignore
-        }
-      }
+    if (typeof window === 'undefined') return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'vi-VN';
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event: any) => {
+      const spokenText = event.results?.[0]?.[0]?.transcript || '';
+      setTranscript(spokenText);
+      void handleSendCommand(spokenText);
     };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    recognitionRef.current = recognition;
+    return () => { try { recognition.abort(); } catch { /* no-op */ } };
   }, []);
 
-  // Auto-scroll chat
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, isLoading]);
 
-  // Speech synthesis for assistant voice output
+  useEffect(() => {
+    if (isOpen) window.setTimeout(() => inputRef.current?.focus(), 80);
+    else {
+      recognitionRef.current?.abort?.();
+      window.speechSynthesis?.cancel();
+      setIsListening(false);
+      setIsSpeaking(false);
+    }
+  }, [isOpen]);
+
   const speakText = (text: string) => {
     if (!voiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'vi-VN';
+    utterance.rate = 1.04;
+    const voice = window.speechSynthesis.getVoices().find(v => /vi|VN/i.test(v.lang));
+    if (voice) utterance.voice = voice;
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleSendCommand = async (cmdText: string) => {
+    const command = cmdText.trim();
+    if (!command || isLoading) return;
+    setMessages(prev => [...prev, { id: `usr-${Date.now()}`, sender: 'user', text: command, timestamp: clock() }]);
+    setTranscript('');
+    setIsLoading(true);
     try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'vi-VN';
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
-
-      // Select Vietnamese voice if present
-      const voices = window.speechSynthesis.getVoices();
-      const viVoice = voices.find(v => v.lang.includes('vi') || v.lang.includes('VN'));
-      if (viVoice) {
-        utterance.voice = viVoice;
+      const activeAlertsCount = alerts.filter(a => !a.resolved).length;
+      const response = await fetch('/api/ai/voice-command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command, context: {
+          hostname: selectedNode.hostname, cpuUsage: currentMetric.cpuUsage,
+          ramUsagePercent: currentMetric.ramUsagePercent, ramUsedGb: currentMetric.ramUsedGb,
+          activeAlertsCount, is2FaActive: isTwoFactorActive, latencyMs: currentMetric.latencyMs,
+        } }),
+      });
+      if (!response.ok) throw new Error(`Assistant API returned ${response.status}`);
+      const data = await response.json();
+      const reply = data.reply || 'The request was received. I could not find a detailed response.';
+      let actionTaken = '';
+      if (data.action === 'NAVIGATE' && data.targetTab) {
+        onNavigateTab(data.targetTab as TabType);
+        actionTaken = `Workspace opened: ${data.targetTab}`;
+      } else if (data.action === 'TRIGGER_SPIKE') {
+        onSimulateCpuSpike();
+        actionTaken = 'CPU load simulation triggered';
+      } else if (data.action === 'OPEN_REPORTS') {
+        onOpenReports();
+        actionTaken = 'Report center opened';
       }
-
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-
-      window.speechSynthesis.speak(utterance);
-    } catch (e) {
-      console.error('Speech synthesis error:', e);
-      setIsSpeaking(false);
+      setMessages(prev => [...prev, { id: `ast-${Date.now()}`, sender: 'assistant', text: reply, actionTaken: actionTaken || undefined, timestamp: clock() }]);
+      speakText(reply);
+    } catch (error) {
+      console.error('VelClaw AI request failed:', error);
+      const message = 'I could not reach the assistant service. Check the API connection and try again. No infrastructure action was executed.';
+      setMessages(prev => [...prev, { id: `err-${Date.now()}`, sender: 'assistant', text: message, timestamp: clock() }]);
+    } finally {
+      setIsLoading(false);
+      inputRef.current?.focus();
     }
   };
 
   const toggleListen = () => {
     if (!recognitionRef.current) {
-      alert('Trình duyệt của bạn chưa hỗ trợ Web Speech Recognition. Bạn có thể gõ câu lệnh hoặc nhấn các nút chỉ lệnh nhanh bên dưới.');
+      setMessages(prev => [...prev, { id: `notice-${Date.now()}`, sender: 'assistant', text: 'Voice input is not available in this browser. You can continue by typing your command.', timestamp: clock() }]);
       return;
     }
-
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
-      try {
-        setTranscript('');
-        recognitionRef.current.start();
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    if (isListening) recognitionRef.current.stop();
+    else { setTranscript(''); try { recognitionRef.current.start(); } catch (error) { console.warn(error); } }
   };
-
-  const handleSendCommand = async (cmdText: string) => {
-    const textToSend = cmdText.trim();
-    if (!textToSend || isLoading) return;
-
-    // Add user message
-    const userMsg: MessageItem = {
-      id: `usr-${Date.now()}`,
-      sender: 'user',
-      text: textToSend,
-      timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setTranscript('');
-    setIsLoading(true);
-
-    try {
-      const activeAlertsCount = alerts.filter(a => !a.resolved).length;
-      const res = await fetch('/api/ai/voice-command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          command: textToSend,
-          context: {
-            hostname: selectedNode.hostname,
-            cpuUsage: currentMetric.cpuUsage,
-            ramUsagePercent: currentMetric.ramUsagePercent,
-            ramUsedGb: currentMetric.ramUsedGb,
-            activeAlertsCount,
-            is2FaActive: isTwoFactorActive,
-            latencyMs: currentMetric.latencyMs,
-          },
-        }),
-      });
-
-      const data = await res.json();
-      const reply = data.reply || 'Hệ thống đã nhận thông tin.';
-      let actionTaken = '';
-
-      // Execute structured actions returned by Gemini backend
-      if (data.action === 'NAVIGATE' && data.targetTab) {
-        onNavigateTab(data.targetTab as TabType);
-        actionTaken = `Đã chuyển đến tab: ${data.targetTab}`;
-      } else if (data.action === 'TRIGGER_SPIKE') {
-        onSimulateCpuSpike();
-        actionTaken = 'Đã kích hoạt giả lập kiểm tra đột biến CPU';
-      } else if (data.action === 'OPEN_REPORTS') {
-        onOpenReports();
-        actionTaken = 'Đã mở trung tâm xuất báo cáo PDF/CSV';
-      }
-
-      const assistantMsg: MessageItem = {
-        id: `ast-${Date.now()}`,
-        sender: 'assistant',
-        text: reply,
-        actionTaken: actionTaken || undefined,
-        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      setMessages((prev) => [...prev, assistantMsg]);
-      speakText(reply);
-    } catch (error) {
-      console.error('Error invoking voice command API:', error);
-      const fallbackMsg: MessageItem = {
-        id: `err-${Date.now()}`,
-        sender: 'assistant',
-        text: `Đã xử lý chỉ lệnh: CPU ${currentMetric.cpuUsage}%, RAM ${currentMetric.ramUsagePercent}%. Máy chủ ${selectedNode.hostname} hoạt động bình thường.`,
-        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages((prev) => [...prev, fallbackMsg]);
-      speakText(fallbackMsg.text);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const sampleCommands = [
-    { label: 'Kiểm tra CPU & RAM', cmd: 'Kiểm tra tình trạng CPU và RAM hiện tại' },
-    { label: 'Quản lý Tên miền', cmd: 'Mở trang quản lý tên miền tùy chỉnh .com, .dev, .ai, .io, .app' },
-    { label: 'Rà soát Cảnh báo', cmd: 'Có bao nhiêu cảnh báo đang kích hoạt trên máy chủ?' },
-    { label: 'Kiểm tra DNS & SSL', cmd: 'Kiểm tra chứng chỉ SSL và bản ghi DNS' },
-    { label: 'Tối ưu Cơ sở dữ liệu', cmd: 'Mở tối ưu hóa các truy vấn cơ sở dữ liệu chậm' },
-    { label: 'Giả lập đột biến tải', cmd: 'Giả lập đột biến CPU để kiểm tra cảnh báo tự động' },
-    { label: 'Xuất Báo cáo PDF', cmd: 'Xuất báo cáo PDF hiệu suất máy chủ' },
-  ];
 
   if (!isOpen) return null;
 
+  const quickPrompts = [
+    { icon: Cpu, label: 'Inspect CPU & memory', command: 'Inspect current CPU and memory usage and explain any concerns.' },
+    { icon: Activity, label: 'Active incidents', command: 'Summarize active server alerts and recommend next steps.' },
+    { icon: Terminal, label: 'Deployment status', command: 'Open deployments and inspect the latest deployment status.' },
+    { icon: ShieldCheck, label: 'Security review', command: 'Review the current security and 2FA status.' },
+    { icon: FileText, label: 'Generate report', command: 'Open the performance report center.' },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-2xl rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-[85vh] sm:max-h-[80vh] overflow-hidden">
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
-                <Bot className="w-5 h-5" />
-              </div>
-              {isSpeaking && (
-                <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
-                </span>
-              )}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white font-mono flex items-center gap-1.5">
-                  Velclaw AI Voice Assistant
-                </h2>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  Gemini Live Core
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Trợ lý điều khiển &amp; phân tích máy chủ production qua giọng nói
-              </p>
-            </div>
+    <div className="fixed inset-0 z-[100] bg-[#050505] text-[#f5f5f5] flex flex-col animate-fade-in">
+      <header className="h-16 shrink-0 border-b border-[#262626] bg-black flex items-center justify-between px-4 sm:px-6">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-9 w-9 shrink-0 border border-[#333] bg-[#090909] grid place-items-center overflow-hidden">
+            <img src={`${import.meta.env.BASE_URL}velclaw-icon-dark.svg`} alt="VelClaw" className="h-full w-full object-cover" />
           </div>
-
-          <div className="flex items-center gap-2">
-            {/* Audio speaker toggle */}
-            <button
-              onClick={() => {
-                if (voiceEnabled) window.speechSynthesis?.cancel();
-                setVoiceEnabled(!voiceEnabled);
-              }}
-              className={`p-2 rounded-lg border transition-colors ${
-                voiceEnabled 
-                  ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' 
-                  : 'bg-slate-800 border-slate-700 text-slate-400'
-              }`}
-              title={voiceEnabled ? 'Tắt đọc âm thanh' : 'Bật đọc âm thanh'}
-            >
-              {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-            </button>
-
-            {/* Close button */}
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+          <div className="min-w-0">
+            <h2 className="text-sm sm:text-base font-semibold tracking-tight">VelClaw AI</h2>
+            <p className="text-[10px] sm:text-xs text-[#858585] font-mono tracking-wide">Open DevOps assistant</p>
           </div>
-        </div>
-
-        {/* Real-time sound wave visualizer bar */}
-        {(isListening || isSpeaking) && (
-          <div className="px-4 py-2 bg-cyan-950/30 border-b border-cyan-500/20 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-mono text-cyan-300">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
-              </span>
-              <span>{isListening ? 'Đang lắng nghe mic của bạn...' : 'AI đang phản hồi giọng nói...'}</span>
-            </div>
-
-            {/* Animated sound bars */}
-            <div className="flex items-center gap-1">
-              {[40, 75, 55, 90, 60, 80, 45, 70].map((height, i) => (
-                <div
-                  key={i}
-                  className="w-1 bg-cyan-400 rounded-full animate-pulse"
-                  style={{
-                    height: `${(height / 100) * 16 + 4}px`,
-                    animationDuration: `${0.4 + (i % 3) * 0.2}s`,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Message chat history */}
-        <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-3.5 bg-slate-950/40">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {msg.sender === 'assistant' && (
-                <div className="w-8 h-8 rounded-lg bg-cyan-600/20 border border-cyan-500/30 text-cyan-300 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Bot className="w-4 h-4" />
-                </div>
-              )}
-
-              <div
-                className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 text-xs sm:text-sm leading-relaxed ${
-                  msg.sender === 'user'
-                    ? 'bg-cyan-600 text-white font-medium rounded-br-none shadow-md shadow-cyan-900/30'
-                    : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none shadow-lg'
-                }`}
-              >
-                <div>{msg.text}</div>
-
-                {msg.actionTaken && (
-                  <div className="mt-2 pt-2 border-t border-slate-800 text-[11px] text-emerald-400 flex items-center gap-1.5 font-mono">
-                    <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>{msg.actionTaken}</span>
-                  </div>
-                )}
-
-                <div
-                  className={`text-[10px] mt-1.5 text-right font-mono ${
-                    msg.sender === 'user' ? 'text-cyan-200' : 'text-slate-500'
-                  }`}
-                >
-                  {msg.timestamp}
-                </div>
-              </div>
-
-              {msg.sender === 'user' && (
-                <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <User className="w-4 h-4" />
-                </div>
-              )}
-            </div>
-          ))}
-
-          {isLoading && (
-            <div className="flex gap-3 justify-start">
-              <div className="w-8 h-8 rounded-lg bg-cyan-600/20 border border-cyan-500/30 text-cyan-300 flex items-center justify-center flex-shrink-0">
-                <Bot className="w-4 h-4 animate-spin" />
-              </div>
-              <div className="p-3.5 rounded-2xl rounded-bl-none bg-slate-900 border border-slate-800 text-slate-400 text-xs flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-                <span>Gemini đang phân tích dữ liệu máy chủ và tạo lời đáp...</span>
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Quick sample voice command pills */}
-        <div className="px-4 py-2.5 bg-slate-900/80 border-t border-slate-800/80 overflow-x-auto scrollbar-none flex items-center gap-2">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex-shrink-0">
-            Lệnh nhanh:
+          <span className="hidden md:inline-flex ml-3 items-center gap-2 border border-[#292929] px-2.5 py-1 text-[9px] uppercase tracking-[.16em] text-[#a3a3a3]">
+            <span className="h-1.5 w-1.5 bg-[#168bff]" /> Workspace assistant
           </span>
-          {sampleCommands.map((item, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSendCommand(item.cmd)}
-              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-cyan-900/40 hover:text-cyan-300 hover:border-cyan-500/30 text-slate-300 border border-slate-700 text-[11px] font-mono whitespace-nowrap transition-all flex-shrink-0"
-            >
-              {item.label}
-            </button>
-          ))}
         </div>
-
-        {/* Bottom input and voice recording button */}
-        <div className="p-3 sm:p-4 bg-slate-950 border-t border-slate-800 flex items-center gap-2.5">
-          {/* Main big Mic toggle button */}
-          <button
-            id="mic-voice-toggle-btn"
-            onClick={toggleListen}
-            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${
-              isListening
-                ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 animate-pulse scale-105'
-                : 'bg-gradient-to-tr from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-600/30 hover:scale-105'
-            }`}
-            title={isListening ? 'Dừng lắng nghe' : 'Bật micro nói chuyện'}
-          >
-            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+        <div className="flex items-center gap-1.5">
+          <div className="hidden sm:flex items-center gap-2 border-r border-[#262626] pr-3 mr-1 text-[10px] font-mono text-[#777]">
+            <span className={`h-1.5 w-1.5 ${isSpeaking ? 'bg-[#168bff] animate-pulse' : 'bg-[#555]'}`} />
+            {isListening ? 'LISTENING' : isSpeaking ? 'SPEAKING' : 'READY'}
+          </div>
+          <button onClick={() => { if (voiceEnabled) window.speechSynthesis?.cancel(); setVoiceEnabled(v => !v); }} className={`h-9 w-9 border grid place-items-center ${voiceEnabled ? 'border-[#343434] text-[#ddd]' : 'border-[#262626] text-[#666]'} hover:bg-[#151515]`} title={voiceEnabled ? 'Disable voice responses' : 'Enable voice responses'}>
+            {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
-
-          {/* Text input for typing commands as alternative */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendCommand(transcript);
-            }}
-            className="flex-1 flex items-center gap-2"
-          >
-            <input
-              type="text"
-              value={transcript}
-              onChange={(e) => setTranscript(e.target.value)}
-              placeholder={isListening ? "Đang lắng nghe bạn nói..." : "Nói hoặc nhập câu lệnh cho trợ lý DevOps..."}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-100 text-xs sm:text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
-            />
-
-            <button
-              type="submit"
-              disabled={!transcript.trim() || isLoading}
-              className="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white text-xs font-bold transition-all flex-shrink-0 flex items-center gap-1.5"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Gửi</span>
-            </button>
-          </form>
+          <button onClick={onClose} className="h-9 w-9 border border-[#343434] text-[#aaa] grid place-items-center hover:bg-[#171717] hover:text-white" aria-label="Close VelClaw AI"><X size={17} /></button>
         </div>
+      </header>
+
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="hidden lg:flex flex-col border-r border-[#262626] bg-[#080808] p-4">
+          <div className="text-[9px] uppercase tracking-[.18em] text-[#686868] font-semibold mb-3">Active environment</div>
+          <div className="border border-[#292929] p-3 bg-[#0c0c0c]">
+            <div className="flex items-center gap-2 text-xs font-medium"><span className="h-1.5 w-1.5 bg-[#168bff]" />{selectedNode.hostname}</div>
+            <div className="mt-1 text-[10px] text-[#777] font-mono">{selectedNode.region || 'Region unavailable'}</div>
+          </div>
+          <div className="mt-5 text-[9px] uppercase tracking-[.18em] text-[#686868] font-semibold mb-3">Live context</div>
+          <div className="space-y-2">
+            {[
+              ['CPU', `${currentMetric.cpuUsage}%`],
+              ['Memory', `${currentMetric.ramUsagePercent}%`],
+              ['Latency', `${currentMetric.latencyMs} ms`],
+              ['Open alerts', String(alerts.filter(a => !a.resolved).length)],
+            ].map(([label, value]) => <div key={label} className="flex items-center justify-between border-b border-[#202020] py-2 text-[11px]"><span className="text-[#777]">{label}</span><span className="font-mono text-[#ddd]">{value}</span></div>)}
+          </div>
+          <div className="mt-auto border border-[#292929] p-3 text-[10px] leading-relaxed text-[#777]">
+            <div className="flex items-center gap-2 text-[#bdbdbd] mb-1"><ShieldCheck size={13} /> Safe operations</div>
+            VelClaw AI reports actions returned by connected services. Review consequential infrastructure changes before execution.
+          </div>
+        </aside>
+
+        <section className="min-w-0 min-h-0 flex flex-col bg-[#050505]">
+          <div className="h-11 shrink-0 border-b border-[#202020] px-4 sm:px-7 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[10px] font-mono text-[#777]"><Command size={13} /><span>VELCLAW / AI WORKSPACE</span><span className="text-[#444]">/</span><span className="text-[#ddd]">CHAT</span></div>
+            <button onClick={() => setMessages([{ id: `welcome-${Date.now()}`, sender: 'assistant', text: 'I’m VelClaw AI. What DevOps task can I help you with?', timestamp: clock() }])} className="text-[10px] text-[#888] hover:text-white border-b border-transparent hover:border-[#777]">New conversation</button>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-7 py-6 sm:py-8">
+            <div className="max-w-3xl mx-auto">
+              {messages.length === 1 && (
+                <div className="mb-8 sm:mb-12 pt-3 sm:pt-8">
+                  <div className="h-10 w-10 border border-[#333] bg-[#0b0b0b] grid place-items-center mb-5"><Sparkles size={18} className="text-[#168bff]" /></div>
+                  <div className="text-[10px] font-mono uppercase tracking-[.2em] text-[#168bff] mb-3">DevOps intelligence</div>
+                  <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">What are we <span className="text-[#777]">building</span> today?</h1>
+                  <p className="mt-3 text-sm text-[#858585] max-w-xl leading-6">Ask about infrastructure, deployments, observability, security or your development workflow.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-7">
+                    {quickPrompts.map(({ icon: Icon, label, command }) => <button key={label} onClick={() => void handleSendCommand(command)} className="group min-h-12 border border-[#292929] bg-[#090909] hover:bg-[#111] hover:border-[#4a4a4a] px-3 py-3 flex items-center gap-3 text-left"><Icon size={15} className="text-[#168bff] shrink-0" /><span className="text-[11px] text-[#c5c5c5]">{label}</span><ArrowUpRight size={13} className="ml-auto text-[#555] group-hover:text-white" /></button>)}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-6">
+                {messages.map(msg => <article key={msg.id} className={`flex gap-3 sm:gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}>
+                  <div className={`h-8 w-8 shrink-0 border grid place-items-center ${msg.sender === 'assistant' ? 'border-[#303030] bg-[#101010] text-[#168bff]' : 'border-[#383838] bg-[#191919] text-[#ddd]'}`}>{msg.sender === 'assistant' ? <Bot size={15} /> : <User size={15} />}</div>
+                  <div className={`min-w-0 max-w-[88%] sm:max-w-[80%] ${msg.sender === 'user' ? 'text-right' : ''}`}>
+                    <div className="flex items-center gap-2 mb-1.5"><span className="text-[10px] font-semibold text-[#ddd]">{msg.sender === 'assistant' ? 'VelClaw AI' : 'You'}</span><span className="text-[9px] font-mono text-[#666]">{msg.timestamp}</span></div>
+                    <div className={`text-[13px] leading-6 whitespace-pre-wrap text-left ${msg.sender === 'user' ? 'inline-block border border-[#24476a] bg-[#0b1723] px-3.5 py-2.5 text-[#e4edf7]' : 'text-[#c7c7c7]'}`}>{msg.text}</div>
+                    {msg.actionTaken && <div className="mt-2 inline-flex items-center gap-2 border border-[#21432f] bg-[#0b160f] px-2.5 py-1.5 text-[10px] text-[#9bd5ad]"><CheckCircle2 size={12} />{msg.actionTaken}</div>}
+                  </div>
+                </article>)}
+                {isLoading && <div className="flex gap-3"><div className="h-8 w-8 border border-[#303030] bg-[#101010] text-[#168bff] grid place-items-center"><Bot size={15} /></div><div className="pt-2 text-[11px] text-[#888] flex items-center gap-2"><span className="h-1.5 w-1.5 bg-[#168bff] animate-pulse" />VelClaw AI is analyzing your request…</div></div>}
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+          </div>
+
+          <div className="shrink-0 border-t border-[#252525] bg-[#080808] px-3 sm:px-7 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+            <div className="max-w-3xl mx-auto">
+              {(isListening || isSpeaking) && <div className="mb-2 flex items-center gap-2 text-[10px] font-mono text-[#168bff]"><AudioLines size={13} />{isListening ? 'Listening for your command…' : 'Speaking response…'}</div>}
+              <form onSubmit={e => { e.preventDefault(); void handleSendCommand(transcript); }} className="flex items-center gap-2 border border-[#383838] bg-[#050505] p-1.5 focus-within:border-[#168bff]">
+                <button type="button" onClick={toggleListen} className={`h-10 w-10 shrink-0 grid place-items-center border ${isListening ? 'border-[#a43a3a] bg-[#241010] text-[#ff8585]' : 'border-transparent text-[#888] hover:bg-[#151515] hover:text-white'}`} title={isListening ? 'Stop listening' : 'Start voice input'}>{isListening ? <MicOff size={17} /> : <Mic size={17} />}</button>
+                <input ref={inputRef} value={transcript} onChange={e => setTranscript(e.target.value)} placeholder="Message VelClaw AI…" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-[13px] text-white outline-none placeholder:text-[#666]" />
+                <button type="submit" disabled={!transcript.trim() || isLoading} className="h-10 w-10 shrink-0 bg-[#f5f5f5] text-black grid place-items-center hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Send message"><Send size={16} /></button>
+              </form>
+              <div className="mt-2 flex items-center justify-between text-[9px] text-[#626262]"><span>VelClaw AI can make mistakes. Verify critical infrastructure changes.</span><span className="hidden sm:inline font-mono">ENTER TO SEND</span></div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
