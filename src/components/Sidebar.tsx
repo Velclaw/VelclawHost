@@ -76,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="vh-sidebar-top">
             <div className="vh-project-switcher">
               <div className="vh-project-logo">
-                <img src={`${import.meta.env.BASE_URL}assets/velclaw-mark.svg`} alt="VelClaw" />
+                <img src={`${import.meta.env.BASE_URL}velclaw-icon-dark.svg`} alt="VelClaw" />
               </div>
               {!collapsed && (
                 <div className="min-w-0 flex-1">
@@ -91,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="vh-project-context">
                 <Layers3 className="h-3.5 w-3.5" />
                 <span>Infrastructure workspace</span>
-                <span className="ml-auto font-mono text-[9px] text-zinc-600">VH</span>
+                <span className="ml-auto font-mono text-[9px] text-zinc-600">VC</span>
               </div>
             )}
 

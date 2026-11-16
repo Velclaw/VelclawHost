@@ -20,7 +20,7 @@ interface NavbarProps {
 
 const VelclawMark = () => (
   <div className="vh-brand-mark" aria-label="VelClaw">
-    <img src={`${import.meta.env.BASE_URL}assets/velclaw-mark.svg`} alt="" />
+    <img src={`${import.meta.env.BASE_URL}velclaw-icon-dark.svg`} alt="" />
   </div>
 );
 
@@ -47,7 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </button>
 
-        <a href="/" className="vh-brand-link" aria-label="VelClaw home">
+        <a href={import.meta.env.BASE_URL} className="vh-brand-link" aria-label="VelClaw home">
           <VelclawMark />
           <div className="hidden sm:block">
             <div className="vh-brand-title">VelClaw</div>
