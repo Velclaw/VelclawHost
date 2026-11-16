@@ -76,11 +76,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="vh-sidebar-top">
             <div className="vh-project-switcher">
               <div className="vh-project-logo">
-                <img src="/assets/velclawhost-logo.svg" alt="VelClawHost" />
+                <img src="/assets/velclaw-logo.svg" alt="VelClaw" />
               </div>
               {!collapsed && (
                 <div className="min-w-0 flex-1">
-                  <div className="vh-project-name">VelClawHost</div>
+                  <div className="vh-project-name">VelClaw</div>
                   <div className="vh-project-meta"><span /> control plane</div>
                 </div>
               )}
@@ -157,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="vh-account-card">
                 <div className="vh-avatar">VH</div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[10px] font-medium text-zinc-200">VelClawHost account</div>
+                  <div className="truncate text-[10px] font-medium text-zinc-200">VelClaw account</div>
                   <div className="truncate text-[9px] text-zinc-600">Owner · authenticated</div>
                 </div>
                 <Settings className="h-3.5 w-3.5 text-zinc-600" />
