@@ -1,6 +1,19 @@
 name: VelclawHost Free Preview
 
 on:
+  push:
+    branches: ["feat/cloudflare-free-tier-preview"]
+    paths:
+      - "cloudflare/free-preview-worker.js"
+      - "cloudflare/free-preview-worker.test.mjs"
+      - "wrangler.free-preview.toml"
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/deploy-free-preview.yml"
   pull_request:
     branches: ["main"]
     paths:
@@ -58,10 +71,9 @@ jobs:
           retention-days: 3
 
   deploy-preview:
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy_preview
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy_preview)
     needs: verify
     runs-on: ubuntu-latest
-    environment: preview
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
