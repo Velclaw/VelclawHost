@@ -77,23 +77,38 @@ Resources:
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              - Sid: DescribePreviewClusterAndServices
+              - Sid: DescribePreviewCluster
                 Effect: Allow
                 Action:
                   - ecs:DescribeClusters
-                  - ecs:DescribeServices
                   - ecs:DescribeTaskDefinition
-                  - ecs:ListServices
                   - ecs:ListTaskDefinitions
                 Resource: "*"
-              - Sid: RegisterAndUpdatePreviewWorkloads
+              - Sid: ListOnlyPreviewClusterServices
+                Effect: Allow
+                Action: ecs:ListServices
+                Resource: !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/velclawhost-preview"
+              - Sid: DescribeAndUpdateOnlyPreviewServices
                 Effect: Allow
                 Action:
-                  - ecs:RegisterTaskDefinition
+                  - ecs:DescribeServices
                   - ecs:UpdateService
-                  - ecs:RunTask
-                  - ecs:DescribeTasks
-                Resource: "*"
+                Resource: !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/velclawhost-preview/*"
+              - Sid: RegisterOnlyVelclawHostTaskDefinitions
+                Effect: Allow
+                Action: ecs:RegisterTaskDefinition
+                Resource: !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/velclawhost-*"
+              - Sid: RunTasksOnlyOnPreviewCluster
+                Effect: Allow
+                Action: ecs:RunTask
+                Resource: !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/velclawhost-*"
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/velclawhost-preview"
+              - Sid: DescribeTasksOnlyOnPreviewCluster
+                Effect: Allow
+                Action: ecs:DescribeTasks
+                Resource: !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/velclawhost-preview/*"
               - Sid: PassOnlyVelclawHostTaskRoles
                 Effect: Allow
                 Action: iam:PassRole
