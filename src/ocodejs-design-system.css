@@ -1,0 +1,167 @@
+/* OCode.js canonical design system — source: OCodejs/ocodejs.github.io
+ * Keep this file as the single final visual layer for the VelclawHost Preview.
+ * MIT; no remote font or runtime dependency.
+ */
+:root {
+  color-scheme: dark;
+  --ocds-version: "1.0.0";
+  --ocds-bg: #000;
+  --ocds-surface: #080808;
+  --ocds-border: #444;
+  --ocds-border-strong: #777;
+  --ocds-text: #f5f5f5;
+  --ocds-muted: #aaa;
+  --ocds-font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --ocds-radius: 0;
+  --ocds-space-unit: 4px;
+  --ocds-content-max: 1440px;
+  --ocds-bg-hover: #171717;
+  --vh-bg: var(--ocds-bg);
+  --vh-bg-deep: var(--ocds-bg);
+  --vh-panel: var(--ocds-surface);
+  --vh-panel-raised: var(--ocds-surface);
+  --vh-panel-hover: var(--ocds-bg-hover);
+  --vh-border: var(--ocds-border);
+  --vh-border-strong: var(--ocds-border-strong);
+  --vh-text: var(--ocds-text);
+  --vh-muted: var(--ocds-muted);
+  --vh-subtle: var(--ocds-muted);
+  --vh-brand: var(--ocds-text);
+  --vh-brand-2: var(--ocds-muted);
+  --vh-radius: 0;
+  --bg: var(--ocds-bg);
+  --panel: var(--ocds-surface);
+  --panel-2: var(--ocds-surface);
+  --line: var(--ocds-border);
+  --line-strong: var(--ocds-border-strong);
+  --fg: var(--ocds-text);
+  --muted: var(--ocds-muted);
+  --blue: var(--ocds-text);
+  --cyan: var(--ocds-text);
+  --purple: var(--ocds-muted);
+  --mono: var(--ocds-font);
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body {
+  background: var(--ocds-bg) !important;
+  color: var(--ocds-text) !important;
+  color-scheme: dark;
+  font-family: var(--ocds-font) !important;
+  -webkit-text-size-adjust: 100%;
+}
+body { min-width: 320px; overflow-x: hidden; }
+#root, .app, .main, .vc-next-layout, .vc-next-content, .vc-main {
+  background: var(--ocds-bg) !important;
+  color: var(--ocds-text) !important;
+}
+button, input, select, textarea {
+  font-family: var(--ocds-font) !important;
+  border-radius: 0 !important;
+}
+button, a, input, select, textarea { touch-action: manipulation; }
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--ocds-text) !important;
+  outline-offset: 3px;
+}
+:where(button, input, select, textarea, [role="button"], .vh-panel, .vh-card, .panel, .stat, .tile, .doc, .modal, .vh-node-menu, .vh-project-switcher, .vh-account-card, .vh-health-card, .vc-next-container .rounded-2xl.border, .vc-next-container .rounded-xl.border, .vc-next-container .rounded-lg.border) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.vh-topbar, .vh-sidebar, .vh-sidebar-top, .vh-sidebar-bottom, .vh-project-switcher,
+.vh-node-menu, .vh-account-card, .vh-health-card, .vc-next-layout, .vc-next-content,
+.vc-main, .vc-next-container {
+  background: #000 !important;
+  border-color: var(--ocds-border) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.vh-brand-mark, .vh-project-logo, .vh-avatar, .vh-user-chip {
+  border-radius: 0 !important;
+  background: #080808 !important;
+  border: 1px solid var(--ocds-border-strong) !important;
+  box-shadow: none !important;
+  color: var(--ocds-text) !important;
+}
+.vh-brand-mark::after { display: none !important; }
+.vh-nav-item, .vh-nav-item.is-active, .vh-nav-item:hover {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.vh-nav-item { color: var(--ocds-muted) !important; }
+.vh-nav-item.is-active, .vh-nav-item:hover {
+  color: var(--ocds-text) !important;
+  background: var(--ocds-bg-hover) !important;
+  border-color: var(--ocds-border-strong) !important;
+}
+.vh-nav-item.is-active::after { display: none !important; }
+.vh-nav-item.is-active .vh-nav-icon, .vh-nav-icon,
+.vh-brand-sub, .vh-breadcrumb-top strong, .vc-breadcrumb strong,
+.vc-page-title, .vc-next-container h1, .vc-next-container h2, .vc-next-container h3 {
+  color: var(--ocds-text) !important;
+  text-shadow: none !important;
+}
+.vh-ai-button, .vh-new-button, .btn, .vc-live-pill,
+.vh-mobile-menu, .vh-icon-button, .vh-node-switcher, .vh-collapse,
+.vh-search-button, .vh-node-option, .vh-project-switcher,
+.vc-next-container button {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.vh-ai-button {
+  background: #080808 !important;
+  border: 1px solid var(--ocds-border-strong) !important;
+  color: var(--ocds-text) !important;
+}
+.vh-ai-button strong, .vh-ai-button small { color: inherit !important; }
+.vh-new-button {
+  background: var(--ocds-text) !important;
+  border: 1px solid var(--ocds-text) !important;
+  color: #000 !important;
+}
+.vh-mobile-menu, .vh-icon-button, .vh-node-switcher, .vh-collapse,
+.vh-search-button, .vh-node-option, .vc-next-container button {
+  background: #080808 !important;
+  border-color: var(--ocds-border-strong) !important;
+  color: var(--ocds-text) !important;
+}
+.vc-next-container .rounded-2xl.border, .vc-next-container .rounded-xl.border,
+.vc-next-container .rounded-lg.border, .vc-next-container input,
+.vc-next-container select, .vc-next-container textarea {
+  border-radius: 0 !important;
+  background: #080808 !important;
+  border-color: var(--ocds-border) !important;
+  color: var(--ocds-text) !important;
+  box-shadow: none !important;
+}
+.vc-next-container input:focus, .vc-next-container select:focus,
+.vc-next-container textarea:focus {
+  border-color: var(--ocds-text) !important;
+  box-shadow: none !important;
+}
+.vc-page-header, .vc-page-header::after, .vc-breadcrumb,
+.vc-next-container table th, .vc-next-container table td {
+  border-color: var(--ocds-border) !important;
+}
+.vc-page-header::after { display: none !important; }
+.vc-live-pill {
+  background: #080808 !important;
+  border: 1px solid var(--ocds-border-strong) !important;
+  color: var(--ocds-text) !important;
+}
+.vh-online-dot, .vh-health i, .vc-live-pill i { box-shadow: none !important; }
+.vc-next-container table th { background: #080808 !important; color: var(--ocds-muted) !important; }
+.vc-next-container table td { color: var(--ocds-text) !important; }
+.vc-next-container table tbody tr:hover { background: #111 !important; }
+.vc-next-container code, .vc-next-container pre { font-family: var(--ocds-font) !important; }
+::selection { background: #444; color: #fff; }
+@media (max-width: 640px) {
+  html, body, #root { width: 100%; max-width: 100%; overflow-x: hidden; }
+  .vc-main { padding-left: 14px !important; padding-right: 14px !important; }
+  .vc-page-header { min-width: 0 !important; }
+  .vc-next-container { min-width: 0 !important; max-width: 100% !important; }
+  .vc-next-container .overflow-x-auto { max-width: calc(100vw - 28px) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}

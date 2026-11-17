@@ -43,6 +43,7 @@ import { ApiIntegrationTab } from './components/ApiIntegrationTab';
 import { ReportsModal } from './components/ReportsModal';
 import { FcmNotificationModal } from './components/FcmNotificationModal';
 import { VoiceAssistantModal } from './components/VoiceAssistantModal';
+import { AuthGatewayModal, type AuthGatewayUser } from './components/auth/AuthGatewayModal';
 import { DeploymentsTab } from './components/DeploymentsTab';
 import { DeveloperToolsTab } from './components/DeveloperToolsTab';
 
@@ -132,6 +133,13 @@ export default function App() {
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
   const [isFcmModalOpen, setIsFcmModalOpen] = useState(false);
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthGatewayUser | null>(null);
+  const authGatewayConfigured = Boolean(import.meta.env.VITE_AUTH_API_BASE_URL?.trim());
+
+  useEffect(() => {
+    if (authGatewayConfigured) setIsAuthModalOpen(true);
+  }, [authGatewayConfigured]);
   const [toastNotification, setToastNotification] = useState<{ title: string; message: string; type: 'warn' | 'crit' | 'info' } | null>(null);
 
   // Audio synthesizer for alert beep
@@ -584,6 +592,8 @@ export default function App() {
         isMobileMenuOpen={isMobileMenuOpen}
         onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         onOpenDeployments={() => navigateTab('deployments')}
+        authUserEmail={authUser?.email ?? null}
+        onOpenAccount={() => setIsAuthModalOpen(true)}
       />
 
       {/* Application Body */}
@@ -855,6 +865,17 @@ export default function App() {
           onClose={() => setIsFcmModalOpen(false)}
           alerts={alerts}
           onTriggerTestPush={handleTriggerTestPush}
+        />
+      )}
+
+      {isAuthModalOpen && (
+        <AuthGatewayModal
+          open={isAuthModalOpen}
+          onClose={() => { if (!authGatewayConfigured || authUser) setIsAuthModalOpen(false); }}
+          currentUser={authUser}
+          requireAuth={authGatewayConfigured}
+          onAuthenticated={setAuthUser}
+          onSignedOut={() => setAuthUser(null)}
         />
       )}
 

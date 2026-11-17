@@ -2,6 +2,8 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+// The canonical OCodeJS visual layer must load last to normalize every screen.
+import './ocodejs-design-system.css';
 
 // Keep the application viewport fixed against accidental browser zoom gestures.
 // Native one-finger scrolling and ordinary form interactions remain available.
