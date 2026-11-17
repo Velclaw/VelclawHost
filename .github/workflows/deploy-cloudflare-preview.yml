@@ -1,0 +1,50 @@
+name: Deploy VelclawHost Cloudflare Preview
+
+on:
+  push:
+    branches: ["feat/cloudflare-static-frontend-preview"]
+    paths:
+      - "cloudflare/edge-preview-worker.js"
+      - "cloudflare/edge-preview-worker.test.mjs"
+      - "wrangler.edge-preview.toml"
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "vite.config.ts"
+      - ".github/workflows/deploy-cloudflare-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build static frontend
+        run: bunx vite build --outDir dist/cloudflare-assets
+
+      - name: Verify static output
+        run: |
+          test -s dist/cloudflare-assets/index.html
+          test ! -e dist/cloudflare-assets/server.cjs
+          test ! -e dist/cloudflare-assets/runtime-worker.cjs
+
+      - name: Deploy isolated Cloudflare Preview
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --config wrangler.edge-preview.toml
