@@ -1,4 +1,4 @@
-name: Deploy VelclawHost Cloudflare Preview
+name: Build VelclawHost Cloudflare Preview Bundle
 
 on:
   push:
@@ -14,38 +14,42 @@ on:
       - "package.json"
       - "bun.lock"
       - ".github/workflows/deploy-cloudflare-preview.yml"
-  workflow_dispatch:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "cloudflare/**"
+      - "wrangler*.toml"
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
 
 permissions:
   contents: read
 
 jobs:
-  deploy-preview:
-    if: github.ref == 'refs/heads/feat/cloudflare-static-frontend-preview'
+  build-preview:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4"
-
       - name: Install dependencies
         run: bun install
-
-      - name: Build static frontend
+      - name: Check Worker syntax
+        run: node --check cloudflare/edge-preview-worker.js
+      - name: Run edge preview Worker tests
+        run: node --test cloudflare/edge-preview-worker.test.mjs
+      - name: Build static frontend for Cloudflare
         run: bunx vite build --outDir dist/cloudflare-assets
-
       - name: Verify static output
         run: |
           test -s dist/cloudflare-assets/index.html
           test ! -e dist/cloudflare-assets/server.cjs
           test ! -e dist/cloudflare-assets/runtime-worker.cjs
-
-      - name: Deploy isolated Cloudflare Preview
-        run: bunx wrangler deploy --config wrangler.edge-preview.toml
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
