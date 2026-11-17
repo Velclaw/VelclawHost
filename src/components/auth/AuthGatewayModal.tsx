@@ -22,7 +22,7 @@ const AUTH_API_BASE = (import.meta.env.VITE_AUTH_API_BASE_URL || '').trim().repl
 
 async function requestJson(path: string, init?: RequestInit) {
   if (!AUTH_API_BASE) throw new Error('Auth Gateway chưa được cấu hình cho môi trường này.');
-  const response = await fetch(\`\${AUTH_API_BASE}\${path}\`, {
+  const response = await fetch(`${AUTH_API_BASE}${path}`, {
     ...init,
     credentials: 'include',
     cache: 'no-store',
