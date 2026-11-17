@@ -22,7 +22,7 @@ const AUTH_API_BASE = (import.meta.env.VITE_AUTH_API_BASE_URL || '').trim().repl
 
 async function requestJson(path: string, init?: RequestInit) {
   if (!AUTH_API_BASE) throw new Error('Auth Gateway chưa được cấu hình cho môi trường này.');
-  const response = await fetch(\`\${AUTH_API_BASE}\${path}\`, {
+  const response = await fetch(`${AUTH_API_BASE}${path}`, {
     ...init,
     credentials: 'include',
     cache: 'no-store',
@@ -60,6 +60,7 @@ export const AuthGatewayModal: React.FC<AuthGatewayModalProps> = ({
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [verifiedNotice, setVerifiedNotice] = useState(false);
+  const [actionToken, setActionToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -71,11 +72,14 @@ export const AuthGatewayModal: React.FC<AuthGatewayModalProps> = ({
     const verificationToken = params.get('verify');
     const resetToken = params.get('reset');
     if (resetToken) {
+      setActionToken(resetToken);
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash);
       setMode('reset');
       setMessage('Nhập mật khẩu mới có ít nhất 12 ký tự.');
       return () => { active = false; };
     }
     if (verificationToken) {
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash);
       setBusy(true);
       postSecure('/api/v1/auth/verify-email', { token: verificationToken })
         .then(() => {
@@ -83,7 +87,6 @@ export const AuthGatewayModal: React.FC<AuthGatewayModalProps> = ({
           setMode('login');
           setVerifiedNotice(true);
           setMessage('Email đã được xác minh. Bạn có thể đăng nhập.');
-          window.history.replaceState({}, '', window.location.pathname + window.location.hash);
         })
         .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Không thể xác minh email.'); })
         .finally(() => { if (active) setBusy(false); });
@@ -122,10 +125,9 @@ export const AuthGatewayModal: React.FC<AuthGatewayModalProps> = ({
       } else if (mode === 'reset') {
         if (password.length < 12) throw new Error('Mật khẩu phải có ít nhất 12 ký tự.');
         if (password !== confirmPassword) throw new Error('Hai mật khẩu không khớp.');
-        const token = new URLSearchParams(window.location.search).get('reset');
-        if (!token) throw new Error('Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.');
-        const result = await postSecure('/api/v1/auth/reset-password', { token, password });
-        window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+        if (!actionToken) throw new Error('Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.');
+        const result = await postSecure('/api/v1/auth/reset-password', { token: actionToken, password });
+        setActionToken(null);
         setMode('login');
         setPassword('');
         setConfirmPassword('');
