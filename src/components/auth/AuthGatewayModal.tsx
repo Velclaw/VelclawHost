@@ -87,7 +87,11 @@ export const AuthGatewayModal: React.FC<AuthGatewayModalProps> = ({
         .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Không thể xác minh email.'); })
         .finally(() => { if (active) setBusy(false); });
     } else if (!currentUser) {
-      requestJson('/api/v1/me').catch(() => undefined);
+      requestJson('/api/v1/me')
+        .then((result) => {
+          if (active && result.user && typeof result.user.email === 'string') onAuthenticated(result.user as AuthGatewayUser);
+        })
+        .catch(() => undefined);
     }
     return () => { active = false; };
   }, [open, currentUser]);
