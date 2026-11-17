@@ -686,3 +686,8 @@ GitHub OAuth App: https://github.com/settings/developers
 Google OAuth clients: https://console.cloud.google.com/apis/credentials
 
 Check provider readiness at `GET /api/v1/auth/providers`. A provider button is enabled only when its client ID and secret are present. OAuth uses a short-lived HttpOnly state cookie, verified provider email, server-side code exchange, and an HttpOnly session cookie. Accounts not in the allowlist are rejected; the configured admin email receives owner role, other permitted users receive member role. This OAuth implementation establishes a signed session but does not itself create a persistent user directory; do not treat the in-memory domain map as persistent account storage.
+
+
+## Cloudflare Free Preview
+
+The isolated static Preview is deployed from `feat/cloudflare-free-tier-preview` to `https://velclawhost-free-preview.pages.dev`. It is a Free-tier, non-production static frontend only. API, authentication, persistent storage, deployment queues, and Docker runtime capabilities are intentionally disabled. The Cloudflare Pages build installs dependencies with the repository's Bun lockfile (`bun install`) and builds the Vite assets; `SKIP_DEPENDENCY_INSTALL=true` prevents Pages from trying to auto-detect the Bun version.

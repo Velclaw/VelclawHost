@@ -1,0 +1,70 @@
+name: VelclawHost Free Preview
+
+on:
+  push:
+    branches: ["feat/cloudflare-free-tier-preview"]
+    paths:
+      - "cloudflare/free-preview-worker.js"
+      - "cloudflare/free-preview-worker.test.mjs"
+      - "functions/**"
+      - "wrangler.free-preview.toml"
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "vite.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "bun.lock"
+      - ".github/workflows/deploy-free-preview.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "cloudflare/free-preview-worker.js"
+      - "cloudflare/free-preview-worker.test.mjs"
+      - "functions/**"
+      - "wrangler.free-preview.toml"
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "vite.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "bun.lock"
+      - ".github/workflows/deploy-free-preview.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4"
+      - name: Install dependencies
+        run: bun install
+      - name: Check Worker syntax
+        run: node --check cloudflare/free-preview-worker.js
+      - name: Check Pages middleware syntax
+        run: node --check functions/_middleware.js
+      - name: Test Free Preview Worker
+        run: node --test cloudflare/free-preview-worker.test.mjs
+      - name: Build static frontend
+        run: bunx vite build --outDir dist/cloudflare-assets
+      - name: Verify static bundle
+        run: |
+          test -s dist/cloudflare-assets/index.html
+          test ! -e dist/cloudflare-assets/server.cjs
+          test ! -e dist/cloudflare-assets/runtime-worker.cjs
+      - name: Upload static bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: velclawhost-free-preview-assets
+          path: dist/cloudflare-assets/
+          if-no-files-found: error
+          retention-days: 3
