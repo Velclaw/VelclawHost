@@ -12,3 +12,7 @@ zone_name = "velclaw.site"
 [[routes]]
 pattern = "api.velclaw.site/*"
 zone_name = "velclaw.site"
+
+# Required by `wrangler preview` used in Cloudflare Workers Builds.
+# This enables branch preview deployments; it does not create a production route.
+[previews]
