@@ -13,6 +13,7 @@ interface AuthGatewayModalProps {
   open: boolean;
   onClose: () => void;
   currentUser: AuthGatewayUser | null;
+  requireAuth?: boolean;
   onAuthenticated: (user: AuthGatewayUser) => void;
   onSignedOut: () => void;
 }
@@ -49,7 +50,7 @@ async function postSecure(path: string, body: Record<string, string>) {
 }
 
 export const AuthGatewayModal: React.FC<AuthGatewayModalProps> = ({
-  open, onClose, currentUser, onAuthenticated, onSignedOut,
+  open, onClose, currentUser, requireAuth = false, onAuthenticated, onSignedOut,
 }) => {
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -176,7 +177,7 @@ export const AuthGatewayModal: React.FC<AuthGatewayModalProps> = ({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/90 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="auth-gateway-title">
       <section className="relative my-auto w-full max-w-md border border-neutral-800 bg-black p-6 text-neutral-100 shadow-2xl sm:p-8">
-        <button type="button" onClick={onClose} className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center border border-neutral-800 text-neutral-400 hover:border-neutral-500 hover:text-white" aria-label="Đóng cửa sổ xác thực">
+        <button type="button" onClick={onClose} disabled={requireAuth && !currentUser} className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center border border-neutral-800 text-neutral-400 hover:border-neutral-500 hover:text-white disabled:invisible" aria-label="Đóng cửa sổ xác thực">
           <X className="h-4 w-4" />
         </button>
         <div className="mb-7 flex flex-col items-center text-center">
