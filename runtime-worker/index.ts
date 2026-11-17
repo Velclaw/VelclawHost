@@ -40,7 +40,9 @@ const runtimes = new Map<string, Runtime>();
 const allocatedPorts = new Set<number>();
 
 function auth(req: express.Request, res: express.Response, next: express.NextFunction) {
-  if (!WORKER_TOKEN) return next();
+  if (!WORKER_TOKEN) {
+    return res.status(503).json({ error: "Runtime worker authentication is not configured." });
+  }
   if (req.header("authorization") === "Bearer " + WORKER_TOKEN) return next();
   return res.status(401).json({ error: "Unauthorized" });
 }

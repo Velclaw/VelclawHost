@@ -150,9 +150,10 @@ async function startServer() {
 
   async function callRuntimeWorker(pathname: string, init: RequestInit = {}) {
     if (!runtimeWorkerUrl) throw new Error('RUNTIME_WORKER_URL is not configured.');
+    if (!runtimeWorkerToken) throw new Error('RUNTIME_WORKER_TOKEN is required when using the remote runtime worker.');
     const headers = new Headers(init.headers);
     headers.set('Content-Type', 'application/json');
-    if (runtimeWorkerToken) headers.set('Authorization', 'Bearer ' + runtimeWorkerToken);
+    headers.set('Authorization', 'Bearer ' + runtimeWorkerToken);
     const response = await fetch(runtimeWorkerUrl + pathname, { ...init, headers });
     const text = await response.text();
     let body: any = {};
