@@ -45,6 +45,13 @@ The migration target is the **OCodeJS Cloudflare account**. All work is isolated
 - `Build VelclawHost Cloudflare Preview Bundle` runs syntax tests, unit tests, and a clean Vite static build. The Cloudflare GitHub Actions token currently lacks permission to deploy Workers; the Worker deployment is therefore performed through the connected OCodeJS Cloudflare account, not by weakening permissions or changing Production.
 - Render remains the rollback origin; Production routing remains disabled.
 
+### Preview access gate
+
+- Cloudflare API confirms the Preview DNS CNAME and Worker route are configured. GitHub Actions resolves the custom hostname, but the request receives HTTP 403 with `cf-mitigated: challenge` before the Worker handler runs.
+- The `ocodejs.dev` zone currently has `security_level=under_attack`, and Bot Management reports `fight_mode=true`. This is consistent with the challenge response.
+- The account-level Access app for Worker preview URLs is separate; no Access application is attached to the `ocodejs.dev` zone.
+- No security setting or WAF rule was changed. Do not lower zone-wide protection to make this Preview work. A hostname-scoped security exception would require separate approval.
+
 ## Migration gates
 
 - [x] Existing migration branch CI and Docker image builds pass.
@@ -52,7 +59,8 @@ The migration target is the **OCodeJS Cloudflare account**. All work is isolated
 - [x] Dedicated feature branch created for the Cloudflare frontend Preview.
 - [x] Vite static build and edge proxy tests pass on the feature branch.
 - [x] Cloudflare Preview Worker deployed through the OCodeJS API; deployment read-back confirms 100% traffic on the Preview Worker version.
-- [ ] Public DNS and HTTP smoke test from an external network.
+- [x] Preview DNS CNAME and Worker route read back from Cloudflare API.
+- [ ] HTTP smoke test reaching the Worker handler; currently blocked by the zone's Under Attack/Bot Fight challenge.
 - [ ] Vite static assets uploaded and attached to the Worker (the current deployment reports `has_assets=false`).
 - [ ] Auth.js login/session validation works end-to-end in Preview through the edge bridge.
 - [ ] Dedicated database provisioned and schema migrations rehearsed with backup/restore.
