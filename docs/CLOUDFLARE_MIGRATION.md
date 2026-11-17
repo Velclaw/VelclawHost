@@ -51,7 +51,9 @@ The migration target is the **OCodeJS Cloudflare account**. All work is isolated
 - [x] Initial Preview Worker syntax and unit tests pass.
 - [x] Dedicated feature branch created for the Cloudflare frontend Preview.
 - [x] Vite static build and edge proxy tests pass on the feature branch.
-- [ ] Cloudflare Preview Worker deployed and HTTP smoke-tested.
+- [x] Cloudflare Preview Worker deployed through the OCodeJS API; deployment read-back confirms 100% traffic on the Preview Worker version.
+- [ ] Public DNS and HTTP smoke test from an external network.
+- [ ] Vite static assets uploaded and attached to the Worker (the current deployment reports `has_assets=false`).
 - [ ] Auth.js login/session validation works end-to-end in Preview through the edge bridge.
 - [ ] Dedicated database provisioned and schema migrations rehearsed with backup/restore.
 - [ ] Durable queue supports idempotency, retries, dead-letter handling, and recovery.
