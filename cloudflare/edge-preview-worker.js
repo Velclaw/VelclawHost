@@ -1,5 +1,6 @@
 const STAGE = "preview-only";
 const SERVICE = "velclawhost-cloudflare-edge-preview";
+const DEFAULT_LEGACY_ORIGIN = "https://velclawhost.onrender.com";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body, null, 2), {
@@ -30,12 +31,13 @@ function getLegacyOrigin(value) {
   }
 }
 
-async function proxyApi(request, env) {
-  const origin = getLegacyOrigin(env.LEGACY_API_ORIGIN);
+async function proxyRequest(request, env, purpose) {
+  const configuredOrigin = env.LEGACY_API_ORIGIN ?? DEFAULT_LEGACY_ORIGIN;
+  const origin = getLegacyOrigin(configuredOrigin);
   if (!origin) {
     return json({
       status: "unavailable",
-      code: "PREVIEW_API_ORIGIN_NOT_CONFIGURED",
+      code: "PREVIEW_UPSTREAM_ORIGIN_NOT_CONFIGURED",
       stage: STAGE,
     }, 503);
   }
@@ -46,7 +48,9 @@ async function proxyApi(request, env) {
   const headers = new Headers(initialRequest.headers);
   headers.delete("host");
   headers.set("x-velclawhost-edge", STAGE);
+  headers.set("x-velclawhost-preview-purpose", purpose);
   headers.set("x-forwarded-host", incoming.host);
+  headers.set("x-forwarded-proto", incoming.protocol.slice(0, -1));
   const upstreamRequest = new Request(initialRequest, {
     headers,
     redirect: "manual",
@@ -57,6 +61,21 @@ async function proxyApi(request, env) {
     const responseHeaders = new Headers(upstreamResponse.headers);
     responseHeaders.set("x-velclawhost-edge", STAGE);
     responseHeaders.set("cache-control", "no-store");
+
+    const location = responseHeaders.get("location");
+    if (location) {
+      try {
+        const redirectUrl = new URL(location, origin);
+        if (redirectUrl.origin === origin.origin) {
+          redirectUrl.protocol = incoming.protocol;
+          redirectUrl.host = incoming.host;
+          responseHeaders.set("location", redirectUrl.toString());
+        }
+      } catch {
+        // Preserve non-URL Location values exactly as returned by the upstream.
+      }
+    }
+
     return new Response(upstreamResponse.body, {
       status: upstreamResponse.status,
       statusText: upstreamResponse.statusText,
@@ -65,7 +84,7 @@ async function proxyApi(request, env) {
   } catch {
     return json({
       status: "unavailable",
-      code: "PREVIEW_API_UPSTREAM_UNAVAILABLE",
+      code: "PREVIEW_UPSTREAM_UNAVAILABLE",
       stage: STAGE,
     }, 502);
   }
@@ -80,8 +99,8 @@ export default {
         status: "ok",
         service: SERVICE,
         stage: STAGE,
-        frontend: "cloudflare-workers-static-assets",
-        api: getLegacyOrigin(env.LEGACY_API_ORIGIN) ? "render-upstream-preview-bridge" : "not-configured",
+        frontend: env.ASSETS ? "cloudflare-workers-static-assets" : "cloudflare-edge-proxy",
+        api: "render-upstream-preview-bridge",
         productionRouting: false,
         renderFallbackPreserved: true,
         timestamp: new Date().toISOString(),
@@ -89,17 +108,15 @@ export default {
     }
 
     if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
-      return proxyApi(request, env);
+      return proxyRequest(request, env, "api");
     }
 
-    if (!env.ASSETS || typeof env.ASSETS.fetch !== "function") {
-      return json({
-        status: "unavailable",
-        code: "PREVIEW_ASSETS_NOT_BOUND",
-        stage: STAGE,
-      }, 503);
+    if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
+      return env.ASSETS.fetch(request);
     }
 
-    return env.ASSETS.fetch(request);
+    // Direct API deployment fallback: keep the Preview usable while the
+    // repository's Wrangler token is repaired for Static Assets uploads.
+    return proxyRequest(request, env, "frontend");
   },
 };
