@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="VelClaw">
+<defs><linearGradient id="s" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".45" stop-color="#c4c8d0"/><stop offset="1" stop-color="#737986"/></linearGradient><filter id="d" x="-30%" y="-30%" width="160%" height="170%"><feGaussianBlur in="SourceAlpha" stdDeviation="8"/><feOffset dy="10"/><feComponentTransfer><feFuncA type="linear" slope=".65"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<rect width="512" height="512" fill="#090b10"/>
+<g filter="url(#d)" fill="url(#s)" stroke="#f4f5f7" stroke-width="3">
+<path d="M68 74h91l112 207-58 88z"/><path d="M270 132l176-59-33 60-117 40-48 66-32-44 28-47z"/><path d="M302 239l99-37-31 49-40 15-33 50-36-31z"/>
+</g></svg>

@@ -1,0 +1,171 @@
+On this page
+
+# Getting Started with AI Gateway
+
+Use AI Gateway from any environment to call models, connect coding agents, and inspect routing and spend. AI Gateway API keys belong to a Vercel team and work in local development, CI, external servers, and Vercel deployments.
+
+## Choose how to start
+
+| Goal                                    | Start here                                                                                                                                  |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ask a coding agent to make a request    | [Copy the agent setup prompt](#ask-a-coding-agent-to-make-a-request)                                                                        |
+| Route a coding agent through AI Gateway | [Run the coding-agent setup](#connect-a-coding-agent)                                                                                       |
+| Make your first request                 | [Use cURL, TypeScript, or Python](#make-your-first-request)                                                                                 |
+| Use AI Gateway with existing code       | [Use an SDK or API](#use-ai-gateway-with-existing-code), or [migrate to AI Gateway](/docs/ai-gateway/getting-started/migrate-to-ai-gateway) |
+
+## For agents
+
+### Ask a coding agent to make a request
+
+Use this path when you want a coding agent to write and run an AI Gateway request in your current environment.
+
+Paste this prompt into a coding agent with terminal access:
+
+Agent Prompt
+
+Set up AI Gateway and make one text-generation request from this environment. Use the AI Gateway skill for this task. If it is unavailable, run npx skills add vercel/vercel-plugin --skill ai-gateway, then find and read its SKILL.md before continuing. Reuse the environment's language, package manager, and AI client when possible; otherwise use cURL. Reuse AI\_GATEWAY\_API\_KEY without exposing it. If the key is missing, use npx vercel@latest to create a team-scoped key without installing the Vercel CLI globally. Ask for the team slug only if the current CLI scope is ambiguous, and capture the new key without printing it. Use openai/gpt-6-astra. Run the request and report only the generated text and any action I need to take.
+
+Show more
+
+Install the [Vercel plugin](/docs/agent-resources/vercel-plugin?from=docs-callout&source_path=%2Fdocs%2Fai-gateway%2Fgetting-started) to give your coding agent Vercel guidance beyond AI Gateway.
+
+`npx plugins add vercel/vercel-plugin`
+
+### Route a coding agent through AI Gateway
+
+Use this path when you want to route a coding agent's own model requests through AI Gateway. The Vercel CLI detects supported agents, including Claude Code, and lets you select which ones to connect:
+
+Terminal
+
+```
+npx vercel@latest ai-gateway setup
+```
+
+The command provisions or reuses an API key, previews its configuration changes, and connects the agents you select. For Claude Code, it uses the dedicated AI Gateway endpoint and adds Gateway models to the `/model` picker. See [Coding Agents](/docs/ai-gateway/coding-agents) for supported agents and manual setup.
+
+## Make your first request
+
+### Create an API key
+
+You need a [Vercel account](https://vercel.com/signup). To use free AI Gateway Credits, [add a valid payment method](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card) to your team. The cURL path needs no runtime. The TypeScript path needs [Node.js 22.18 or later](https://nodejs.org/), and the Python path needs [Python 3.12 or later](https://www.python.org/) with [uv](https://docs.astral.sh/uv/).
+
+Create and export an API key:
+
+1. Open the [Create API Key dialog](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Fapi-keys%3FshowCreateKeyModal%3Dtrue&title=AI+Gateway+API+Keys), enter a name, and select Create API Key. The link opens the dialog directly.
+2. Copy the key immediately and export it in the terminal where you will run the example. You cannot retrieve its value again.
+
+Terminal
+
+```
+export AI_GATEWAY_API_KEY="your_ai_gateway_api_key"
+```
+
+Vercel deployments can use an [OIDC token](/docs/ai-gateway/authentication-and-byok/oidc) instead of a long-lived API key. This tutorial uses an API key so the examples work in any environment.
+
+These examples use `openai/gpt-6-astra` and consume [AI Gateway Credits](/docs/ai-gateway/pricing). You can replace the model slug with any model your team can access. If your team has not purchased credits, choose a [free-tier model](/ai-gateway/models?freeTier=true).
+
+cURLTypeScriptPython
+
+Send a Chat Completions request directly to AI Gateway:
+
+Terminal
+
+```
+curl https://ai-gateway.vercel.sh/v1/chat/completions \
+  -H "Authorization: Bearer $AI_GATEWAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "openai/gpt-6-astra",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Invent a new holiday and describe its traditions."
+      }
+    ]
+  }'
+```
+
+Install the AI SDK:
+
+Terminal
+
+```
+pnpm add ai@latest
+```
+
+Create `index.mts`:
+
+index.mts
+
+```
+import { generateText } from 'ai';
+ 
+const { text } = await generateText({
+  model: 'openai/gpt-6-astra',
+  prompt: 'Invent a new holiday and describe its traditions.',
+});
+ 
+console.log(text);
+```
+
+Run the script:
+
+Terminal
+
+```
+node index.mts
+```
+
+Create `quickstart.py`:
+
+quickstart.py
+
+```
+import asyncio
+import ai
+ 
+ 
+async def main() -> None:
+    model = ai.get_model('openai/gpt-6-astra')
+    messages = [
+        ai.user_message('Invent a new holiday and describe its traditions.')
+    ]
+ 
+    async with ai.stream(model, messages) as stream:
+        async for event in stream:
+            if isinstance(event, ai.events.TextDelta):
+                print(event.chunk, end='', flush=True)
+ 
+    print()
+ 
+ 
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+
+Run the script with the AI SDK for Python:
+
+Terminal
+
+```
+uv run --with ai quickstart.py
+```
+
+### Monitor your request
+
+After the request completes, open [AI Gateway Logs](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Flogs&title=AI+Gateway+Logs) and select the newest request. You can inspect its status, model, provider, token usage, cost, duration, and routing attempts.
+
+Logs may take up to 90 seconds to appear. Refresh the page if you don't see the request.
+
+## Use AI Gateway with existing code
+
+Use a [supported SDK or API](/docs/ai-gateway/sdks-and-apis) to connect an existing client. To move calls from a provider endpoint without changing their behavior, [migrate to AI Gateway](/docs/ai-gateway/getting-started/migrate-to-ai-gateway).
+
+## Next steps
+
+- [Troubleshoot request errors](/docs/ai-gateway/faq#why-did-my-ai-gateway-request-fail) by status code, type, and message
+- Generate [text](/docs/ai-gateway/getting-started/text), [images](/docs/ai-gateway/getting-started/image), [video](/docs/ai-gateway/getting-started/video), [realtime audio](/docs/ai-gateway/getting-started/realtime), or [speech](/docs/ai-gateway/getting-started/speech)
+- Answer typed questions about application state in the [Decision quickstart](/docs/ai-gateway/getting-started/decision)
+- [Browse models](/ai-gateway/models) by capability, provider, price, and free-tier availability, or query [`GET /v1/models`](/docs/ai-gateway/sdks-and-apis/rest-api#list-models)
+- Configure [provider routing](/docs/ai-gateway/models-and-providers/provider-options) and [model fallbacks](/docs/ai-gateway/models-and-providers/model-fallbacks)
+- [Build an agent application](https://ai-sdk.dev/docs/agents/building-agents)

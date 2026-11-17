@@ -20,7 +20,7 @@ function StatusBadge({status}:{status:string}){const item=STATUS[status]||{label
 
 export const DeploymentsTab:React.FC=()=>{
  const [deployments,setDeployments]=useState<Deployment[]>([]),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false),[error,setError]=useState('');
- const [projectName,setProjectName]=useState('velclawhost'),[repoUrl,setRepoUrl]=useState('https://github.com/Velclaw/VelclawHost'),[branch,setBranch]=useState('main');
+ const [projectName,setProjectName]=useState('velclawhost'),[repoUrl,setRepoUrl]=useState('https://github.com/Velclaw/app-velclaw'),[branch,setBranch]=useState('main');
  const load=async()=>{try{const r=await fetch('/api/v1/deployments',{cache:'no-store'}),p=await r.json();if(!r.ok)throw new Error(p.error||'Không thể tải deployments');setDeployments(Array.isArray(p.deployments)?[...p.deployments].reverse():[]);setError('')}catch(e){setError(e instanceof Error?e.message:'Không thể tải deployments')}finally{setLoading(false)}};
  useEffect(()=>{void load();const t=setInterval(()=>void load(),5000);return()=>clearInterval(t)},[]);
  const counts=useMemo(()=>({total:deployments.length,ready:deployments.filter(x=>x.status==='ready').length,active:deployments.filter(x=>['queued','source_validating','building','runtime_provisioning','health_check'].includes(x.status)).length,failed:deployments.filter(x=>x.status.includes('failed')).length}),[deployments]);

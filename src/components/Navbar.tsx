@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, ShieldAlert, Bell, Sun, Moon, Menu, X, Search, ChevronDown, Activity, Mic, Rocket } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Bell, Sun, Moon, Menu, X, Search, ChevronDown, Activity, Rocket } from 'lucide-react';
 import { HostNode, SystemAlert } from '../types';
 
 interface NavbarProps {
@@ -11,7 +11,6 @@ interface NavbarProps {
   isTwoFactorActive: boolean;
   onOpenSecurityModal: () => void;
   onOpenFcmModal: () => void;
-  onOpenVoiceAssistant?: () => void;
   alerts: SystemAlert[];
   isMobileMenuOpen: boolean;
   onToggleMobileMenu: () => void;
@@ -19,23 +18,14 @@ interface NavbarProps {
 }
 
 const VelclawMark = () => (
-  <div className="vh-brand-mark" aria-label="Velclaw">
-    <svg viewBox="0 0 32 32" aria-hidden="true">
-      <defs>
-        <linearGradient id="vh-v" x1="4" y1="4" x2="28" y2="28">
-          <stop stopColor="#a78bfa" />
-          <stop offset=".55" stopColor="#7c3aed" />
-          <stop offset="1" stopColor="#22d3ee" />
-        </linearGradient>
-      </defs>
-      <path fill="url(#vh-v)" d="M4 6h6.1l5.9 12.4L21.9 6H28L18.7 25.5a3 3 0 0 1-5.4 0L4 6Z" />
-    </svg>
+  <div className="vh-brand-mark" aria-label="VelClaw">
+    <img src={`${import.meta.env.BASE_URL}velclaw-icon-dark.svg`} alt="" />
   </div>
 );
 
 export const Navbar: React.FC<NavbarProps> = ({
   nodes, selectedNode, onSelectNode, isDarkMode, onToggleTheme, isTwoFactorActive,
-  onOpenSecurityModal, onOpenFcmModal, onOpenVoiceAssistant, alerts,
+  onOpenSecurityModal, onOpenFcmModal, alerts,
   isMobileMenuOpen, onToggleMobileMenu, onOpenDeployments,
 }) => {
   const [isNodeDropdownOpen, setIsNodeDropdownOpen] = useState(false);
@@ -56,17 +46,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </button>
 
-        <a href="/" className="vh-brand-link" aria-label="VelclawHost home">
+        <a href={import.meta.env.BASE_URL} className="vh-brand-link" aria-label="VelClaw home">
           <VelclawMark />
           <div className="hidden sm:block">
-            <div className="vh-brand-title">VelclawHost</div>
-            <div className="vh-brand-sub">cloud infrastructure</div>
+            <div className="vh-brand-title">VelClaw</div>
+            <div className="vh-brand-sub">CODE. INNOVATE. ELEVATE.</div>
           </div>
         </a>
 
         <div className="vh-top-divider hidden md:block" />
         <div className="vh-breadcrumb-top hidden md:flex">
-          <span>Workspace</span><b>/</b><strong>Production</strong>
+          <span>Workspace</span><b>/</b><strong>Control Plane</strong>
         </div>
 
         <div className="ml-auto flex items-center gap-1.5">
@@ -84,7 +74,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
             {isNodeDropdownOpen && (
               <div className="vh-node-menu">
-                <div className="vh-menu-label">Production host</div>
+                <div className="vh-menu-label">Control plane nodes</div>
                 {nodes.map(node => (
                   <button key={node.id} onClick={() => { onSelectNode(node); setIsNodeDropdownOpen(false); }} className="vh-node-option">
                     <div><strong>{node.hostname}</strong><small>{node.region}</small></div>
@@ -114,12 +104,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             {isTwoFactorActive ? <ShieldCheck className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
             <span className="hidden sm:inline text-[10px]">2FA</span>
           </button>
-
-          {onOpenVoiceAssistant && (
-            <button onClick={onOpenVoiceAssistant} className="vh-icon-button hidden md:flex" title="Velclaw AI">
-              <Mic className="h-3.5 w-3.5" />
-            </button>
-          )}
 
           <button id="fcm-notification-navbar-btn" onClick={onOpenFcmModal} className="vh-icon-button relative" title="Notifications">
             <Bell className="h-3.5 w-3.5" />

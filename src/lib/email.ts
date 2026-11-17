@@ -44,7 +44,7 @@ export async function sendAuthEmail(to: string, subject: string, url: string) {
       from,
       to,
       subject,
-      html: `<main style="font-family:Arial,sans-serif"><h2>VelClawHost</h2><p>${safeSubject}</p><p><a href="${safeUrl}">Tiếp tục</a></p><p>Nếu bạn không yêu cầu thao tác này, hãy bỏ qua email.</p></main>`,
+      html: `<main style="font-family:Arial,sans-serif"><h2>VelClaw</h2><p>${safeSubject}</p><p><a href="${safeUrl}">Tiếp tục</a></p><p>Nếu bạn không yêu cầu thao tác này, hãy bỏ qua email.</p></main>`,
       text: `${subject}\n\n${url}\n\nNếu bạn không yêu cầu thao tác này, hãy bỏ qua email.`,
     }),
   });

@@ -1,0 +1,73 @@
+name: Build VelclawHost Cloudflare Preview Bundle
+
+on:
+  push:
+    branches: ["feat/cloudflare-static-frontend-preview", "fix/cloudflare-preview-edge-hardening"]
+    paths:
+      - "cloudflare/edge-preview-worker.js"
+      - "cloudflare/edge-preview-worker.test.mjs"
+      - "wrangler.edge-preview.toml"
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/deploy-cloudflare-preview.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "cloudflare/**"
+      - "wrangler*.toml"
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
+
+permissions:
+  contents: read
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4"
+      - name: Install dependencies
+        run: bun install
+      - name: Check Worker syntax
+        run: node --check cloudflare/edge-preview-worker.js
+      - name: Run edge preview Worker tests
+        run: node --test cloudflare/edge-preview-worker.test.mjs
+      - name: Build static frontend for Cloudflare
+        run: bunx vite build --outDir dist/cloudflare-assets
+      - name: Verify static output
+        run: |
+          test -s dist/cloudflare-assets/index.html
+          test ! -e dist/cloudflare-assets/server.cjs
+          test ! -e dist/cloudflare-assets/runtime-worker.cjs
+
+      - name: Upload Cloudflare Preview static bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: velclawhost-cloudflare-preview-assets
+          path: dist/cloudflare-assets/
+          if-no-files-found: error
+          retention-days: 3
+      - name: Inspect Cloudflare Preview HTTP responses
+        continue-on-error: true
+        run: |
+          for url in \
+            https://velclawhost-preview.ocodejs.dev/health \
+            https://velclawhost-migration-preview.ocodejs-df1.workers.dev/health; do
+            echo "===== $url ====="
+            curl --silent --show-error --max-time 20 --dump-header - "$url" || true
+            echo
+          done

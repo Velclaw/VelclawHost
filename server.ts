@@ -85,7 +85,7 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
 
-  app.use(express.json());
+  app.use(express.json({ limit: '12mb' }));
 
   // Initialize the deployment queue before any route/worker can invoke runDeploymentJob().
   // Keeping this before the first queue tick avoids a temporal-dead-zone crash during startup.
@@ -102,7 +102,7 @@ async function startServer() {
 
   // API Health Endpoint
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", service: "Velclaw Hosting Platform Server", timestamp: new Date().toISOString() });
+    res.json({ status: "ok", service: "VelClawHost Control Plane API", timestamp: new Date().toISOString() });
   });
 
   // Auth.js is the only browser-session issuer. Express validates the Auth.js
@@ -150,9 +150,10 @@ async function startServer() {
 
   async function callRuntimeWorker(pathname: string, init: RequestInit = {}) {
     if (!runtimeWorkerUrl) throw new Error('RUNTIME_WORKER_URL is not configured.');
+    if (!runtimeWorkerToken) throw new Error('RUNTIME_WORKER_TOKEN is required when using the remote runtime worker.');
     const headers = new Headers(init.headers);
     headers.set('Content-Type', 'application/json');
-    if (runtimeWorkerToken) headers.set('Authorization', 'Bearer ' + runtimeWorkerToken);
+    headers.set('Authorization', 'Bearer ' + runtimeWorkerToken);
     const response = await fetch(runtimeWorkerUrl + pathname, { ...init, headers });
     const text = await response.text();
     let body: any = {};
@@ -1312,112 +1313,152 @@ async function startServer() {
     });
   });
 
-  // AI Voice Command & Diagnostic Endpoint
-  app.post("/api/ai/voice-command", async (req, res) => {
+  // VelClaw AI Ask Command & Diagnostic Endpoint
+  app.post("/api/ai/ask-command", async (req, res) => {
+    const controller = new AbortController();
+    res.on("close", () => {
+      if (!res.writableEnded) controller.abort();
+    });
+
     try {
-      const { command, context } = req.body;
-      if (!command) {
-        return res.status(400).json({ error: "Missing command text" });
+      const { command, context, attachment } = req.body;
+      if (!command && !attachment) return res.status(400).json({ error: "Enter a message or attach a file." });
+
+      const allowedMimeTypes = new Set(["application/pdf", "image/png", "image/jpeg", "image/webp", "text/plain", "text/markdown", "text/csv", "application/json"]);
+      const maxAttachmentBytes = 8 * 1024 * 1024;
+      if (attachment) {
+        if (!allowedMimeTypes.has(attachment.mimeType) || typeof attachment.data !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(attachment.data) || typeof attachment.name !== "string" || attachment.name.length > 180) {
+          return res.status(400).json({ error: "Invalid attachment metadata or Base64 data." });
+        }
+        const decodedAttachment = Buffer.from(attachment.data, "base64");
+        if (decodedAttachment.length > maxAttachmentBytes) return res.status(413).json({ error: "Attachment exceeds the 8 MB limit." });
+        attachment.data = decodedAttachment.toString("base64");
       }
+
+      const cmdLower = String(command || "").toLowerCase();
+      let action: string | null = null;
+      let targetTab: string | null = null;
+      if (/(cpu|ram|tài nguyên|hiệu suất|metrics|biểu đồ)/i.test(cmdLower)) {
+        action = "NAVIGATE"; targetTab = "metrics-charts";
+      } else if (/(cảnh báo|nguy hiểm|alert|incident)/i.test(cmdLower)) {
+        action = "NAVIGATE"; targetTab = "alerts";
+      } else if (/(dns|ssl|chứng chỉ|https)/i.test(cmdLower)) {
+        action = "NAVIGATE"; targetTab = "dns-ssl";
+      } else if (/(cơ sở dữ liệu|database|tối ưu|query)/i.test(cmdLower)) {
+        action = "NAVIGATE"; targetTab = "db-optimizer";
+      } else if (/(bảo mật|2fa|mfa|security)/i.test(cmdLower)) {
+        action = "NAVIGATE"; targetTab = "security-2fa";
+      } else if (/(báo cáo|pdf|csv|xuất report)/i.test(cmdLower)) {
+        action = "OPEN_REPORTS";
+      } else if (/(giả lập|test spike|đột biến|simulate spike)/i.test(cmdLower)) {
+        action = "TRIGGER_SPIKE";
+      }
+
+      const contextBlock = [
+        "Ngữ cảnh máy chủ thời gian thực:",
+        "- Hostname: " + (context?.hostname || "unknown"),
+        "- CPU: " + (context?.cpuUsage ?? "unknown") + "%",
+        "- RAM: " + (context?.ramUsagePercent ?? "unknown") + "%",
+        "- RAM used: " + (context?.ramUsedGb ?? "unknown") + " GB",
+        "- Active alerts: " + (context?.activeAlertsCount ?? 0),
+        "- 2FA: " + (context?.is2FaActive ? "enabled" : "not enabled"),
+        "- P95 latency: " + (context?.latencyMs ?? "unknown") + " ms",
+      ].join("\n");
+      const prompt = [
+        "Bạn là VELCLAW AI, trợ lý DevOps của VelclawHost. Trả lời bằng tiếng Việt, ngắn gọn, chính xác, tối đa 2-4 câu.",
+        "Không khẳng định đã thực hiện thao tác hạ tầng nếu chỉ đang tư vấn. Không bịa số liệu; chỉ dùng ngữ cảnh được cung cấp.",
+        "Yêu cầu: " + (command || "Đọc, tóm tắt và phân tích tệp đính kèm."),
+        attachment ? "Tệp đính kèm: " + attachment.name + ". Phân tích nội dung thực tế của tệp." : "",
+        contextBlock,
+      ].filter(Boolean).join("\n\n");
 
       const ai = getGeminiClient();
-      if (!ai) {
-        // Intelligent fallback when GEMINI_API_KEY is not yet populated
-        const cmdLower = String(command).toLowerCase();
-        let reply = "Tôi đã ghi nhận chỉ lệnh của bạn. Hệ thống máy chủ Velclaw đang vận hành ổn định.";
-        let action: string | null = null;
-        let targetTab: string | null = null;
+      const useGateway = Boolean(process.env.AI_GATEWAY_API_KEY?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim()) && !attachment;
+      const useGemini = Boolean(ai);
 
-        if (cmdLower.includes("cpu") || cmdLower.includes("ram") || cmdLower.includes("tài nguyên") || cmdLower.includes("hiệu suất")) {
-          reply = `CPU hiện tại ở mức ${context?.cpuUsage ?? 42}% và RAM chiếm ${context?.ramUsagePercent ?? 58}%. Đã chuyển bạn tới tab Biểu đồ số liệu.`;
-          action = "NAVIGATE";
-          targetTab = "metrics-charts";
-        } else if (cmdLower.includes("cảnh báo") || cmdLower.includes("nguy hiểm") || cmdLower.includes("alert")) {
-          reply = `Đang có ${context?.activeAlertsCount ?? 0} cảnh báo đang chờ xử lý. Đã chuyển bạn đến trung tâm Cảnh báo để rà soát.`;
-          action = "NAVIGATE";
-          targetTab = "alerts";
-        } else if (cmdLower.includes("dns") || cmdLower.includes("ssl") || cmdLower.includes("chứng chỉ") || cmdLower.includes("https")) {
-          reply = `Chứng chỉ SSL TLS 1.3 Let's Encrypt còn 82 ngày hiệu lực. Bản ghi DNSSEC đang kích hoạt bảo mật.`;
-          action = "NAVIGATE";
-          targetTab = "dns-ssl";
-        } else if (cmdLower.includes("cơ sở dữ liệu") || cmdLower.includes("database") || cmdLower.includes("tối ưu") || cmdLower.includes("query")) {
-          reply = `Hệ thống phân tích đã định vị các truy vấn chậm. Đang mở trung tâm Tối ưu hóa cơ sở dữ liệu.`;
-          action = "NAVIGATE";
-          targetTab = "db-optimizer";
-        } else if (cmdLower.includes("bảo mật") || cmdLower.includes("2fa") || cmdLower.includes("mfa")) {
-          reply = `Xác thực đa yếu tố 2FA đang bảo vệ toàn diện tài khoản quản trị viên huynhthuong.xyz@gmail.com.`;
-          action = "NAVIGATE";
-          targetTab = "security-2fa";
-        } else if (cmdLower.includes("báo cáo") || cmdLower.includes("pdf") || cmdLower.includes("csv") || cmdLower.includes("xuất")) {
-          reply = `Đang mở trình tạo và xuất báo cáo hệ thống định dạng PDF/CSV.`;
-          action = "OPEN_REPORTS";
-        } else if (cmdLower.includes("giả lập") || cmdLower.includes("test spike") || cmdLower.includes("đột biến")) {
-          reply = `Đã kích hoạt giả lập đột biến CPU/RAM để kiểm tra hệ thống thông báo đẩy FCM.`;
-          action = "TRIGGER_SPIKE";
-        }
+      if (!useGateway && !useGemini) {
+        if (attachment) return res.status(503).json({ error: "File analysis is unavailable. Configure GEMINI_API_KEY; the attachment was not analyzed." });
+        let reply = "Tôi đã ghi nhận yêu cầu. Hãy cấu hình AI_GATEWAY_API_KEY hoặc GEMINI_API_KEY để bật phản hồi AI trực tuyến.";
+        if (targetTab === "metrics-charts") reply = "Đang mở biểu đồ CPU và RAM để kiểm tra tài nguyên máy chủ.";
+        else if (targetTab === "alerts") reply = "Đang mở trung tâm cảnh báo để rà soát sự cố đang hoạt động.";
+        else if (targetTab === "dns-ssl") reply = "Đang mở khu vực DNS & SSL để kiểm tra cấu hình.";
+        else if (targetTab === "db-optimizer") reply = "Đang mở công cụ tối ưu cơ sở dữ liệu.";
+        else if (targetTab === "security-2fa") reply = "Đang mở trang bảo mật và xác thực hai yếu tố.";
+        else if (action === "OPEN_REPORTS") reply = "Đang mở trung tâm báo cáo.";
+        else if (action === "TRIGGER_SPIKE") reply = "Đang kích hoạt bài kiểm tra mô phỏng tải.";
+        return res.json({ reply, action, targetTab, source: "local-devops-engine" });
+      }
 
-        return res.json({
-          reply,
-          action,
-          targetTab,
-          source: "local-devops-engine",
+      res.status(200);
+      res.set({
+        "Content-Type": "application/x-ndjson; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+      });
+      res.flushHeaders?.();
+
+      const send = (payload: Record<string, unknown>) => {
+        if (!res.destroyed) res.write(JSON.stringify(payload) + "\n");
+      };
+
+      const streamGemini = async (source: string) => {
+        if (!ai) throw new Error("GEMINI_API_KEY is not configured.");
+        send({ type: "start", source });
+        const contents = attachment
+          ? [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: attachment.mimeType, data: attachment.data } }] }]
+          : prompt;
+        const stream = await ai.models.generateContentStream({
+          model: "gemini-3.8-flash",
+          contents,
+          config: {
+            systemInstruction: "Bạn là VELCLAW AI, Open DevOps assistant. Trả lời bằng tiếng Việt, trung thực về trạng thái hệ thống.",
+          },
         });
+        for await (const chunk of stream) {
+          const delta = chunk.text || "";
+          if (delta) send({ type: "delta", delta });
+        }
+        send({ type: "done", action, targetTab, source: "gemini-3.8-flash" });
+      };
+
+      if (useGateway) {
+        send({ type: "start", source: "vercel-ai-gateway" });
+        // Load the ESM-only AI SDK dynamically: the production server bundle is CommonJS.
+        const { streamText } = await import("ai");
+        const result = streamText({
+          model: "openai/gpt-6-astra",
+          prompt,
+          abortSignal: controller.signal,
+        });
+        let emittedDelta = false;
+        try {
+          for await (const delta of result.textStream) {
+            if (delta) {
+              emittedDelta = true;
+              send({ type: "delta", delta });
+            }
+          }
+          send({ type: "done", action, targetTab, source: "vercel-ai-gateway" });
+        } catch (gatewayError) {
+          if (!ai || emittedDelta || controller.signal.aborted) throw gatewayError;
+          send({ type: "provider_fallback", source: "gemini", reason: "gateway_unavailable" });
+          await streamGemini("gemini-fallback");
+        }
+      } else if (ai) {
+        await streamGemini("gemini");
       }
-
-      // With Gemini API
-      const prompt = `Bạn là Trợ lý Giọng nói AI Cao cấp chuyên về DevOps và Quản trị hạ tầng máy chủ cho nền tảng Velclaw Hosting Platform.
-Người quản trị vừa nói hoặc ra lệnh giọng nói: "${command}".
-
-Ngữ cảnh máy chủ thời gian thực:
-- Hostname: ${context?.hostname || "prod-edge-asia1.velclaw.cfd"}
-- CPU hiện tại: ${context?.cpuUsage || 45}%
-- RAM hiện tại: ${context?.ramUsagePercent || 60}% (${context?.ramUsedGb || 9.6} / 16.0 GB)
-- Cảnh báo đang kích hoạt: ${context?.activeAlertsCount || 0}
-- Trạng thái 2FA: ${context?.is2FaActive ? "Đang bật" : "Chưa bật"}
-- P95 HTTP Latency: ${context?.latencyMs || 12} ms
-
-Yêu cầu:
-1. Trả lời một câu ngắn gọn, súc tích (1-2 câu), chuyên nghiệp bằng tiếng Việt như một kỹ sư DevOps cao cấp.
-2. Quyết định xem có cần thực hiện hành động nào trên giao diện không:
-   - "NAVIGATE" (chuyển tab tới: 'overview', 'domains', 'dns-ssl', 'metrics-charts', 'alerts', 'db-optimizer', 'logs', 'security-2fa', 'api-integration', 'reports')
-   - "TRIGGER_SPIKE" (nếu người dùng muốn thử nghiệm cảnh báo/đột biến tải)
-   - "OPEN_REPORTS" (nếu muốn xuất báo cáo)
-   - "NONE" nếu chỉ là câu hỏi thông tin.
-
-Định dạng trả về duy nhất bằng JSON:
-{
-  "reply": "câu trả lời cho quản trị viên",
-  "action": "NAVIGATE" | "TRIGGER_SPIKE" | "OPEN_REPORTS" | "NONE",
-  "targetTab": "overview" | "domains" | "dns-ssl" | "metrics-charts" | "alerts" | "db-optimizer" | "logs" | "security-2fa" | "api-integration" | "reports" | null
-}`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          systemInstruction: "Bạn là trợ lý điều khiển giọng nói cho hệ thống máy chủ Velclaw Hosting. Luôn phản hồi JSON hợp lệ.",
-        },
-      });
-
-      const responseText = response.text || "{}";
-      let parsed = { reply: "Đã tiếp nhận chỉ lệnh máy chủ.", action: "NONE", targetTab: null };
-      try {
-        parsed = JSON.parse(responseText);
-      } catch {
-        parsed.reply = responseText.replace(/```json|```/g, "").trim();
-      }
-
-      return res.json({
-        reply: parsed.reply,
-        action: parsed.action,
-        targetTab: parsed.targetTab,
-        source: "gemini-3.8-flash",
-      });
+      return res.end();
     } catch (err: any) {
-      console.error("AI Voice Command Error:", err);
+      console.error("VelClaw AI streaming error:", err);
+      if (res.headersSent) {
+        if (!res.destroyed) {
+          res.write(JSON.stringify({ type: "error", error: "AI stream failed. Please retry." }) + "\n");
+          return res.end();
+        }
+      }
       return res.status(500).json({
-        error: "Lỗi xử lý chỉ lệnh giọng nói",
+        error: "Không thể xử lý yêu cầu AI.",
         details: err?.message || String(err),
       });
     }

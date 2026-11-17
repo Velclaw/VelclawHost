@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard, Rocket, Globe, LineChart, BellRing, Database, FileText,
-  ShieldCheck, Webhook, Download, Sparkles, ChevronLeft, ChevronRight,
+  ShieldCheck, Webhook, Download, ChevronLeft, ChevronRight,
   Activity, Settings, ChevronsUpDown, Wrench, Search, Server, Layers3
 } from 'lucide-react';
 import { TabType } from '../types';
+import { AiThinkingIndicator } from './velclaw/AiThinkingIndicator';
 
 interface SidebarProps {
   activeTab: TabType;
@@ -12,7 +13,7 @@ interface SidebarProps {
   isMobileMenuOpen: boolean;
   onCloseMobileMenu: () => void;
   unreadAlertCount: number;
-  onOpenVoiceAssistant?: () => void;
+  onOpenAiAssistant?: () => void;
 }
 
 type NavItem = {
@@ -29,7 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileMenuOpen,
   onCloseMobileMenu,
   unreadAlertCount,
-  onOpenVoiceAssistant,
+  onOpenAiAssistant,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -50,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ]},
     { label: 'Developer', items: [
       { id: 'api-integration', label: 'Integrations', icon: Webhook },
-      { id: 'plugins-tools', label: 'Plugins & Tools', icon: Wrench, badge: 'NEW', tone: 'text-cyan-300 bg-cyan-500/10 border-cyan-500/20' },
+      { id: 'plugins-tools', label: 'Plugins', icon: Wrench, badge: 'NEW', tone: 'text-cyan-300 bg-cyan-500/10 border-cyan-500/20' },
       { id: 'security-2fa', label: 'Security', icon: ShieldCheck },
       { id: 'reports', label: 'Usage & Reports', icon: Download },
     ]},
@@ -76,12 +77,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="vh-sidebar-top">
             <div className="vh-project-switcher">
               <div className="vh-project-logo">
-                <img src="/assets/velclawhost-logo.svg" alt="VelclawHost" />
+                <img src={`${import.meta.env.BASE_URL}velclaw-icon-dark.svg`} alt="VelClaw" />
               </div>
               {!collapsed && (
                 <div className="min-w-0 flex-1">
-                  <div className="vh-project-name">VelclawHost</div>
-                  <div className="vh-project-meta"><span /> production</div>
+                  <div className="vh-project-name">VelClaw</div>
+                  <div className="vh-project-meta"><span /> control plane</div>
                 </div>
               )}
               {!collapsed && <ChevronsUpDown className="h-3.5 w-3.5 text-zinc-600" />}
@@ -91,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="vh-project-context">
                 <Layers3 className="h-3.5 w-3.5" />
                 <span>Infrastructure workspace</span>
-                <span className="ml-auto font-mono text-[9px] text-zinc-600">VH</span>
+                <span className="ml-auto font-mono text-[9px] text-zinc-600">VC</span>
               </div>
             )}
 
@@ -142,14 +143,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
 
           <div className="vh-sidebar-bottom">
-            {onOpenVoiceAssistant && (
+            {onOpenAiAssistant && (
               <button
-                onClick={() => { onOpenVoiceAssistant(); onCloseMobileMenu(); }}
+                onClick={() => { onOpenAiAssistant(); onCloseMobileMenu(); }}
                 className={['vh-ai-button', collapsed ? 'justify-center' : ''].join(' ')}
-                title="Velclaw DevOps AI"
+                title="VelClaw DevOps AI"
               >
-                <Sparkles className="h-4 w-4 shrink-0" />
-                {!collapsed && <span><strong>Velclaw AI</strong><small>Open DevOps assistant</small></span>}
+                <AiThinkingIndicator status="ready" showLabel={false} className="vc-thinking--compact" />
+                {!collapsed && <span><strong>VelClaw AI</strong><small>Open DevOps assistant</small></span>}
               </button>
             )}
 
@@ -157,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="vh-account-card">
                 <div className="vh-avatar">VH</div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[10px] font-medium text-zinc-200">Velclaw account</div>
+                  <div className="truncate text-[10px] font-medium text-zinc-200">VelClaw account</div>
                   <div className="truncate text-[9px] text-zinc-600">Owner · authenticated</div>
                 </div>
                 <Settings className="h-3.5 w-3.5 text-zinc-600" />
@@ -169,7 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Activity className="h-4 w-4 text-emerald-400" />
               ) : (
                 <>
-                  <div className="vh-health-row"><span>Production</span><span className="vh-health"><i /> Healthy</span></div>
+                  <div className="vh-health-row"><span>Control plane</span><span className="vh-health"><i /> Runtime</span></div>
                   <div className="vh-health-host">velclawhost.onrender.com</div>
                 </>
               )}

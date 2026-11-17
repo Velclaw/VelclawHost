@@ -1,9 +1,9 @@
-# VelClawHost Auth — ported from Cloudxx
+# VelClaw Auth — ported from Cloudxx
 
-VelClawHost uses the same Auth.js v5 authentication flow as
+VelClaw uses the same Auth.js v5 authentication flow as
 [Velclaw/Cloudxx](https://github.com/Velclaw/Cloudxx), with product branding
-changed to VelClawHost. The hosting dashboard and control-plane UI remain
-VelClawHost-owned.
+changed to VelClaw. The hosting dashboard and control-plane UI remain
+VelClaw-owned.
 
 ## Included authentication flows
 
