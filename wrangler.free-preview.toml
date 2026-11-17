@@ -1,4 +1,5 @@
 name = "velclawhost-free-preview"
+account_id = "fdf1ce80b330dcf8b0924259b048d39c"
 main = "cloudflare/free-preview-worker.js"
 compatibility_date = "2026-11-17"
 workers_dev = true
