@@ -70,3 +70,16 @@ For a first free Preview, it is safer to keep authentication limited to the alre
 ## Known limitation
 
 This architecture delivers a useful free static-preview workflow, not a free general-purpose container hosting service. A fully featured Docker runtime needs a separate compute provider and is outside the $0 guarantee.
+
+
+## Live Preview deployment
+
+- Cloudflare Pages project: `velclawhost-free-preview`
+- Preview branch: `feat/cloudflare-free-tier-preview`
+- Production deployments: disabled
+- Custom domains and DNS routes: none
+- Latest verified successful deployment: https://9d6f0557.velclawhost-free-preview.pages.dev
+- Project alias: https://velclawhost-free-preview.pages.dev
+- Build command: `bun install && bunx vite build --outDir dist/cloudflare-assets`
+- Pages Functions middleware exposes `/health`, `/api/v1/health`, and `/api/v1/capabilities`.
+- The current deployment is a static Preview only; no Docker runtime, database, authenticated API, or production control plane is claimed.
