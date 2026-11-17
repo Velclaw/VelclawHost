@@ -35,18 +35,20 @@ The migration target is the **OCodeJS Cloudflare account**. All work is isolated
 
 - `cloudflare/edge-preview-worker.js` serves the Vite frontend through the Workers Static Assets binding.
 - `wrangler.edge-preview.toml` builds assets into the isolated `dist/cloudflare-assets` directory and enables SPA fallback.
+- The config attaches only the previously authorized route `velclawhost-preview.ocodejs.dev/*`; it contains no Production route.
 - Only `/health` and `/api/*` execute Worker-first. Static requests are served by the asset binding.
 - The preview Worker forwards same-origin `/api/*` requests to the fixed HTTPS Render origin. It preserves Auth.js cookies, authorization headers, request methods, paths, query strings, and upstream response status.
 - The API bridge is transitional: the backend and session validation still run on Render. It is not a Cloudflare-native control plane and must not be described as a completed Render migration.
 - The bridge rejects missing or non-HTTPS upstream origins, does not accept a caller-supplied destination, disables API caching, and returns bounded errors without leaking upstream exception details.
-- The Worker reports `productionRouting: false`; no production route is declared in Wrangler configuration.
+- `.github/workflows/deploy-cloudflare-preview.yml` builds the frontend and deploys this Preview config using repository secrets; it never deploys Production.
+- The Worker reports `productionRouting: false`; Render remains the rollback origin.
 
 ## Migration gates
 
 - [x] Existing migration branch CI and Docker image builds pass.
 - [x] Initial Preview Worker syntax and unit tests pass.
 - [x] Dedicated feature branch created for the Cloudflare frontend Preview.
-- [ ] Frontend static build and edge proxy tests pass on the new branch.
+- [x] Frontend static build and edge proxy tests pass on the new branch.
 - [ ] Cloudflare Preview Worker deployed with Static Assets and HTTP smoke-tested.
 - [ ] Auth.js login/session validation works end-to-end in Preview through the edge bridge.
 - [ ] Dedicated database provisioned and schema migrations rehearsed with backup/restore.
