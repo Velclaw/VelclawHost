@@ -2,12 +2,14 @@ name: Cloudflare Migration Preview
 
 on:
   push:
-    branches: ["feat/cloudflare-native-migration-preview"]
+    branches:
+      - "feat/cloudflare-native-migration-preview"
+      - "feat/cloudflare-static-frontend-preview"
   pull_request:
     branches: ["main"]
     paths:
       - "cloudflare/**"
-      - "wrangler.preview.toml"
+      - "wrangler*.toml"
       - "docs/CLOUDFLARE_MIGRATION.md"
       - ".github/workflows/cloudflare-migration-preview.yml"
 
@@ -22,7 +24,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4"
+      - name: Install dependencies
+        run: bun install
       - name: Check Worker syntax
-        run: node --check cloudflare/preview-worker.js
-      - name: Run preview Worker tests
-        run: node --test cloudflare/preview-worker.test.mjs
+        run: node --check cloudflare/edge-preview-worker.js
+      - name: Run edge preview Worker tests
+        run: node --test cloudflare/edge-preview-worker.test.mjs
+      - name: Build static frontend for Cloudflare
+        run: bunx vite build --outDir dist/cloudflare-assets
+      - name: Verify static output
+        run: |
+          test -s dist/cloudflare-assets/index.html
+          test ! -e dist/cloudflare-assets/server.cjs
+          test ! -e dist/cloudflare-assets/runtime-worker.cjs
