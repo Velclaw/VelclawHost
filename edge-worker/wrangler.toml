@@ -3,12 +3,13 @@ main = "src/index.ts"
 compatibility_date = "2026-10-06"
 workers_dev = true
 
-# Existing first-party edge route.
+# Cloudflare edge routes; backend origin is supplied by CONTROL_PLANE_ORIGIN.
+# This Worker must never fall back to Render.
+
 [[routes]]
 pattern = "velclaw.site/*"
 zone_name = "velclaw.site"
 
-# Route API traffic through the same Worker to the Render origin.
 [[routes]]
 pattern = "api.velclaw.site/*"
 zone_name = "velclaw.site"
