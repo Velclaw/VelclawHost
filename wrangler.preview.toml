@@ -1,0 +1,7 @@
+name = "velclawhost-migration-preview"
+main = "cloudflare/preview-worker.js"
+compatibility_date = "2026-11-17"
+workers_dev = true
+
+# Deliberately no custom routes, zones, production aliases, or production bindings.
+# This worker is an isolated health/capability preview only.
