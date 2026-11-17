@@ -71,4 +71,13 @@ as working until that repository implements and tests those flows.
 4. Verify browser cookies, exact CORS origin, TLS, and session persistence on the actual VelclawHost hostname.
 5. Set `VITE_AUTH_API_BASE_URL` for a Preview build and only then consider enabling authenticated routes.
 
+
+## Authorization boundary
+
+The account modal and client-side gate are user-experience controls, not a substitute
+for server-side authorization. Any future control-plane API that exposes private
+projects, credentials, deployments, or account data must independently validate
+the gateway session and enforce its own least-privilege policy on every request.
+Do not expose privileged API routes based only on the React `authUser` state.
+
 No production deployment or infrastructure mutation is implied by this document.
