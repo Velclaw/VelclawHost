@@ -4,7 +4,7 @@ import worker from "./edge-preview-worker.js";
 
 const ctx = {};
 
-test("health identifies the Cloudflare frontend preview and preserves Render fallback", async () => {
+test("health identifies the Preview edge and keeps Production disabled", async () => {
   const response = await worker.fetch(
     new Request("https://velclawhost-preview.ocodejs.dev/health"),
     { LEGACY_API_ORIGIN: "https://velclawhost.onrender.com" },
@@ -15,13 +15,13 @@ test("health identifies the Cloudflare frontend preview and preserves Render fal
   assert.equal(response.status, 200);
   assert.equal(body.status, "ok");
   assert.equal(body.stage, "preview-only");
-  assert.equal(body.frontend, "cloudflare-workers-static-assets");
+  assert.equal(body.frontend, "cloudflare-edge-proxy");
   assert.equal(body.api, "render-upstream-preview-bridge");
   assert.equal(body.productionRouting, false);
   assert.equal(body.renderFallbackPreserved, true);
 });
 
-test("API requests are forwarded to the fixed HTTPS origin with path, query, cookie and body", async (t) => {
+test("API requests preserve method, path, query, cookies, authorization and body", async (t) => {
   let observed;
   t.mock.method(globalThis, "fetch", async (request) => {
     observed = request;
@@ -53,21 +53,65 @@ test("API requests are forwarded to the fixed HTTPS origin with path, query, coo
   assert.equal(observed.headers.get("cookie"), "authjs.session-token=preview-session");
   assert.equal(observed.headers.get("authorization"), "Bearer preview-token");
   assert.equal(observed.headers.get("x-velclawhost-edge"), "preview-only");
+  assert.equal(observed.headers.get("x-velclawhost-preview-purpose"), "api");
   assert.deepEqual(await observed.json(), { projectName: "demo" });
   assert.equal(response.headers.get("x-velclawhost-edge"), "preview-only");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
-test("API proxy fails closed when the origin is missing or not HTTPS", async () => {
+test("frontend requests use the same fixed upstream when static assets are not attached", async (t) => {
+  let observed;
+  t.mock.method(globalThis, "fetch", async (request) => {
+    observed = request;
+    return new Response("<html>legacy frontend</html>", {
+      status: 200,
+      headers: { "content-type": "text/html" },
+    });
+  });
+
+  const response = await worker.fetch(
+    new Request("https://velclawhost-preview.ocodejs.dev/projects/demo?tab=logs"),
+    {},
+    ctx,
+  );
+
+  assert.equal(observed.url, "https://velclawhost.onrender.com/projects/demo?tab=logs");
+  assert.equal(observed.headers.get("x-velclawhost-preview-purpose"), "frontend");
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /legacy frontend/);
+});
+
+test("same-origin upstream redirects are rewritten to the Preview hostname", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => new Response(null, {
+    status: 302,
+    headers: { location: "https://velclawhost.onrender.com/login?next=%2Fdashboard" },
+  }));
+
+  const response = await worker.fetch(
+    new Request("https://velclawhost-preview.ocodejs.dev/private"),
+    {},
+    ctx,
+  );
+
+  assert.equal(response.status, 302);
+  assert.equal(
+    response.headers.get("location"),
+    "https://velclawhost-preview.ocodejs.dev/login?next=%2Fdashboard",
+  );
+});
+
+test("upstream origin validation fails closed for non-HTTPS or malformed values", async () => {
   const request = new Request("https://preview.invalid/api/health");
-  const missing = await worker.fetch(request, {}, ctx);
   const unsafe = await worker.fetch(request, {
     LEGACY_API_ORIGIN: "http://127.0.0.1:3000",
   }, ctx);
+  const malformed = await worker.fetch(request, {
+    LEGACY_API_ORIGIN: "https://example.com/path",
+  }, ctx);
 
-  assert.equal(missing.status, 503);
   assert.equal(unsafe.status, 503);
-  assert.equal((await unsafe.json()).code, "PREVIEW_API_ORIGIN_NOT_CONFIGURED");
+  assert.equal(malformed.status, 503);
+  assert.equal((await unsafe.json()).code, "PREVIEW_UPSTREAM_ORIGIN_NOT_CONFIGURED");
 });
 
 test("upstream failures return a bounded 502 response", async (t) => {
@@ -77,17 +121,17 @@ test("upstream failures return a bounded 502 response", async (t) => {
 
   const response = await worker.fetch(
     new Request("https://preview.invalid/api/health"),
-    { LEGACY_API_ORIGIN: "https://velclawhost.onrender.com" },
+    {},
     ctx,
   );
   const body = await response.json();
 
   assert.equal(response.status, 502);
-  assert.equal(body.code, "PREVIEW_API_UPSTREAM_UNAVAILABLE");
+  assert.equal(body.code, "PREVIEW_UPSTREAM_UNAVAILABLE");
   assert.equal(JSON.stringify(body).includes("private upstream detail"), false);
 });
 
-test("non-API requests are served by the static asset binding", async () => {
+test("static requests use Workers Static Assets when the binding exists", async () => {
   let servedUrl = "";
   const response = await worker.fetch(
     new Request("https://preview.invalid/projects/123"),
@@ -95,7 +139,7 @@ test("non-API requests are served by the static asset binding", async () => {
       ASSETS: {
         async fetch(request) {
           servedUrl = request.url;
-          return new Response("<main>VelclawHost Preview</main>", {
+          return new Response("<main>VelclawHost Static Preview</main>", {
             headers: { "content-type": "text/html" },
           });
         },
@@ -106,15 +150,5 @@ test("non-API requests are served by the static asset binding", async () => {
 
   assert.equal(servedUrl, "https://preview.invalid/projects/123");
   assert.equal(response.status, 200);
-  assert.match(await response.text(), /VelclawHost Preview/);
-});
-
-test("static requests fail clearly if the asset binding is absent", async () => {
-  const response = await worker.fetch(
-    new Request("https://preview.invalid/"),
-    {},
-    ctx,
-  );
-  assert.equal(response.status, 503);
-  assert.equal((await response.json()).code, "PREVIEW_ASSETS_NOT_BOUND");
+  assert.match(await response.text(), /VelclawHost Static Preview/);
 });
