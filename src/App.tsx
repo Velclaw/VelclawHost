@@ -135,6 +135,11 @@ export default function App() {
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authUser, setAuthUser] = useState<AuthGatewayUser | null>(null);
+  const authGatewayConfigured = Boolean(import.meta.env.VITE_AUTH_API_BASE_URL?.trim());
+
+  useEffect(() => {
+    if (authGatewayConfigured) setIsAuthModalOpen(true);
+  }, [authGatewayConfigured]);
   const [toastNotification, setToastNotification] = useState<{ title: string; message: string; type: 'warn' | 'crit' | 'info' } | null>(null);
 
   // Audio synthesizer for alert beep
@@ -866,8 +871,9 @@ export default function App() {
       {isAuthModalOpen && (
         <AuthGatewayModal
           open={isAuthModalOpen}
-          onClose={() => setIsAuthModalOpen(false)}
+          onClose={() => { if (!authGatewayConfigured || authUser) setIsAuthModalOpen(false); }}
           currentUser={authUser}
+          requireAuth={authGatewayConfigured}
           onAuthenticated={setAuthUser}
           onSignedOut={() => setAuthUser(null)}
         />
