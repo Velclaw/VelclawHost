@@ -2,7 +2,7 @@ name: Build VelclawHost Cloudflare Preview Bundle
 
 on:
   push:
-    branches: ["feat/cloudflare-static-frontend-preview"]
+    branches: ["feat/cloudflare-static-frontend-preview", "fix/cloudflare-preview-edge-hardening"]
     paths:
       - "cloudflare/edge-preview-worker.js"
       - "cloudflare/edge-preview-worker.test.mjs"

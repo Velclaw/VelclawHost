@@ -1,7 +1,6 @@
 name = "velclawhost-migration-preview"
 main = "cloudflare/edge-preview-worker.js"
 compatibility_date = "2026-11-17"
-account_id = "fdf1ce80b330dcf8b0924259b048d39c"
 workers_dev = true
 routes = [
   { pattern = "velclawhost-preview.ocodejs.dev/*", zone_name = "ocodejs.dev" }
@@ -10,11 +9,12 @@ routes = [
 [assets]
 directory = "./dist/cloudflare-assets"
 binding = "ASSETS"
-run_worker_first = ["/health", "/api/*"]
+run_worker_first = ["/health", "/api", "/api/*"]
 not_found_handling = "single-page-application"
 
 [vars]
 LEGACY_API_ORIGIN = "https://velclawhost.onrender.com"
 
 # This configuration attaches only the previously authorized Preview hostname.
+# Cloudflare account selection is supplied by the deploy environment.
 # Do not add production routes, aliases, or bindings.

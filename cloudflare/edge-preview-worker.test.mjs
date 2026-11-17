@@ -21,6 +21,15 @@ test("health identifies the Preview edge and keeps Production disabled", async (
   assert.equal(body.renderFallbackPreserved, true);
 });
 
+test("health reports static assets only when a fetch binding is callable", async () => {
+  const response = await worker.fetch(
+    new Request("https://preview.invalid/health"),
+    { ASSETS: {} },
+    ctx,
+  );
+  assert.equal((await response.json()).frontend, "cloudflare-edge-proxy");
+});
+
 test("API requests preserve method, path, query, cookies, authorization and body", async (t) => {
   let observed;
   t.mock.method(globalThis, "fetch", async (request) => {
@@ -59,15 +68,14 @@ test("API requests preserve method, path, query, cookies, authorization and body
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
-test("frontend requests use the same fixed upstream when static assets are not attached", async (t) => {
-  let observed;
-  t.mock.method(globalThis, "fetch", async (request) => {
-    observed = request;
-    return new Response("<html>legacy frontend</html>", {
-      status: 200,
-      headers: { "content-type": "text/html" },
-    });
-  });
+test("frontend fallback preserves upstream cache headers", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => new Response("<html>legacy frontend</html>", {
+    status: 200,
+    headers: {
+      "content-type": "text/html",
+      "cache-control": "public, max-age=120",
+    },
+  }));
 
   const response = await worker.fetch(
     new Request("https://velclawhost-preview.ocodejs.dev/projects/demo?tab=logs"),
@@ -75,13 +83,12 @@ test("frontend requests use the same fixed upstream when static assets are not a
     ctx,
   );
 
-  assert.equal(observed.url, "https://velclawhost.onrender.com/projects/demo?tab=logs");
-  assert.equal(observed.headers.get("x-velclawhost-preview-purpose"), "frontend");
   assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "public, max-age=120");
   assert.match(await response.text(), /legacy frontend/);
 });
 
-test("same-origin upstream redirects are rewritten to the Preview hostname", async (t) => {
+test("same-origin upstream redirects are rewritten to Preview and not cached", async (t) => {
   t.mock.method(globalThis, "fetch", async () => new Response(null, {
     status: 302,
     headers: { location: "https://velclawhost.onrender.com/login?next=%2Fdashboard" },
@@ -98,6 +105,30 @@ test("same-origin upstream redirects are rewritten to the Preview hostname", asy
     response.headers.get("location"),
     "https://velclawhost-preview.ocodejs.dev/login?next=%2Fdashboard",
   );
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("upstream cookies are rebound as host-only Preview cookies", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => {
+    const headers = new Headers();
+    headers.append("set-cookie", "authjs.session-token=abc; Path=/; Domain=velclawhost.onrender.com; HttpOnly; Secure; SameSite=Lax");
+    headers.append("set-cookie", "csrf-token=xyz; Path=/; Domain=.onrender.com; Secure; SameSite=Lax");
+    return new Response("ok", { status: 200, headers });
+  });
+
+  const response = await worker.fetch(
+    new Request("https://velclawhost-preview.ocodejs.dev/api/auth/session"),
+    {},
+    ctx,
+  );
+  const cookies = response.headers.getSetCookie();
+
+  assert.equal(cookies.length, 2);
+  assert.match(cookies[0], /authjs\.session-token=abc/);
+  assert.match(cookies[0], /HttpOnly/);
+  assert.doesNotMatch(cookies[0], /Domain=/i);
+  assert.match(cookies[1], /csrf-token=xyz/);
+  assert.doesNotMatch(cookies[1], /Domain=/i);
 });
 
 test("upstream origin validation fails closed for non-HTTPS or malformed values", async () => {

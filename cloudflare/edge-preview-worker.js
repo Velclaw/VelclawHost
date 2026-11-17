@@ -31,6 +31,18 @@ function getLegacyOrigin(value) {
   }
 }
 
+function getSetCookieHeaders(headers) {
+  if (typeof headers.getSetCookie === "function") {
+    return headers.getSetCookie();
+  }
+  const single = headers.get("set-cookie");
+  return single ? [single] : [];
+}
+
+function bindCookieToPreviewHost(cookie) {
+  return cookie.replace(/;\s*domain=[^;]*/gi, "");
+}
+
 async function proxyRequest(request, env, purpose) {
   const configuredOrigin = env.LEGACY_API_ORIGIN ?? DEFAULT_LEGACY_ORIGIN;
   const origin = getLegacyOrigin(configuredOrigin);
@@ -60,7 +72,14 @@ async function proxyRequest(request, env, purpose) {
     const upstreamResponse = await fetch(upstreamRequest);
     const responseHeaders = new Headers(upstreamResponse.headers);
     responseHeaders.set("x-velclawhost-edge", STAGE);
-    responseHeaders.set("cache-control", "no-store");
+
+    const cookies = getSetCookieHeaders(upstreamResponse.headers);
+    if (cookies.length > 0) {
+      responseHeaders.delete("set-cookie");
+      for (const cookie of cookies) {
+        responseHeaders.append("set-cookie", bindCookieToPreviewHost(cookie));
+      }
+    }
 
     const location = responseHeaders.get("location");
     if (location) {
@@ -74,6 +93,10 @@ async function proxyRequest(request, env, purpose) {
       } catch {
         // Preserve non-URL Location values exactly as returned by the upstream.
       }
+    }
+
+    if (purpose === "api" || (upstreamResponse.status >= 300 && upstreamResponse.status < 400)) {
+      responseHeaders.set("cache-control", "no-store");
     }
 
     return new Response(upstreamResponse.body, {
@@ -93,13 +116,14 @@ async function proxyRequest(request, env, purpose) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const hasAssets = Boolean(env.ASSETS && typeof env.ASSETS.fetch === "function");
 
     if (url.pathname === "/health") {
       return json({
         status: "ok",
         service: SERVICE,
         stage: STAGE,
-        frontend: env.ASSETS ? "cloudflare-workers-static-assets" : "cloudflare-edge-proxy",
+        frontend: hasAssets ? "cloudflare-workers-static-assets" : "cloudflare-edge-proxy",
         api: "render-upstream-preview-bridge",
         productionRouting: false,
         renderFallbackPreserved: true,
@@ -111,12 +135,10 @@ export default {
       return proxyRequest(request, env, "api");
     }
 
-    if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
+    if (hasAssets) {
       return env.ASSETS.fetch(request);
     }
 
-    // Direct API deployment fallback: keep the Preview usable while the
-    // repository's Wrangler token is repaired for Static Assets uploads.
     return proxyRequest(request, env, "frontend");
   },
 };
