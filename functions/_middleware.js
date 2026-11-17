@@ -1,5 +1,5 @@
 // Pages Preview middleware: API endpoints stay read-only in the $0 deployment mode.
-// The Pages build uses Bun and refreshes the dependency lock when package.json changes.
+// The Pages build installs the Bun lockfile in the isolated Preview build container.
 const STAGE = "preview-only";
 
 function json(body, status = 200) {
