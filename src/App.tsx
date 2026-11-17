@@ -580,7 +580,6 @@ export default function App() {
         isTwoFactorActive={twoFactor.enabled && twoFactor.verified}
         onOpenSecurityModal={() => navigateTab('security-2fa')}
         onOpenFcmModal={() => setIsFcmModalOpen(true)}
-        onOpenAiAssistant={() => setIsVoiceAssistantOpen(true)}
         alerts={alerts}
         isMobileMenuOpen={isMobileMenuOpen}
         onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -596,7 +595,7 @@ export default function App() {
           isMobileMenuOpen={isMobileMenuOpen}
           onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
           unreadAlertCount={unreadAlertsCount}
-          onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
+          onOpenAiAssistant={() => setIsVoiceAssistantOpen(true)}
         />
 
         {/* Main Content Viewport */}
