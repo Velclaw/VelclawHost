@@ -1,3 +1,4 @@
+// Pages Preview middleware: API endpoints stay read-only in the $0 deployment mode.
 const STAGE = "preview-only";
 
 function json(body, status = 200) {
