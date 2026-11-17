@@ -1,0 +1,15 @@
+name = "velclawhost-migration-preview"
+main = "cloudflare/edge-preview-worker.js"
+compatibility_date = "2026-11-17"
+workers_dev = true
+
+[assets]
+directory = "./dist/cloudflare-assets"
+binding = "ASSETS"
+run_worker_first = ["/health", "/api/*"]
+not_found_handling = "single-page-application"
+
+[vars]
+LEGACY_API_ORIGIN = "https://velclawhost.onrender.com"
+
+# This configuration is Preview-only. Do not add production routes or aliases.
