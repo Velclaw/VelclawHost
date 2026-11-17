@@ -53,6 +53,14 @@ jobs:
           test -s dist/cloudflare-assets/index.html
           test ! -e dist/cloudflare-assets/server.cjs
           test ! -e dist/cloudflare-assets/runtime-worker.cjs
+
+      - name: Upload Cloudflare Preview static bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: velclawhost-cloudflare-preview-assets
+          path: dist/cloudflare-assets/
+          if-no-files-found: error
+          retention-days: 3
       - name: Inspect Cloudflare Preview HTTP responses
         continue-on-error: true
         run: |
