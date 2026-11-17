@@ -12,7 +12,7 @@ The migration target is the **OCodeJS Cloudflare account**. All work is isolated
 - Prisma is configured for PostgreSQL; the current schema contains users, OAuth accounts, sessions, verification tokens, and rate-limit state.
 - Deployment queue state uses PostgreSQL when configured and otherwise falls back to process memory.
 - The runtime worker uses Node APIs, filesystem, Git subprocesses, Docker CLI, dynamic host ports, and long-running containers.
-- The existing edge Worker proxies requests to `https://velclawhost.onrender.com`; it is not a Cloudflare-native control plane.
+- The current Render service remains the origin for the application and API during Preview.
 
 ## Target architecture
 
@@ -31,25 +31,27 @@ The migration target is the **OCodeJS Cloudflare account**. All work is isolated
 - `wrangler.preview.toml` has workers.dev enabled and defines no custom domain routes or production bindings.
 - Its tests verify preview identity, truthful capability reporting, 404 handling, and method restrictions.
 
-### Phase 2 — Cloudflare frontend edge preview
+### Phase 2 — Cloudflare edge Preview bridge
 
-- `cloudflare/edge-preview-worker.js` serves the Vite frontend through the Workers Static Assets binding.
-- `wrangler.edge-preview.toml` builds assets into the isolated `dist/cloudflare-assets` directory and enables SPA fallback.
-- The config attaches only the previously authorized route `velclawhost-preview.ocodejs.dev/*`; it contains no Production route.
-- Only `/health` and `/api/*` execute Worker-first. Static requests are served by the asset binding.
-- The preview Worker forwards same-origin `/api/*` requests to the fixed HTTPS Render origin. It preserves Auth.js cookies, authorization headers, request methods, paths, query strings, and upstream response status.
-- The API bridge is transitional: the backend and session validation still run on Render. It is not a Cloudflare-native control plane and must not be described as a completed Render migration.
-- The bridge rejects missing or non-HTTPS upstream origins, does not accept a caller-supplied destination, disables API caching, and returns bounded errors without leaking upstream exception details.
-- `.github/workflows/deploy-cloudflare-preview.yml` builds the frontend and deploys this Preview config using repository secrets; it never deploys Production.
-- The Worker reports `productionRouting: false`; Render remains the rollback origin.
+- `cloudflare/edge-preview-worker.js` provides a Preview-only edge entry point.
+- `wrangler.edge-preview.toml` describes the future Workers Static Assets deployment and attaches only the previously authorized route `velclawhost-preview.ocodejs.dev/*`.
+- When an Assets binding is attached, static requests are served by Cloudflare Workers Static Assets.
+- During the initial API deployment, the Worker can also proxy frontend requests to the fixed Render origin so the Preview remains usable before the static asset upload is available.
+- Same-origin `/api/*` requests are forwarded to the fixed HTTPS Render origin. The bridge preserves cookies, authorization headers, methods, paths, query strings, request bodies, and upstream response status.
+- Same-origin upstream redirects are rewritten to the Preview hostname. API and frontend responses are marked `no-store`.
+- The bridge rejects missing or non-HTTPS upstream origins, does not accept a caller-supplied destination, and returns bounded errors without leaking upstream exception details.
+- This is a transitional edge bridge: the backend, Auth.js session validation, database, queue, and container runtime still run outside Cloudflare. It is not a completed Render migration.
+- `cloudflare/edge-preview-worker.test.mjs` verifies API forwarding, cookies, redirect rewriting, safe upstream validation, frontend fallback, and static asset binding behavior.
+- `Build VelclawHost Cloudflare Preview Bundle` runs syntax tests, unit tests, and a clean Vite static build. The Cloudflare GitHub Actions token currently lacks permission to deploy Workers; the Worker deployment is therefore performed through the connected OCodeJS Cloudflare account, not by weakening permissions or changing Production.
+- Render remains the rollback origin; Production routing remains disabled.
 
 ## Migration gates
 
 - [x] Existing migration branch CI and Docker image builds pass.
 - [x] Initial Preview Worker syntax and unit tests pass.
 - [x] Dedicated feature branch created for the Cloudflare frontend Preview.
-- [x] Frontend static build and edge proxy tests pass on the new branch.
-- [ ] Cloudflare Preview Worker deployed with Static Assets and HTTP smoke-tested.
+- [x] Vite static build and edge proxy tests pass on the feature branch.
+- [ ] Cloudflare Preview Worker deployed and HTTP smoke-tested.
 - [ ] Auth.js login/session validation works end-to-end in Preview through the edge bridge.
 - [ ] Dedicated database provisioned and schema migrations rehearsed with backup/restore.
 - [ ] Durable queue supports idempotency, retries, dead-letter handling, and recovery.
