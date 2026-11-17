@@ -1,0 +1,28 @@
+name: Cloudflare Migration Preview
+
+on:
+  push:
+    branches: ["feat/cloudflare-native-migration-preview"]
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "cloudflare/**"
+      - "wrangler.preview.toml"
+      - "docs/CLOUDFLARE_MIGRATION.md"
+      - ".github/workflows/cloudflare-migration-preview.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  preview-worker-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check Worker syntax
+        run: node --check cloudflare/preview-worker.js
+      - name: Run preview Worker tests
+        run: node --test cloudflare/preview-worker.test.mjs
