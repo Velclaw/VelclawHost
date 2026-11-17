@@ -1,6 +1,7 @@
 name = "velclawhost-migration-preview"
 main = "cloudflare/edge-preview-worker.js"
 compatibility_date = "2026-11-17"
+account_id = "fdf1ce80b330dcf8b0924259b048d39c"
 workers_dev = true
 routes = [
   { pattern = "velclawhost-preview.ocodejs.dev/*", zone_name = "ocodejs.dev" }
