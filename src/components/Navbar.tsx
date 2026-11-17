@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, ShieldAlert, Bell, Sun, Moon, Menu, X, Search, ChevronDown, Activity, Rocket } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Bell, Sun, Moon, Menu, X, Search, ChevronDown, Activity, Rocket, UserRound } from 'lucide-react';
 import { HostNode, SystemAlert } from '../types';
 
 interface NavbarProps {
@@ -15,6 +15,8 @@ interface NavbarProps {
   isMobileMenuOpen: boolean;
   onToggleMobileMenu: () => void;
   onOpenDeployments?: () => void;
+  authUserEmail?: string | null;
+  onOpenAccount: () => void;
 }
 
 const VelclawMark = () => (
@@ -26,7 +28,7 @@ const VelclawMark = () => (
 export const Navbar: React.FC<NavbarProps> = ({
   nodes, selectedNode, onSelectNode, isDarkMode, onToggleTheme, isTwoFactorActive,
   onOpenSecurityModal, onOpenFcmModal, alerts,
-  isMobileMenuOpen, onToggleMobileMenu, onOpenDeployments,
+  isMobileMenuOpen, onToggleMobileMenu, onOpenDeployments, authUserEmail, onOpenAccount,
 }) => {
   const [isNodeDropdownOpen, setIsNodeDropdownOpen] = useState(false);
   const [timeString, setTimeString] = useState('');
@@ -114,7 +116,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             {isDarkMode ? <Sun className="h-3.5 w-3.5 text-amber-300" /> : <Moon className="h-3.5 w-3.5 text-cyan-300" />}
           </button>
 
-          <div className="vh-user-chip hidden sm:flex">VH</div>
+          <button type="button" onClick={onOpenAccount} className="vh-icon-button max-w-[180px]" title={authUserEmail || "Sign in to VelclawHost"} aria-label={authUserEmail ? `Account ${authUserEmail}` : "Sign in"}>
+            <UserRound className="h-3.5 w-3.5" />
+            <span className="hidden md:inline max-w-[120px] truncate text-[10px]">{authUserEmail ? authUserEmail.split("@")[0] : "Sign in"}</span>
+          </button>
         </div>
       </div>
     </header>
