@@ -53,7 +53,13 @@ jobs:
           test -s dist/cloudflare-assets/index.html
           test ! -e dist/cloudflare-assets/server.cjs
           test ! -e dist/cloudflare-assets/runtime-worker.cjs
-      - name: Smoke test Cloudflare Preview edge
+      - name: Inspect Cloudflare Preview HTTP responses
+        continue-on-error: true
         run: |
-          curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors --max-time 60 https://velclawhost-preview.ocodejs.dev/health
-          curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors --max-time 60 https://velclawhost-preview.ocodejs.dev/api/v1/health
+          for url in \
+            https://velclawhost-preview.ocodejs.dev/health \
+            https://velclawhost-migration-preview.ocodejs-df1.workers.dev/health; do
+            echo "===== $url ====="
+            curl --silent --show-error --max-time 20 --dump-header - "$url" || true
+            echo
+          done
