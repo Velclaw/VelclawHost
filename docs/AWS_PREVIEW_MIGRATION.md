@@ -59,7 +59,7 @@ Potential recurring costs begin when infrastructure is provisioned or used. ALB,
 ## Verification and cutover
 
 - Build and push immutable image tags using commit SHA.
-- Run the control plane in an isolated Preview service and verify `/api/health`.
+- Run the control plane in an isolated Preview service and verify `GET /api/v1/health` (the server also retains `GET /api/health` for compatibility).
 - Verify Auth.js callback/cookie behavior using the Preview hostname.
 - Verify database connectivity and queue persistence with a dedicated Preview database.
 - Verify runtime worker deployment, tenant isolation, capacity limits, and teardown.
@@ -74,6 +74,5 @@ The first application-code review identified additional gates before any worker 
 - The worker's runtime registry is currently held in process memory. A worker restart loses its deployment-to-container map and allocated-port bookkeeping; implement Docker-label reconciliation and durable metadata before production use.
 - The runtime worker requires access to a Docker daemon. Its container image installs the Docker CLI/engine package but does not itself establish a daemon or a secure socket binding. The EC2 host design must define daemon ownership, socket exposure, IAM, network boundaries, disk quotas, cleanup, and tenant isolation.
 - The control plane currently contains a direct Docker execution path as well as a remote-worker path. AWS Preview must explicitly select the remote executor and must not accidentally schedule customer builds on the Fargate control-plane task.
-- Do not deploy the worker as a privileged Fargate task or expose an unauthenticated Docker socket. Keep worker ingress private and authenticated.
 
 These are code/design gates, not evidence of a deployed service. The AWS account still has no Preview stack, ECS cluster, or ECR repositories. Cost Explorer access is disabled and no AWS Budgets were returned, so a reliable cost estimate cannot yet be generated from account billing data.
