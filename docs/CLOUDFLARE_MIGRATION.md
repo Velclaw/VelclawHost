@@ -34,35 +34,31 @@ The migration target is the **OCodeJS Cloudflare account**. All work is isolated
 ### Phase 2 — Cloudflare edge Preview bridge
 
 - `cloudflare/edge-preview-worker.js` provides a Preview-only edge entry point.
-- `wrangler.edge-preview.toml` describes the future Workers Static Assets deployment and attaches only the previously authorized route `velclawhost-preview.ocodejs.dev/*`.
+- `wrangler.edge-preview.toml` attaches only the previously authorized route `velclawhost-preview.ocodejs.dev/*`.
 - When an Assets binding is attached, static requests are served by Cloudflare Workers Static Assets.
-- During the initial API deployment, the Worker can also proxy frontend requests to the fixed Render origin so the Preview remains usable before the static asset upload is available.
-- Same-origin `/api/*` requests are forwarded to the fixed HTTPS Render origin. The bridge preserves cookies, authorization headers, methods, paths, query strings, request bodies, and upstream response status.
-- Same-origin upstream redirects are rewritten to the Preview hostname. API and frontend responses are marked `no-store`.
+- Before the asset bundle is attached, the Worker proxies frontend requests to the fixed Render origin so the Preview remains available through the same hostname.
+- Same-origin `/api` and `/api/*` requests are forwarded to the fixed HTTPS Render origin. The Wrangler `run_worker_first` list includes both exact `/api` and nested `/api/*` paths.
+- The bridge preserves cookies, authorization headers, methods, paths, query strings, request bodies, and upstream response status.
+- Upstream `Set-Cookie` Domain attributes are stripped so cookies become host-only on the Preview hostname. Same-origin upstream redirects are rewritten to the Preview hostname.
+- API responses and redirects are marked `no-store`; frontend fallback responses retain the upstream cache policy.
 - The bridge rejects missing or non-HTTPS upstream origins, does not accept a caller-supplied destination, and returns bounded errors without leaking upstream exception details.
 - This is a transitional edge bridge: the backend, Auth.js session validation, database, queue, and container runtime still run outside Cloudflare. It is not a completed Render migration.
-- `cloudflare/edge-preview-worker.test.mjs` verifies API forwarding, cookies, redirect rewriting, safe upstream validation, frontend fallback, and static asset binding behavior.
-- `Build VelclawHost Cloudflare Preview Bundle` runs syntax tests, unit tests, and a clean Vite static build. The Cloudflare GitHub Actions token currently lacks permission to deploy Workers; the Worker deployment is therefore performed through the connected OCodeJS Cloudflare account, not by weakening permissions or changing Production.
+- The build/test workflow validates Worker syntax, API forwarding, cookie rebinding, redirect rewriting, static asset behavior, and Vite output. It uploads the static bundle as a short-lived CI artifact.
+- No Cloudflare account ID or secret is hardcoded in source. Cloudflare account selection is supplied by the deployment environment.
+- The `ocodejs.dev` zone is in Under Attack mode with Bot Fight Mode enabled. External requests to the Preview hostname can receive a Cloudflare challenge before reaching the Worker. No zone-wide security setting or hostname-scoped WAF exception is changed by this migration.
 - Render remains the rollback origin; Production routing remains disabled.
-
-### Preview access gate
-
-- Cloudflare API confirms the Preview DNS CNAME and Worker route are configured. GitHub Actions resolves the custom hostname, but the request receives HTTP 403 with `cf-mitigated: challenge` before the Worker handler runs.
-- The `ocodejs.dev` zone currently has `security_level=under_attack`, and Bot Management reports `fight_mode=true`. This is consistent with the challenge response.
-- The account-level Access app for Worker preview URLs is separate; no Access application is attached to the `ocodejs.dev` zone.
-- No security setting or WAF rule was changed. Do not lower zone-wide protection to make this Preview work. A hostname-scoped security exception would require separate approval.
 
 ## Migration gates
 
 - [x] Existing migration branch CI and Docker image builds pass.
 - [x] Initial Preview Worker syntax and unit tests pass.
-- [x] Dedicated feature branch created for the Cloudflare frontend Preview.
-- [x] Vite static build and edge proxy tests pass on the feature branch.
-- [x] Cloudflare Preview Worker deployed through the OCodeJS API; deployment read-back confirms 100% traffic on the Preview Worker version.
-- [x] Preview DNS CNAME and Worker route read back from Cloudflare API.
-- [ ] HTTP smoke test reaching the Worker handler; currently blocked by the zone's Under Attack/Bot Fight challenge.
-- [ ] Vite static assets uploaded and attached to the Worker (the current deployment reports `has_assets=false`).
-- [ ] Auth.js login/session validation works end-to-end in Preview through the edge bridge.
+- [x] Cloudflare Preview Worker deployed through the OCodeJS account.
+- [x] Preview DNS and Worker route verified through Cloudflare API.
+- [x] Static frontend Vite build passes and is retained as a CI artifact.
+- [x] Edge proxy tests cover API requests, host-only cookies, redirect rewriting, cache policy, and static asset behavior.
+- [ ] Attach the built static assets to the Cloudflare Preview Worker.
+- [ ] External HTTP smoke test passes after the hostname-scoped security challenge is resolved.
+- [ ] Auth.js login/session validation works end-to-end in Preview.
 - [ ] Dedicated database provisioned and schema migrations rehearsed with backup/restore.
 - [ ] Durable queue supports idempotency, retries, dead-letter handling, and recovery.
 - [ ] External runtime supports isolated builds, secrets, logs, cancellation, and health checks.
